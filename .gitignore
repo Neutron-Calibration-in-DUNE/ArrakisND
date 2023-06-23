@@ -1,0 +1,12 @@
+*.pt
+*.npz
+*.root
+*.pyc
+build/
+dist/
+arrakis_nd.egg-info/
+*.checkpoints/
+*.logs/
+*data/
+*.csv
+*plots/
