@@ -6,7 +6,7 @@ with open("README.md", "r") as file:
 
 setup(
     # name
-    name='arrakis-nd',
+    name='arrakis_nd',
 
     # current version
     #   MAJOR VERSION:  00

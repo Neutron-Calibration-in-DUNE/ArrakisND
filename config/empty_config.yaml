@@ -1,0 +1,6 @@
+# Test config for ArrakisND
+arrakis_nd:
+  simulation_folder: "/home/ncarrara/physics/DUNE/workspace"
+  simulation_files: [
+    "MiniRun3_1E19_RHC.flow_v6.00000.FLOW.h5"
+  ]
