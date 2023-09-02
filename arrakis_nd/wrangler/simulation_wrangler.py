@@ -5,10 +5,15 @@ import numpy as np
 from matplotlib import pyplot as plt
 import h5py
 
+from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud
+
 class SimulationWrangler:
     """
     """
     def __init__(self):
+
+        self.det_point_cloud = DetectorPointCloud()
+
         self.trackid_parentid = {}
         self.trackid_pdgcode = {}
         self.trackid_process = {}
@@ -24,6 +29,9 @@ class SimulationWrangler:
 
 
     def clear_event(self):
+
+        self.det_point_cloud.clear()
+
         self.trackid_parentid = {}
         self.trackid_pdgcode = {}
         self.trackid_process = {}
@@ -37,23 +45,27 @@ class SimulationWrangler:
         self.trackid_ancestorlevel = {}
         self.trackid_ancestry = {}
 
+        self.trackid_segmentid = {}
+        self.segmentid_trackid = {}
+
     def process_event(self,
         event_trajectories,
-        event_tracks,
-        event_charge
+        event_segments,
+        event_stacks,
+        hits_back_track,
+        hits
     ):
         self.clear_event()
         self.process_event_trajectories(event_trajectories)
-        self.process_event_tracks(event_tracks)
-        self.process_event_charge(event_charge)
-
-        print(event_charge)
+        self.process_event_stacks(event_stacks)
+        self.process_event_segments(event_segments)
+        self.process_event_hits(hits, hits_back_track)
 
     def process_event_trajectories(self,
         event_trajectories
     ):
         for ii, particle in enumerate(event_trajectories):
-            track_id = particle[2]
+            track_id = particle[2]                          
             self.trackid_parentid[track_id] = particle[4]
             self.trackid_pdgcode[track_id] = particle[13]
             self.trackid_process[track_id] = particle[14]
@@ -87,13 +99,32 @@ class SimulationWrangler:
             self.trackid_ancestorlevel[track_id] = level
             self.trackid_ancestry[track_id] = ancestry
 
-    def process_event_tracks(self,
-        event_tracks
+    def process_event_stacks(self,
+        event_stacks
     ):
         pass
         
-    def process_event_charge(self,
-        event_charge
+    def process_event_segments(self,
+        event_segments
     ):
-        pass
+        for i, segment in enumerate(event_segments):
+            self.trackid_segmentid[segment['track_id']] = segment['segment_id']
+            self.segmentid_trackid[segment['segment_id']] = segment['track_id']
+    
+    def process_event_hits(self,
+        event_hits,
+        event_hits_back_track
+    ):
+        for ii, hit in enumerate(event_hits):
+            segment_ids = event_hits_back_track['segment_id'][ii]
+            self.det_point_cloud.add_point(
+                hit['x'], 
+                hit['y'],
+                hit['z'],
+                hit['t_drift'], 
+                hit['ts_pps'], 
+                hit['Q'], 
+                hit['E'], 
+                segment_ids[segment_ids != 0]
+            )
     
