@@ -8,8 +8,9 @@ import h5py
 import numpy.lib.recfunctions as rfn
 from collections import defaultdict
 import json
+from tqdm import tqdm
 
-from h5flow.core import H5FlowStage, resources
+from h5flow.core import H5FlowStage, H5FlowDataManager, resources
 
 from arrakis_nd.utils.logger import Logger, default_logger
 from arrakis_nd.utils.config import ConfigParser
@@ -160,38 +161,34 @@ class Arrakis(H5FlowStage):
                     data = self.load(source_name, source_slice)
     """
     def __init__(self,
-        config_file:    str="",
+        name:   str='default',
+        config: dict={},
+        meta:   dict={},
+        classname:      str='none',
+        data_manager:   H5FlowDataManager=None,
+        requires:       list=None,
         **params
     ):
-        super(Arrakis, self).__init__(**params)
+        super(Arrakis, self).__init__(
+            name, classname, data_manager, requires, **params
+        )
         self.simulation_wrangler = SimulationWrangler()
         self.simulation_labeling_logic = SimulationLabelingLogic(self.simulation_wrangler)
 
-        self.config_file = config_file
-        if config_file != "":
-            self.config = ConfigParser(config_file).data
-            self.name = "arrakis_nd"
-            self.logger = Logger(self.name, output="both", file_mode='w')
-            system_info = self.logger.get_system_info()
-            for key, value in system_info.items():
-                self.logger.info(f"system_info - {key}: {value}")
-            self.logger.info(f"configuring arrakis_nd.")
-        else:
-            default_logger.error(f"no config file specified for arrakis_nd at constructor.")
-        
-        self.logger.info(f"parsing config file: {config_file}.")
-        self.meta = {}
+        self.name = name + "_arrakis_nd"
+        self.config = config
+        self.meta = meta
+        self.logger = Logger(self.name, output="both", file_mode='w')
+
         self.parse_config()
     
     def init(self, source_name):
-        # declare any new datasets and set dataset metadata, e.g.
-        self.data_manager.set_attrs(
-            self.obj_name,
-            classname=self.classname,
-            class_version=self.class_version,
-            custom_param=self.custom_param
-        )
-        self.data_manager.create_dset(self.obj_name)
+        """
+        This method is run if arrakis is being used in an H5Flow stage.
+        The labels for the dataset are then added as an extra data product
+        for the various arrays (hits).
+        """
+        pass
 
     def set_config(self,
         config_file:    str
@@ -213,8 +210,8 @@ class Arrakis(H5FlowStage):
 
     def parse_input_files(self):
         # default to what's in the configuration file. May decide to deprecate in the future
-        if ("simulation_folder" in self.config['arrakis_nd']):
-            self.simulation_folder = self.config['arrakis_nd']["simulation_folder"]
+        if ("simulation_folder" in self.config):
+            self.simulation_folder = self.config["simulation_folder"]
             self.logger.info(
                 f"Set simulation file folder from configuration. " +
                 f" simulation_folder : {self.simulation_folder}"
@@ -230,9 +227,9 @@ class Arrakis(H5FlowStage):
             self.logger.error(f'No simluation_folder specified in environment or configuration file!')
         if not os.path.isdir(self.simulation_folder):
             self.logger.error(f'Specified simulation folder "{self.simulation_folder}" does not exist!')
-        if ('simulation_files' not in self.config['arrakis_nd']):
+        if ('simulation_files' not in self.config):
             self.logger.error(f'No simulation files specified in configuration file!')
-        self.simulation_files = self.config['arrakis_nd']['simulation_files']
+        self.simulation_files = self.config['simulation_files']
         for ii, simulation_file in enumerate(self.simulation_files):
             if not os.path.isfile(self.simulation_folder + '/' + simulation_file):
                 self.logger.error(f'Specified file "{self.simulation_folder}/{simulation_file}" does not exist!')
@@ -267,7 +264,14 @@ class Arrakis(H5FlowStage):
 
             unique_events = np.unique(segment_events)
             
-            for event in unique_events:
+            event_loop = tqdm(
+                enumerate(unique_events, 0), 
+                total=len(unique_events), 
+                leave=True,
+                position=0,
+                colour='green'
+            )
+            for ii, event in event_loop:
                 trajectory_event_mask = (trajectory_events == event)
                 segment_event_mask = (segment_events == event)
                 stack_event_mask = (stack_events == event)
@@ -277,6 +281,7 @@ class Arrakis(H5FlowStage):
                     axis=1
                 )
                 self.simulation_wrangler.process_event(
+                    event,
                     event_trajectories=trajectories[trajectory_event_mask],
                     event_segments=segments[segment_event_mask],
                     event_stacks=stacks[stack_event_mask],
@@ -284,5 +289,7 @@ class Arrakis(H5FlowStage):
                     hits=hits[hits_back_track_mask]
                 )
                 self.simulation_labeling_logic.process_event()
+                self.simulation_wrangler.save_event()
+                event_loop.set_description(f"Running ArrakisND - Event: [{ii+1}/{len(unique_events)}]")
 
 

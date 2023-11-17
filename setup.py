@@ -50,6 +50,8 @@ setup(
 
     # possible entry point
     entry_points={
-        'console_scripts': [],
+        'console_scripts': [
+            'arrakis_nd = arrakis_nd.programs.run_arrakis:run'
+        ],
     },
 )

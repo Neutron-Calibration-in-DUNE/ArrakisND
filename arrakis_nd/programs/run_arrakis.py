@@ -11,10 +11,10 @@ from time import time
 from datetime import datetime
 import argparse
 
-from blip.dataset.arrakis_nd.utils.logger import Logger, default_logger
-from blip.dataset.arrakis_nd.utils.config import ConfigParser
+from arrakis_nd.utils.logger import Logger, default_logger
+from arrakis_nd.utils.config import ConfigParser
 
-from blip.dataset.arrakis_nd.arrakis.arrakis import Arrakis
+from arrakis_nd.arrakis.arrakis import Arrakis
 
 def run():
     """
@@ -40,37 +40,37 @@ def run():
     logger = Logger(name, output="both", file_mode="w")
     logger.info("configuring arrakis...")
     config = ConfigParser(args.config_file).data
-    if "module" not in config.keys():
-        logger.error(f'"module" section not specified in config!')
-    if "dataset" not in config.keys():
-        logger.error(f'"dataset" section not specified in config!')
+    if 'arrakis_nd' not in config.keys():
+        logger.error(f'arrakis_nd section not in config!')
+    arrakis_nd_config = config['arrakis_nd']
+
     system_info = logger.get_system_info()
     for key, value in system_info.items():
         logger.info(f"system_info - {key}: {value}")
     meta = {
         'config_file':  args.config_file
     }
-    if "verbose" in config["module"]:
-        if not isinstance(config["module"]["verbose"], bool):
-            logger.error(f'"module:verbose" must be of type bool, but got {type(config["module"]["verbose"])}!')
-        meta["verbose"] = config["module"]["verbose"]
+    if "verbose" in arrakis_nd_config:
+        if not isinstance(arrakis_nd_config["verbose"], bool):
+            logger.error(f'"arrakis_nd:verbose" must be of type bool, but got {type(arrakis_nd_config["verbose"])}!')
+        meta["verbose"] = arrakis_nd_config["verbose"]
     else:
         meta["verbose"] = False
     
-    # Eventually we will want to check that the order of the modules makes sense,
+    # Eventually we will want to check that the order of the arrakis_nds makes sense,
     # and that the data products are compatible and available for the different modes.
 
     # check for devices
-    if "gpu" not in config["module"].keys():
-        logger.warn(f'"module:gpu" not specified in config!')
+    if "gpu" not in arrakis_nd_config.keys():
+        logger.warn(f'"arrakis_nd:gpu" not specified in config!')
         gpu = None
     else:
-        gpu = config["module"]["gpu"]
-    if "gpu_device" not in config["module"].keys():
-        logger.warn(f'"module:gpu_device" not specified in config!')
+        gpu = arrakis_nd_config["gpu"]
+    if "gpu_device" not in arrakis_nd_config.keys():
+        logger.warn(f'"arrakis_nd:gpu_device" not specified in config!')
         gpu_device = None
     else:
-        gpu_device = config["module"]["gpu_device"]
+        gpu_device = arrakis_nd_config["gpu_device"]
     
     if torch.cuda.is_available():
         logger.info(f"CUDA is available with devices:")
@@ -101,47 +101,11 @@ def run():
         meta['device'] = torch.device("cpu")
     meta['gpu'] = gpu
     
-    # Configure the dataset
-    logger.info("configuring dataset.")
-    dataset_config = config['dataset']
-    dataset_config["device"] = meta['device']
-    dataset_config["verbose"] = meta["verbose"]
-
-    # default to what's in the configuration file. May decide to deprecate in the future
-    if ("simulation_folder" in dataset_config):
-        simulation_folder = dataset_config["simulation_folder"]
-        logger.info(
-                f"Set simulation file folder from configuration. " +
-                f" simulation_folder : {simulation_folder}"
-                )
-    elif ('BLIP_SIMULATION_PATH' in os.environ ):
-        logger.debug(f'Found BLIP_SIMULATION_PATH in environment')
-        simulation_folder = os.environ['BLIP_SIMULATION_PATH']
-        logger.info(
-                f"Setting simulation path from Enviroment." +
-                f" BLIP_SIMULATION_PATH = {simulation_folder}"
-                )
-    else:
-        logger.error(f'No dataset_folder specified in environment or configuration file!')
-
-    # check for processing simulation files
-    if "simulation_files" in dataset_config and dataset_config["process_simulation"]:
-        if 'simulation_type' not in dataset_config.keys():
-            logger.error(f'simulation_type not specified in dataset config!')
-        if dataset_config["simulation_type"] == "LArSoft":
-            arrakis_dataset = Arrakis(
-                name,
-                dataset_config,
-                meta
-            )
-        elif dataset_config["simulation_type"] == "larnd-sim":
-            arrakis_dataset = ArrakisND(
-                name,
-                dataset_config,
-                meta
-            )
-        else:
-            logger.error(f'specified "dataset:simulation_type" "{dataset_config["simulation_type"]}" not an allowed type!')
+    arrakis_dataset = Arrakis(
+        name,
+        arrakis_nd_config,
+        meta
+    )
 
 if __name__ == "__main__":
     run()

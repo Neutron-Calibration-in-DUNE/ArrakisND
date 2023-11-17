@@ -1,6 +1,11 @@
 # Test config for ArrakisND
 arrakis_nd:
+  process_type:      "npz"  # npz or flow
   simulation_folder: "/home/ncarrara/physics/DUNE/workspace"
   simulation_files: [
     "MiniRun3_1E19_RHC.flow_v6.00000.FLOW.h5"
   ]
+  verbose:  true
+  gpu:      true
+  gpu_device: 0
+
