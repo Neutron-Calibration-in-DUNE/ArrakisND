@@ -295,7 +295,7 @@ class Arrakis(H5FlowStage):
                     event_segments=segment_events[segment_event_mask],
                     event_stacks=stack_events[stack_event_mask],
                     hits_back_track=hit_events[hits_back_track_mask],
-                    hits=hit_events[hits_back_track_mask]
+                    hits=hit_events[hits_back_track_mask] # this is now a duplicate?
                 )
                 self.simulation_labeling_logic.process_event()
                 self.simulation_wrangler.save_event()
