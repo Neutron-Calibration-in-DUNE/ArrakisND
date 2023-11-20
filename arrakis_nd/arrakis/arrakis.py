@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import os
 import sys
+import h5flow
 import h5py
 import numpy.lib.recfunctions as rfn
 from collections import defaultdict
@@ -240,7 +241,8 @@ class Arrakis(H5FlowStage):
 
     def run_arrakis_nd(self):
         for ii, simulation_file in enumerate(self.simulation_files):
-            flow_file = h5py.File(self.simulation_folder + '/' + simulation_file, 'r')
+            #flow_file = h5py.File(self.simulation_folder + '/' + simulation_file, 'r')
+            flow_file = h5flow.data.H5FlowDataManager(self.simulation_folder + '/' + simulation_file, "r")
             try:
                 charge = flow_file['charge']
                 combined = flow_file['combined']
@@ -252,17 +254,20 @@ class Arrakis(H5FlowStage):
             except:
                 self.logger.error(f'there was a problem processing flow file {simulation_file}')
             
-            trajectories = mc_truth['trajectories']['data']
-            segments = mc_truth['segments']['data']
-            stacks = mc_truth['stack']['data']
+            truth = flow_file["/mc_truth/stack", "mc_truth/trajectories", "mc_truth/segments"]
+
+            #trajectories = mc_truth['trajectories']['data']
+            #segments = mc_truth['segments']['data']
+            #stacks = mc_truth['stack']['data']
             hits_back_track = mc_truth['calib_final_hit_backtrack']['data']
             hits = charge['calib_final_hits']['data']
 
-            trajectory_events = trajectories['event_id']
-            segment_events = segments['event_id']
-            stack_events = stacks['event_id']
+            trajectory_events = truth[['event_id','traj_id']]
+            segment_events = truth[['event_id','segment_id']]
+            stack_events = truth['event_id']
 
-            unique_events = np.unique(segment_events)
+            #unique_events = np.unique(segment_events['segment_id']) # gives the unique segment ids
+            unique_events = np.unique(stack_events) # I think we want the event_id instead?
             
             event_loop = tqdm(
                 enumerate(unique_events, 0), 
@@ -272,10 +277,11 @@ class Arrakis(H5FlowStage):
                 colour='green'
             )
             for ii, event in event_loop:
-                trajectory_event_mask = (trajectory_events == event)
-                segment_event_mask = (segment_events == event)
+                trajectory_event_mask = (trajectory_events["event_id"] == event)
+                segment_event_mask = (segment_events["event_id"] == event)
                 stack_event_mask = (stack_events == event)
                 
+                # this will not work, WIP
                 hits_back_track_mask = np.any(
                     np.isin(hits_back_track['segment_id'], segments[segment_event_mask]['segment_id']), 
                     axis=1
