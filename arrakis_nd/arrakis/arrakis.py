@@ -225,7 +225,7 @@ class Arrakis(H5FlowStage):
                 f" ARRAKIS_ND_SIMULATION_PATH = {self.simulation_folder}"
             )
         else:
-            self.logger.error(f'No simluation_folder specified in environment or configuration file!')
+            self.logger.error(f'No simulation_folder specified in environment or configuration file!')
         if not os.path.isdir(self.simulation_folder):
             self.logger.error(f'Specified simulation folder "{self.simulation_folder}" does not exist!')
         if ('simulation_files' not in self.config):
@@ -266,7 +266,7 @@ class Arrakis(H5FlowStage):
             trajectory_events = truth[['event_id','traj_id']]
             segment_events = truth[['event_id','segment_id']]
             stack_events = truth['event_id']
-            hit_events = hits["event_id", "segment_id"]
+            hit_events = hits[["event_id", "segment_id"]]
 
             #unique_events = np.unique(segment_events['segment_id']) # gives the unique segment ids
             unique_events = np.unique(stack_events) # I think we want the event_id instead?
@@ -282,20 +282,16 @@ class Arrakis(H5FlowStage):
                 trajectory_event_mask = (trajectory_events["event_id"] == event)
                 segment_event_mask = (segment_events["event_id"] == event)
                 stack_event_mask = (stack_events == event)
+                hits_back_track_mask = (hit_events['event_id']==event)
                 
-                
-                hits_back_track_mask = np.any(
-                    np.isin(hit_events['event_id'], truth[segment_event_mask]['event_id']), # I think this is still wrong
-                    axis=1
-                )
                 # Work In Progress
                 self.simulation_wrangler.process_event(
                     event,
-                    event_trajectories=trajectory_events[trajectory_event_mask],
-                    event_segments=segment_events[segment_event_mask],
-                    event_stacks=stack_events[stack_event_mask],
-                    hits_back_track=hit_events[hits_back_track_mask],
-                    hits=hit_events[hits_back_track_mask] # this is now a duplicate?
+                    event_trajectories=truth[trajectory_event_mask],
+                    event_segments=truth[segment_event_mask],
+                    event_stacks=truth[stack_event_mask],
+                    hits_back_track=hits[hits_back_track_mask],
+                    hits=hits[hits_back_track_mask] # this is now a duplicate?
                 )
                 self.simulation_labeling_logic.process_event()
                 self.simulation_wrangler.save_event()
