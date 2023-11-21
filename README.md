@@ -13,12 +13,13 @@ Marjolein van Nuland, National Institute for Subatomic Physics (NIKHEF)[mnuland@
 
 1. [ Getting the Repository ](#get)
 2. [ Quick Start ](#quickstart)
-3. [ Usage ](#usage)
-4. [ Versioning ](#versions)
-5. [ Contact (Authors) ](#contact)
-6. [ Citation ](#citation)
-7. [ License ](#license)
-8. [ Support ](#support)
+3. [ Labeling Logic ](#labelinglogic)
+4. [ Usage ](#usage)
+5. [ Versioning ](#versions)
+6. [ Contact (Authors) ](#contact)
+7. [ Citation ](#citation)
+8. [ License ](#license)
+9. [ Support ](#support)
 
 <a name="get"></a>
 ## Getting the Repository
@@ -37,6 +38,31 @@ Please contact Nicholas Carrara, Marjolein van Nuland or Georgette Kufatty about
 
 <a name="quickstart"></a>
 ## Quick Start
+
+<a name="labelinglogic"></a>
+## Labeling Logic
+ArrakisND works in the same spirit as Arrakis, which is the LArSoft version of this software.  The basic idea is to split up the labeling into two stages, the first of which gathers all relevant event information into various maps and arrays that can be queried easily.  The TPC data is organized in the following arrays:
+
+| Feature | Type | Description |
+| ------- | ---- | ----------- |
+| x | float | position of a charge signal along the x direction | 
+| y | float | position of a charge signal along the y direction |
+| z | float | position of a charge signal along the z direction |
+| Q | float | value of the reconstructed charge signal |
+
+The second stage consists of a set of functions, each of which processes different particles and their detector output.  The labeling scheme currently consists of assigning seven different labels to each reconstructed charge/light point in the TPC.  The seven labels are shown in the following tables:
+
+| High-level features | Type | Description|
+| ------- | ---- | ----------- |
+| source | class | denotes the source of the primary interaction (e.g. beam, radiological, pns, etc.) |
+| topology | class | topological descriptor of physics (e.g. blip, track, shower) |
+| particle | class | the pdg code of the particle which caused the energy deposition |
+| physics | class | high-level descriptor of physics processes (e.g. hip, mip, capture gamma, etc.) |
+| unique_topology | cluster | unique identifier of individual topology instances |
+| unique_particle | cluster | unique identifier of individual particle instances (i.e. track id) |
+| unique_physics | cluster | unique identifier of individual physics instances |
+
+For information on how each of these labels is assigned to each reconstructed point, see the documentation for [BLIP](https://github.com/Neutron-Calibration-in-DUNE/Blip) which can be found at [![Documentation Status](https://readthedocs.org/projects/blip-dune/badge/?version=latest)](https://blip-dune.readthedocs.io/en/latest/?badge=latest)
 
 <a name="usage"></a>
 ## Usage
