@@ -1,8 +1,11 @@
 channels:
   - conda-forge
   - defaults
+  - nvidia
+  - pytorch
 dependencies:
   - python=3.11
+  - nvidia::cudatoolkit=11.1
   - h5py
   - pyyaml
   - tqdm
@@ -12,6 +15,6 @@ dependencies:
   - scikit-image
   - scikit-learn
   - pip
-  - torch
+  - pytorch::pytorch
   - pip:
     - adc64format>=0.0.2
