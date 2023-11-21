@@ -90,4 +90,5 @@ jobs:
 
     - name: test
       run: |
+        cd vendor/h5flow
         pytest -vv --log-level=DEBUG
