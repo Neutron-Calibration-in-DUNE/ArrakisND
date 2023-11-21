@@ -36,7 +36,8 @@ jobs:
     - name: checkout h5flow
       run: |
         cd vendor
-        git submodule init --update recursive
+        git submodule init
+        git submodule update
 
     - name: setup conda (mpi)
       uses: conda-incubator/setup-miniconda@v2
