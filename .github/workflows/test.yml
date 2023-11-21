@@ -1,0 +1,92 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Linting and tests
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ '*' ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:  {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      matrix:
+        mpi_enabled: [0, 1]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.11"
+
+    - name: checkout h5flow
+      run: |
+        cd vendor
+        git submodule init --update recursive
+
+    - name: setup conda (mpi)
+      uses: conda-incubator/setup-miniconda@v2
+      if: matrix.mpi_enabled == 1
+      env:
+        CC: mpicc
+        HDF5_MPI: "ON"
+      with:
+        auto-update-conda: true
+        activate-environment: test
+        python-version: "3.11"
+        environment-file: test/env.yaml
+
+    - name: setup conda (no mpi)
+      uses: conda-incubator/setup-miniconda@v2
+      if: matrix.mpi_enabled == 0
+      with:
+        auto-update-conda: true
+        activate-environment: test
+        python-version: "3.11"
+        environment-file: test/env-nompi.yaml
+
+    - name: install h5flow (mpi)
+      if: matrix.mpi_enabled == 1
+      env:
+        CC: mpicc
+        HDF5_MPI: "ON"
+      run: |
+        cd vendor/h5flow
+        conda env update --file environment.yml
+        pip install .
+
+    - name: install h5flow (no mpi)
+      if: matrix.mpi_enabled == 0
+      run: |
+        cd vendor/h5flow
+        conda env update --file environment-nompi.yml
+        pip install .
+    - name: install
+      run: |
+        pip install .
+
+    - name: lint
+      run: |
+        conda install flake8
+        # stop the build if there are Python syntax errors or undefined names
+        python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        python -m flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: test
+      run: |
+        pytest -vv --log-level=DEBUG
