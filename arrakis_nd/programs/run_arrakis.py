@@ -1,14 +1,6 @@
 """
 Blip main program
 """
-import torch
-import os
-import csv
-import getpass
-from torch import nn
-import torch.nn.functional as F
-from time import time
-from datetime import datetime
 import argparse
 
 from arrakis_nd.utils.logger import Logger, default_logger

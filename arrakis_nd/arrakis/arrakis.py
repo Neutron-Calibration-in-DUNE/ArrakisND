@@ -6,9 +6,6 @@ import os
 import sys
 import h5flow
 import h5py
-import numpy.lib.recfunctions as rfn
-from collections import defaultdict
-import json
 from tqdm import tqdm
 
 from h5flow.core import H5FlowStage, H5FlowDataManager, resources
@@ -256,9 +253,9 @@ class Arrakis(H5FlowStage):
             
             truth = flow_file["/mc_truth/stack", "mc_truth/trajectories", "mc_truth/segments"]
 
-            #trajectories = mc_truth['trajectories']['data']
-            #segments = mc_truth['segments']['data']
-            #stacks = mc_truth['stack']['data']
+            trajectories = mc_truth['trajectories']['data']
+            segments = mc_truth['segments']['data']
+            stacks = mc_truth['stack']['data']
             hits_back_track = mc_truth['calib_final_hit_backtrack']['data']
             hits = charge['calib_final_hits']['data']
 

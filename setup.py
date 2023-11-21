@@ -33,19 +33,9 @@ setup(
     # packages
     packages=find_packages(
         #where='pointnet',
-        exclude=['tests'],
+        exclude=['test'],
     ),
     include_package_data=True,
-
-    install_requires=[
-        'h5py>=2.10',
-        'pytest',
-        'scipy',
-        'numpy',
-        'scikit-image',
-        'scikit-learn',
-        'h5flow>=0.2.0'
-    ]
 
     # classifiers
     classifiers = [
