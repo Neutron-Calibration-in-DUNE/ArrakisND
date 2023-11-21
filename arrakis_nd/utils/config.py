@@ -7,7 +7,7 @@ import os
 import yaml
 from yaml import Loader, Dumper
 
-from blip.utils.logger import Logger
+from arrakis_nd.utils.logger import Logger
 
 class ConfigParser:
     """

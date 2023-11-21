@@ -6,9 +6,6 @@ import os
 import sys
 import h5flow
 import h5py
-import numpy.lib.recfunctions as rfn
-from collections import defaultdict
-import json
 from tqdm import tqdm
 
 from h5flow.core import H5FlowStage, H5FlowDataManager, resources
