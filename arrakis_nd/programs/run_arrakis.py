@@ -2,6 +2,7 @@
 Blip main program
 """
 import argparse
+import torch
 
 from arrakis_nd.utils.logger import Logger, default_logger
 from arrakis_nd.utils.config import ConfigParser
