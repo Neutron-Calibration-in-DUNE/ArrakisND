@@ -241,60 +241,40 @@ class Arrakis(H5FlowStage):
 
     def run_arrakis_nd(self):
         for ii, simulation_file in enumerate(self.simulation_files):
-            #flow_file = h5py.File(self.simulation_folder + '/' + simulation_file, 'r')
-            flow_file = h5flow.data.H5FlowDataManager(self.simulation_folder + '/' + simulation_file, "r")
             try:
-                charge = flow_file['charge']
-                combined = flow_file['combined']
-                geometry_info = flow_file['geometry_info']
-                lar_info = flow_file['lar_info']
-                light = flow_file['light']
-                mc_truth = flow_file['mc_truth']
-                run_info = flow_file['run_info']
+                flow_file = h5flow.data.H5FlowDataManager(self.simulation_folder + '/' + simulation_file, "r")
             except:
                 self.logger.error(f'there was a problem processing flow file {simulation_file}')
             
-            truth = flow_file["/mc_truth/stack", "/mc_truth/trajectories", "/mc_truth/segments"]
-            hits = flow_file["/mc_truth/calib_final_hit_backtrack", "/charge/calib_final_hits", "/charge/calib_prompt_hits", "/charge/packets", "/mc_truth/segments"]
+            trajectories = flow_file['mc_truth/trajectories/data']["event_id","traj_id", "parent_id", "pdg_id", "start_process", "start_subprocess", "end_process", "end_subprocess", "E_end"]
+            segments = flow_file['mc_truth/segments/data']['event_id', 'segment_id', 'traj_id']
+            stacks = flow_file["mc_truth/stack/data"]['event_id']
+            hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
+            hits = flow_file["charge/calib_final_hits/data"]
 
-            #trajectories = mc_truth['trajectories']['data']
-            #segments = mc_truth['segments']['data']
-            #stacks = mc_truth['stack']['data']
-            #hits_back_track = mc_truth['calib_final_hit_backtrack']['data']
-            #hits = charge['calib_final_hits']['data']
+            event_ids = np.unique(flow_file['mc_truth/segments/data']['event_id'])
 
-            trajectory_events = truth[['event_id','traj_id']]
-            segment_events = truth[['event_id','segment_id']]
-            stack_events = truth['event_id']
-            hit_events = hits[["event_id", "segment_id"]]
-
-            #unique_events = np.unique(segment_events['segment_id']) # gives the unique segment ids
-            unique_events = np.unique(stack_events) # I think we want the event_id instead?
-            
-            event_loop = tqdm(
-                enumerate(unique_events, 0), 
-                total=len(unique_events), 
-                leave=True,
-                position=0,
-                colour='green'
-            )
-            for ii, event in event_loop:
-                trajectory_event_mask = (trajectory_events["event_id"] == event)
-                segment_event_mask = (segment_events["event_id"] == event)
-                stack_event_mask = (stack_events == event)
-                hits_back_track_mask = (hit_events['event_id']==event)
+            for event_id in event_ids: # maybe put the event loop back (it looked nice)
+                event_trajectories = trajectories[trajectories['event_id'] == event_id]
+                event_segments = segments[segments['event_id'] == event_id]
+                event_stacks = stacks[stacks == event_id]
+                hits_back_track_mask = np.any(
+                                np.isin(hits_back_track['segment_id'], event_segments['segment_id']), 
+                                axis=1
+                            )
+                event_back_track_hits = hits_back_track[hits_back_track_mask]
+                event_hits = hits[hits_back_track_mask]
                 
-                # Work In Progress
                 self.simulation_wrangler.process_event(
-                    event,
-                    event_trajectories=truth[trajectory_event_mask],
-                    event_segments=truth[segment_event_mask],
-                    event_stacks=truth[stack_event_mask],
-                    hits_back_track=hits[hits_back_track_mask],
-                    hits=hits[hits_back_track_mask] # this is now a duplicate?
+                    event_id,
+                    event_trajectories,
+                    event_segments,
+                    event_stacks,
+                    event_back_track_hits,
+                    event_hits
                 )
                 self.simulation_labeling_logic.process_event()
                 self.simulation_wrangler.save_event()
-                event_loop.set_description(f"Running ArrakisND - Event: [{ii+1}/{len(unique_events)}]")
+                #event_loop.set_description(f"Running ArrakisND - Event: [{ii+1}/{len(unique_events)}]")
 
 

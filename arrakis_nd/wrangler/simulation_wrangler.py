@@ -115,28 +115,28 @@ class SimulationWrangler:
         event_trajectories
     ):
         for ii, particle in enumerate(event_trajectories):
-            if abs(particle[13]) == 13:
-                print(ii, particle[13], particle[2], particle[14], particle[4])
-            track_id = particle[2]                          
-            self.trackid_parentid[track_id] = particle[4]
-            self.trackid_pdgcode[track_id] = particle[13]
-            self.trackid_process[track_id] = particle[14]
-            self.trackid_subprocess[track_id] = particle[15]
-            self.trackid_endprocess[track_id] = particle[16]
-            self.trackid_endsubprocess[track_id] = particle[17]
-            self.trackid_energy[track_id] = particle[5]
+            if abs(particle['pdg_id']) == 13:
+                print(ii, particle['pdg_id'], particle['traj_id'], particle['start_process'], particle['parent_id'])
+            track_id = particle['traj_id']                          
+            self.trackid_parentid[track_id] = particle['parent_id']
+            self.trackid_pdgcode[track_id] = particle['pdg_id']
+            self.trackid_process[track_id] = particle['start_process']
+            self.trackid_subprocess[track_id] = particle['start_subprocess']
+            self.trackid_endprocess[track_id] = particle['end_process']
+            self.trackid_endsubprocess[track_id] = particle['end_subprocess']
+            self.trackid_energy[track_id] = particle['E_end'] # E_start or E_end?
             
             # iterate over daughters
             self.trackid_daughters[track_id] = []
             self.trackid_descendants[track_id] = []
-            if particle[4] != -1:
-                self.trackid_daughters[particle[4]].append(track_id)
-                self.trackid_descendants[particle[4]].append(track_id)
+            if particle['parent_id'] != -1:
+                self.trackid_daughters[particle['parent_id']].append(track_id)
+                self.trackid_descendants[particle['parent_id']].append(track_id)
             self.trackid_progeny[track_id] = []
             # iterate over ancestry
             level = 0
-            mother = particle[4]
-            temp_track_id = particle[2]
+            mother = particle['parent_id']
+            temp_track_id = particle['traj_id']
             ancestry = []
             while mother != -1:
                 level += 1
@@ -182,7 +182,7 @@ class SimulationWrangler:
                 hit['Q'], 
                 hit['E'], 
                 segment_ids[(segment_ids != 0)],
-                segment_fractions[(segment_ids != 0)]
+                #segment_fractions[(segment_ids != 0)]
             )
             for segmentid in segment_ids[(segment_ids != 0)]:
                 if segmentid in self.segmentid_hit.keys():
@@ -367,7 +367,7 @@ class SimulationWrangler:
     def get_index_trackid(self,
         hit, trackid
     ):
-        for ii, particle in enumerate(self.det_point_cloud.particle_labels[hit]):
+        for ii, particle in enumerate(self.det_point_cloud.particle_label[hit]):
             if particle == trackid:
                 return ii
         return -1
