@@ -272,6 +272,3 @@ class Arrakis(H5FlowStage):
                 )
                 self.simulation_labeling_logic.process_event()
                 self.simulation_wrangler.save_event()
-                #event_loop.set_description(f"Running ArrakisND - Event: [{ii+1}/{len(unique_events)}]")
-
-
