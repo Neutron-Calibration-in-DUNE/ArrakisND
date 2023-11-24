@@ -336,17 +336,117 @@ class SimulationLabelingLogic:
             self.process_showers_list(other_daughters, self.iterate_topology_label())
             self.process_showers_list(muon_progeny, self.iterate_topology_label())
 
+# Start adding from here. Not 100% sure I'm doing it correctly!
     def process_pion0s(self):
-        pass
+        """
+        (From Wikipedia: https://en.wikipedia.org/wiki/Pion)
+        The dominant π0 decay mode, with a branching ratio of BR2γ = 0.98823,
+        is into two photons: π0 → 2γ.
+        The decay π0 → 3γ (as well as decays into any odd number of photons) is
+        forbidden by the C-symmetry of the electromagnetic interaction: The intrinsic
+        C-parity of the π0 is +1, while the C-parity of a system of n photons is (−1)n.
+        The second largest π0 decay mode ( BRγee = 0.01174 ) is the Dalitz decay
+        (named after Richard Dalitz), which is a two-photon decay with an internal
+        photon conversion resulting a photon and an electron-positron pair in the final state:
+            π0 → γ + e− + e+.
+        The third largest established decay mode ( BR2e2e = 3.34×10−5 ) is the double-Dalitz
+        decay, with both photons undergoing internal conversion which leads to further
+        suppression of the rate:
+            π0 → e− + e+ + e− +	e+.
+        The fourth largest established decay mode is the loop-induced and therefore suppressed
+        (and additionally helicity-suppressed) leptonic decay mode ( BRee = 6.46×10−8 ):
+            π0 → e− + e+.
+        The neutral pion has also been observed to decay into positronium with a branching
+        fraction on the order of 10−9. No other decay modes have been established experimentally.
+        """
+        pi0s = self.simulation_wrangler.get_trackid_pdg_code(111)
+        for pi0 in pi0s:
+            pi0_daughters = self.simulation_wrangler.trackid_daughters[pi0]
+            pi0_progeny = self.simulation_wrangler.trackid_progeny[pi0]
+            pi0_hits = self.simulation_wrangler.trackid_hit[pi0]
+            pi0_segments = self.simulation_wrangler.trackid_segmentid[pi0]
+
+            cluster_label = self.iterate_topology_label()
+            self.set_labels(
+                pi0_hits, pi0_segments, pi0,
+                TopologyLabel.Shower, PhysicsLabel.PhotonShower,
+                cluster_label
+            )
 
     def process_pion_plus(self):
-        pass
+        pipluses = self.simulation_wrangler.get_trackid_pdg_code(211)
+        for piplus in pipluses:
+            piplus_daughters = self.simulation_wrangler.trackid_daughters[piplus]
+            piplus_progeny = self.simulation_wrangler.trackid_progeny[piplus]
+            piplus_hits = self.simulation_wrangler.trackid_hit[piplus]
+            piplus_segments = self.simulation_wrangler.trackid_segmentid[piplus]
+
+            elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(piplus_daughters, 11)
+            other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(piplus_daughters, 11)
+            
+            elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
+            elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
+
+            track_label = self.iterate_topology_label()
+            self.set_labels(
+                piplus_hits, piplus_segments, piplus,
+                TopologyLabel.Track, PhysicsLabel.HIPIonization,
+                track_label
+            )
+            
+            self.set_labels(
+                elec_hits, elec_segments, elec_daughters,
+                TopologyLabel.Track, PhysicsLabel.HIPIonization,
+                track_label
+            )
+            
+            self.process_showers_list(other_daughters, self.iterate_topology_label())
+            self.process_showers_list(piplus_progeny, self.iterate_topology_label())
 
     def process_pion_minus(self):
-        pass
+        pimins = self.simulation_wrangler.get_trackid_pdg_code(-211)
+        for pimin in pimins:
+            pimin_daughters = self.simulation_wrangler.trackid_daughters[pimin]
+            pimin_progeny = self.simulation_wrangler.trackid_progeny[pimin]
+            pimin_hits = self.simulation_wrangler.trackid_hit[pimin]
+            pimin_segments = self.simulation_wrangler.trackid_segmentid[pimin]
+
+            elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(pimin_daughters, 11)
+            other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(pimin_daughters, 11)
+            
+            elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
+            elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
+
+            track_label = self.iterate_topology_label()
+            self.set_labels(
+                pimin_hits, pimin_segments, pimin,
+                TopologyLabel.Track, PhysicsLabel.HIPIonization,
+                track_label
+            )
+            
+            self.set_labels(
+                elec_hits, elec_segments, elec_daughters,
+                TopologyLabel.Track, PhysicsLabel.HIPIonization,
+                track_label
+            )
+            
+            self.process_showers_list(other_daughters, self.iterate_topology_label())
+            self.process_showers_list(pimin_progeny, self.iterate_topology_label())
 
     def process_kaon0s(self):
-        pass
+        ka0s = self.simulation_wrangler.get_trackid_pdg_code(311)
+        for ka0 in ka0s:
+            ka0_daughters = self.simulation_wrangler.trackid_daughters[ka0]
+            ka0_hits = self.simulation_wrangler.trackid_hit[ka0]
+            ka0_segments = self.simulation_wrangler.trackid_segmentid[ka0]
+
+            cluster_label = self.iterate_topology_label()
+            self.set_labels(
+                ka0_hits, ka0_segments, ka0,
+                TopologyLabel.Shower, PhysicsLabel.PhotonShower,
+                cluster_label
+            )
+
 
     def process_kaon_plus(self):
         pass
