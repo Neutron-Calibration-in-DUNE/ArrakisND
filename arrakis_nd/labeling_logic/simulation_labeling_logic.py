@@ -781,16 +781,249 @@ class SimulationLabelingLogic:
             
 
     def process_ar39(self):
-        pass
-
+        """
+        Argon-39 decays via beta decay into Potassium-39,
+        with a Q-value of 565 keV: http://nucleardata.nuclear.lu.se/toi/nuclide.asp?iZA=180039.
+        """
+               
+        mc_data = SimulationWrangler.get_instance()
+        ar39 = mc_data.get_primaries_generator_label(PhysicsLabel.Ar39)
+        ar39_daughters = mc_data.get_daughters_trackid(ar39)
+        
+        for ar in ar39:
+            ar39_hits = mc_data.get_hits_trackid(ar)
+            ar39_segments = mc_data.get_segments_trackid(ar)
+            
+            self.set_labels(
+                ar39_hits, ar39_segments, ar,
+                TopologyLabel.Blip, PhysicsLabel.Ar39,
+                self.iterate_topology_label()
+            )
+            
     def process_ar42(self):
-        pass
+        """
+        Argon-42 decays via beta decay into Potassium-42,
+        with a Q-value of 599 keV: http://nucleardata.nuclear.lu.se/toi/nuclide.asp?iZA=180042.
+        There is a subtlety in the way this decay is simulated. The lifetime of K42 is approximately
+        12 hours, which beta decays to Calcium-42 with a 3.5 MeV beta. Calcium-42 is stable.
+        See here for some details: https://indico.fnal.gov/event/50121/contributions/220205/attachments/145404/185102/20210721_Decay0_Lasorak.pdf
+
+        If the energy of the decay primary is 600 keV or less, we label it as an
+        Ar42 decay, otherwise, it's a K42 decay.
+        """
+        mc_data = SimulationWrangler.get_instance()
+        ar42 = mc_data.get_primaries_generator_label(PhysicsLabel.Ar42)
+        ar42_betas = mc_data.filter_trackid_pdgcode(ar42, 1000180420)
+        ar42_daughters = mc_data.get_daughter_trackid_trackid(ar42_betas)
+
+        for ar in ar42:
+            ar42_hits = mc_data.get_hits_trackid(ar)
+            ar42_segments = mc_data.get_segments_trackid(ar)
+
+            if mc_data.get_energy_trackid(ar) < 0.600:
+                self.set_labels(
+                    ar42_hits, ar42_segments, ar,
+                    TopologyLabel.Blip, PhysicsLabel.Ar42,
+                    self.iterate_topology_label()
+                )
+            else:
+                self.set_labels(
+                    ar42_hits, ar42_segments, ar,
+                    TopologyLabel.Blip, PhysicsLabel.K42,
+                    self.iterate_topology_label()
+                )
 
     def process_kr85(self):
-        pass
+        """
+        Krypton-85 decays via beta decay into Rubidium 85
+        with two prominent betas with energies of 687 keV (99.56 %) and
+        173 keV (.43 %): http://nucleardata.nuclear.lu.se/toi/nuclide.asp?iZA=360085.
+        """
+        mc_data = SimulationWrangler.get_instance()
+        kr85 = mc_data.get_primaries_generator_label(PhysicsLabel.Kr85)
+        kr85_daughters = mc_data.get_daughters_trackid(kr85)
+
+        for kr in kr85:
+            kr85_hits= mc_data.get_hits_trackid(kr)
+            kr85_segments = mc_data.get_segments_trackid(kr)
+
+            self.set_labels(
+                kr85_hits, kr85_segments, kr,
+                TopologyLabel.Blip, PhysicsLabel.Kr85,
+                self.iterate_topology_label()
+            )
 
     def process_rn222(self):
-        pass
+        """
+        Radon-222 decays via alpha decay through a chain that ends in lead
+        (https://en.wikipedia.org/wiki/Radon-222).  The alpha has an energy of
+        5.5904 MeV, which bounces around locally in Argon, but quickly thermalizes
+        due to the short scattering length.  The CSDA range of a 5.5 MeV alpha in
+        Argon is about 7.5e-3 g/cm^2.  Using a density of 1.3954 g/cm^3, the
+        scattering length is (~0.005 cm) or (~50 um).
+
+        The simulation of radiologicals is done through a wrap of Decay0, which does
+        not save information about what decay each simulated particle came from.
+        Instead, it saves each decay product (beta, gamma, alpha) as a primary of its
+        own.  This can be seen from the following lines of the larsimrad file
+        https://github.com/LArSoft/larsimrad/blob/develop/larsimrad/BxDecay0/Decay0Gen_module.cc,
+        which has (starting at line 162):
+        ...
+
+        We will therefore need some way to figure out which particle came from what decay.
+        The possible decays are:
+        Rn222 -> Po218 - alpha ~ 5.590 MeV
+        Po218 -> Pb214 - alpha ~ 6.115 MeV
+        Po218 -> At218 - beta  ~ 0.294 MeV 
+        At218 -> Bi214 - alpha ~ 6.874 MeV
+        At218 -> Rn218 - beta  ~ 2.883 MeV
+        Rn218 -> Po214 - alpha ~ 7.263 MeV
+        Pb214 -> Bi214 - beta  ~ 1.024 MeV
+        Bi214 -> Tl210 - alpha ~ 5.617 MeV
+        Bi214 -> Po214 - beta  ~ 3.272 MeV
+        Po214 -> Pb210 - alpha ~ 7.833 MeV
+        Tl210 -> Pb210 - beta  ~ 5.484 MeV
+        Pb210 -> Bi210 - beta  ~ 0.064 MeV
+        Pb210 -> Hg206 - alpha ~ 3.792 MeV
+        Bi210 -> Po210 - beta  ~ 1.163 MeV
+        Bi210 -> Tl206 - alpha ~ 5.037 MeV
+        Po210 -> Pb206 - alpha ~ 5.407 MeV
+
+        We therefore have 9 distinct alpha energies 
+        (7.833, 7.263, 6.874, 6.115, 5.617, 5.590, 5.407, 5.037, 3.792)
+
+        and 7 distinct beta energies
+        (5.484, 3.272, 2.883, 1.163, 1.024, 0.294, 0.064)
+
+        We can assign labels then based on whatever energy is closest to each primary.
+        """
+        mRn222Decays = (
+            PhysicsLabel.Rn222,
+            PhysicsLabel.Po218a, PhysicsLabel.Po218b,
+            PhysicsLabel.At218a, PhysicsLabel.At218b,
+            PhysicsLabel.Rn218,
+            PhysicsLabel.Pb214,
+            PhysicsLabel.Bi214a, PhysicsLabel.Bi214b,
+            PhysicsLabel.Po214,
+            PhysicsLabel.Tl210,
+            PhysicsLabel.Pb210a, PhysicsLabel.Pb210b,
+            PhysicsLabel.Bi210a, PhysicsLabel.Bi210b,
+            PhysicsLabel.Po210
+        )
+        mRn222PDGs = (
+            1000020040,
+            1000020040, 11,
+            1000020040, 11,
+            1000020040,
+            11,
+            1000020040, 11,
+            1000020040,
+            11,
+            1000020040, 11,
+            1000020040, 11,
+            1000020040
+        )
+        mRn222Energies = (
+            5.590,
+            6.115, 0.294,
+            6.874, 2.883,
+            7.263,
+            1.024,
+            5.627, 3.272,
+            7.833,
+            5.484,
+            3.792, 0.064,
+            5.037, 1.163,
+            5.407
+        )
+
+        mc_data = SimulationWrangler.get_instance()
+        rn222 = mc_data.get_primaries_generator_label(PhysicsLabel.Rn222)
+
+        for rn in rn222:
+            index = 0
+            energy_diff = 10e10
+            for ii in range(len(mRn222Energies)):
+                if mc_data.get_pdg_code_trackid(rn) != mRn222PDGs[ii]:
+                    continue
+                if abs(mc_data.get_energy_trackid(rn) - mRn222Energies[ii]) < energy_diff:
+                    index = ii
+                    energy_diff = mc_data.get_energy_trackid(rn) - mRn222Energies[ii]
+
+            rn222_hits = mc_data.get_hits_trackid(rn)
+            rn222_segments = mc_data.get_all_segments_trackid(rn)
+
+            self.set_labels(
+                rn222_hits, rn222_segments, rn,
+                TopologyLabel.Blip, mRn222Decays[index],
+                self.iterate_topology_label()
+            )
+
 
     def process_cosmics(self):
-        pass
+        """
+        """
+        mc_data = SimulationWrangler.get_instance()
+        cosmics = mc_data.get_primaries_generator_label(ParticleLabel.Cosmics) # there's no cosmics label?
+        electrons = mc_data.filter_trackid_pdg_code(cosmics, 11)
+        positrons = mc_data.filter_trackid_pdg_code(cosmics, -11)
+        gammas = mc_data.filter_trackid_abs_pdg_code(cosmics, 22)
+        neutrons = mc_data.filter_trackid_pdg_code(cosmics, 2112)
+        anti_neutrons = mc_data.filter_trackid_pdg_code(cosmics, -2112)
+
+        for electron in electrons:
+            electron_daughters = mc_data.get_daughters_trackid(electron)
+            elec_daughters = mc_data.filter_trackid_abs_pdg_code(electron_daughters, 11)
+            other_daughters = mc_data.filter_trackid_not_abs_pdg_code(electron_daughters, 11)
+            elec_hits = mc_data.get_segments_trackid(elec_daughters)
+            elec_segments = mc_data.get_hits_trackid(elec_daughters)
+
+            electron_progeny = mc_data.get_progeny_trackid(electron)
+            electron_hits = mc_data.get_hits_trackid(electron)
+            electron_segments= mc_data.get_segments_trackid(electron)
+
+            # Set electron detsim labels to Shower::ElectronShower
+            shower_label = self.iterate_topology_label()
+            self.set_labels(
+                electron_hits, electron_segments, electron,
+                TopologyLabel.Shower, PhysicsLabel.ElectronRecoil,
+                shower_label
+            )
+
+            self.set_labels(
+                elec_hits, elec_segments, elec_daughters,
+                TopologyLabel.Shower, PhysicsLabel.ElectronRecoil,
+                shower_label
+            )
+
+            self.process_showers(electron_progeny, shower_label)
+            self.process_showers(other_daughters, self.iterate_topology_label())
+
+        for positron in positrons:
+            positron_daughters = mc_data.get_daughters_trackid(positron)
+            elec_daughters = mc_data.filter_trackid_abs_pdg_code(positron_daughters, 11)
+            other_daughters = mc_data.filter_trackid_not_abs_pdg_code(positron_daughters, 11)
+            elec_hits = mc_data.get_hits_trackid(elec_daughters)
+            elec_segments = mc_data.get_segments_trackid(elec_daughters)
+
+            positron_progeny = mc_data.get_progeny_trackid_trackid(positron)
+            positron_hits = mc_data.get_hits_trackid(positron)
+            positron_segments = mc_data.get_segments_trackid(positron)
+
+            # Set positron detsim labels to Shower::PositronShower
+            shower_label = self.iterate_topology_label()
+            self.set_labels(
+                positron_hits, positron_segments, positron,
+                TopologyLabel.Shower, PhysicsLabel.PositronShower,
+                shower_label
+            )
+
+            self.set_labels(
+                elec_hits, elec_segments, elec_daughters,
+                TopologyLabel.Shower, PhysicsLabel.PositronShower,
+                shower_label
+            )
+
+            self.process_showers(positron_progeny, shower_label)
+            self.process_showers(other_daughters, self.iterate_topology_label())
+
