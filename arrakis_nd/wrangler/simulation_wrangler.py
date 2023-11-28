@@ -116,7 +116,7 @@ class SimulationWrangler:
     ):
         for ii, particle in enumerate(event_trajectories):
             if abs(particle['pdg_id']) == 13:
-                print(ii, particle['pdg_id'], particle['traj_id'], particle['start_process'], particle['parent_id'])
+                print(ii, ", pdg: ", particle['pdg_id'], ", traj_id: ", particle['traj_id'], ", start_process: ", particle['start_process'], ", parent_traj_id: ", particle['parent_id'])
             track_id = particle['traj_id']                          
             self.trackid_parentid[track_id] = particle['parent_id']
             self.trackid_pdgcode[track_id] = particle['pdg_id']
@@ -366,8 +366,8 @@ class SimulationWrangler:
     
     def get_index_trackid(self,
         hit, trackid
-    ):
+    ): # this throws an error if hit is an array / trackid is an array or if self.det_point_cloud.particle_label[hit] is an integer
         for ii, particle in enumerate(self.det_point_cloud.particle_label[hit]):
-            if particle == trackid:
+            if particle==trackid:
                 return ii
         return -1
