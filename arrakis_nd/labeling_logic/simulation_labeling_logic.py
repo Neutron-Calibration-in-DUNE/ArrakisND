@@ -22,12 +22,12 @@ class SimulationLabelingLogic:
         hits, segments, trackid,
         topology, physics, unique_topology
     ):
-        for hit in hits:
+        for hit in hits: # TODO: hit should now not be an array!
             self.simulation_wrangler.set_hit_labels(
                 hit, 
-                trackid, 
+                trackid,
                 topology, 
-                trackid, 
+                trackid,  # TODO: check!! "particle??"
                 physics, 
                 unique_topology
             )
@@ -39,7 +39,7 @@ class SimulationLabelingLogic:
         for ii in range(len(hits)):
             self.set_labels(
                 hits[ii],
-                segments[ii], 
+                segments[ii], # segments is not used
                 trackid[ii], 
                 topology, 
                 physics, 
@@ -53,7 +53,7 @@ class SimulationLabelingLogic:
         for ii in range(len(hits)):
             self.set_labels_list(
                 hits[ii],
-                segments[ii], 
+                segments[ii], # segments is not used
                 trackid[ii], 
                 topology, 
                 physics, 

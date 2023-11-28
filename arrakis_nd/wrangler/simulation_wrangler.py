@@ -2,7 +2,7 @@
 
 """
 import numpy as np
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 import copy
 import h5py
 
@@ -64,8 +64,8 @@ class SimulationWrangler:
     
     def set_hit_labels(self,
         hit, trackid, topology, 
-        particle, physics, unique_topology
-    ):
+        particle, physics, unique_topology # what is particle???
+    ): # TODO: this will throw an error if hit/trackid is an array (and for some reason some of them are arrays...)
         track_index = self.get_index_trackid(hit, trackid)
         if track_index != -1:
             self.det_point_cloud.topology_labels[hit][track_index] = topology.value
@@ -115,7 +115,7 @@ class SimulationWrangler:
         event_trajectories
     ):
         for ii, particle in enumerate(event_trajectories):
-            if abs(particle['pdg_id']) == 13:
+            if abs(particle['pdg_id']) == 13: # why only muons?
                 print(ii, ", pdg: ", particle['pdg_id'], ", traj_id: ", particle['traj_id'], ", start_process: ", particle['start_process'], ", parent_traj_id: ", particle['parent_id'])
             track_id = particle['traj_id']                          
             self.trackid_parentid[track_id] = particle['parent_id']
@@ -182,7 +182,7 @@ class SimulationWrangler:
                 hit['Q'], 
                 hit['E'], 
                 segment_ids[(segment_ids != 0)],
-                #segment_fractions[(segment_ids != 0)]
+                #segment_fractions[(segment_ids != 0)] # TODO: this argument is not defined in add_point
             )
             for segmentid in segment_ids[(segment_ids != 0)]:
                 if segmentid in self.segmentid_hit.keys():
@@ -366,7 +366,7 @@ class SimulationWrangler:
     
     def get_index_trackid(self,
         hit, trackid
-    ): # this throws an error if hit is an array / trackid is an array or if self.det_point_cloud.particle_label[hit] is an integer
+    ): # TODO: this throws an error if hit is an array / trackid is an array or if self.det_point_cloud.particle_label[hit] is an integer
         for ii, particle in enumerate(self.det_point_cloud.particle_label[hit]):
             if particle==trackid:
                 return ii
