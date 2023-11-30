@@ -14,10 +14,11 @@ class SimulationLabelingLogic:
 
         self.topology_label = 0
     
+    @profile
     def iterate_topology_label(self):
         self.topology_label += 1
         return self.topology_label
-    
+    @profile
     def set_labels(self,
         hits, segments, trackid,
         topology, physics, unique_topology
@@ -31,7 +32,7 @@ class SimulationLabelingLogic:
                 physics, 
                 unique_topology
             )
-    
+    @profile
     def set_labels_list(self,
         hits, segments, trackid,
         topology, physics, unique_topology
@@ -45,7 +46,7 @@ class SimulationLabelingLogic:
                 physics, 
                 unique_topology
             )
-    
+    @profile
     def set_labels_array(self,
         hits, segments, trackid,
         topology, physics, unique_topology
@@ -59,7 +60,7 @@ class SimulationLabelingLogic:
                 physics, 
                 unique_topology
             )
-
+    @profile
     def process_event(self):
         
         self.topology_label = 0
@@ -84,6 +85,7 @@ class SimulationLabelingLogic:
         self.process_rn222()
         self.process_cosmics()
 
+    @profile
     def process_showers(self,
         particle, topology_label
     ):
@@ -124,19 +126,19 @@ class SimulationLabelingLogic:
         photon_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(daughters, 22)
         self.process_showers_list(elec_daughters, topology_label)
         self.process_showers_list(photon_daughters, topology_label)
-    
+    @profile
     def process_showers_list(self,
         particles, topology_label
     ):
         for particle in particles:
             self.process_showers(particle, topology_label)
-    
+    @profile
     def process_showers_array(self,
         particles
     ):
         for particle in particles:
             self.process_showers_list(particle, self.iterate_topology_label())
-
+    @profile
     def process_electrons(self):
         electrons = self.simulation_wrangler.get_primaries_pdg_code(11)
         for electron in electrons:
@@ -163,7 +165,7 @@ class SimulationLabelingLogic:
             )
             self.process_showers_list(electron_progeny, shower_label)
             self.process_showers_list(other_daughters, self.iterate_topology_label())
-
+    @profile
     def process_positrons(self):
         positrons = self.simulation_wrangler.get_primaries_pdg_code(-11)
         for positron in positrons:
@@ -190,7 +192,7 @@ class SimulationLabelingLogic:
             )
             self.process_showers_list(positron_progeny, shower_label)
             self.process_showers_list(other_daughters, self.iterate_topology_label())
-        
+    @profile   
     def process_gammas(self):
         gammas = self.simulation_wrangler.get_primaries_abs_pdg_code(22)
         for gamma in gammas:
@@ -216,7 +218,7 @@ class SimulationLabelingLogic:
                 shower_label
             )
             self.process_showers_list(gamma_progeny, shower_label)
-
+    @profile
     def process_muons(self):
         muons = self.simulation_wrangler.get_trackid_pdg_code(13)
         for muon in muons:
@@ -275,7 +277,7 @@ class SimulationLabelingLogic:
             self.process_showers_list(other_elec_daughters, self.iterate_topology_label())
             self.process_showers_list(other_daughters, self.iterate_topology_label())
             self.process_showers_list(muon_progeny, self.iterate_topology_label())
-    
+    @profile
     def process_anti_muons(self):
         muons = self.simulation_wrangler.get_trackid_pdg_code(-13)
         for muon in muons:
@@ -336,7 +338,8 @@ class SimulationLabelingLogic:
             self.process_showers_list(other_daughters, self.iterate_topology_label())
             self.process_showers_list(muon_progeny, self.iterate_topology_label())
 
-# Start adding from here. Not 100% sure I'm doing it correctly!
+    # Start adding from here. Not 100% sure I'm doing it correctly! 
+    @profile
     def process_pion0s(self):
         """
         (From Wikipedia: https://en.wikipedia.org/wiki/Pion)
@@ -372,7 +375,7 @@ class SimulationLabelingLogic:
                 TopologyLabel.Shower, PhysicsLabel.PhotonShower,
                 cluster_label
             )
-
+    @profile
     def process_pion_plus(self):
         pipluses = self.simulation_wrangler.get_trackid_pdg_code(211)
         for piplus in pipluses:
@@ -394,7 +397,7 @@ class SimulationLabelingLogic:
                 track_label
             )
             
-            self.set_labels(
+            self.set_labels_list(
                 elec_hits, elec_segments, elec_daughters,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 track_label
@@ -402,7 +405,7 @@ class SimulationLabelingLogic:
             
             self.process_showers_list(other_daughters, self.iterate_topology_label())
             self.process_showers_list(piplus_progeny, self.iterate_topology_label())
-
+    @profile
     def process_pion_minus(self):
         pimins = self.simulation_wrangler.get_trackid_pdg_code(-211)
         for pimin in pimins:
@@ -424,7 +427,7 @@ class SimulationLabelingLogic:
                 track_label
             )
             
-            self.set_labels(
+            self.set_labels_list(
                 elec_hits, elec_segments, elec_daughters,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 track_label
@@ -432,7 +435,7 @@ class SimulationLabelingLogic:
             
             self.process_showers_list(other_daughters, self.iterate_topology_label())
             self.process_showers_list(pimin_progeny, self.iterate_topology_label())
-
+    @profile
     def process_kaon0s(self):
         ka0s = self.simulation_wrangler.get_trackid_pdg_code(311)
         for ka0 in ka0s:

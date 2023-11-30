@@ -250,15 +250,23 @@ class Arrakis(H5FlowStage):
             hits = flow_file["charge/calib_final_hits/data"]
 
             event_ids = np.unique(flow_file['mc_truth/segments/data']['event_id'])
-
-            for event_id in event_ids: # maybe put the event loop back (it looked nice)
+            event_loop = tqdm(
+                enumerate(event_ids, 0), 
+                total=len(event_ids), 
+                leave=True,
+                position=0,
+                colour='green'
+            )
+            for jj, event_id in event_loop: # maybe put the event loop back (it looked nice)
+                if jj == 3:
+                    break
                 event_trajectories = trajectories[trajectories['event_id'] == event_id]
                 event_segments = segments[segments['event_id'] == event_id]
                 event_stacks = stacks[stacks == event_id]
                 hits_back_track_mask = np.any(
-                                np.isin(hits_back_track['segment_id'], event_segments['segment_id']), 
-                                axis=1
-                            )
+                    np.isin(hits_back_track['segment_id'], event_segments['segment_id']), 
+                    axis=1
+                )
                 event_back_track_hits = hits_back_track[hits_back_track_mask]
                 event_hits = hits[hits_back_track_mask]
                 
@@ -272,3 +280,7 @@ class Arrakis(H5FlowStage):
                 )
                 self.simulation_labeling_logic.process_event()
                 self.simulation_wrangler.save_event()
+                event_loop.set_description(f"Running ArrakisND - Event: [{jj+1}/{len(event_ids)}]")
+            self.simulation_wrangler.save_events(
+                simulation_file
+            )
