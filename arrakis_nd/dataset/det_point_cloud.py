@@ -45,44 +45,53 @@ class DetectorPointCloud:
         self.unique_particles = []
         self.unique_physicses = []
 
+    def add_points(self, x, y, z, t_drift, ts_pps, Q, E, segment_ids, segment_fractions):
+        for i in range(len(x)):
+            self.add_point(
+                x[i], y[i], z[i], t_drift[i], ts_pps[i], Q[i], E[i],
+                segment_ids[i], segment_fractions[i]
+            )
+
     def add_point(self,
-        x:      float, 
-        y:      float, 
-        z:      float, 
-        t_drift:    float, 
-        ts_pps: float, 
-        Q:      float, 
-        E:      float, 
-        segment_ids:    list=[],
-        segment_fractions:  list=[],
-    ):
-        self.x.append(x)
-        self.y.append(y)
-        self.z.append(z)
-        self.t_drift.append(t_drift)
-        self.ts_pps.append(ts_pps)
-        self.Q.append(Q)
-        self.E.append(E)
-        self.segment_ids.append(segment_ids)
-        self.segment_fractions.append(segment_fractions)
+            x:      float, 
+            y:      float, 
+            z:      float, 
+            t_drift:    float, 
+            ts_pps: float, 
+            Q:      float, 
+            E:      float, 
+            segment_ids:    list=[],
+            segment_fractions:  list=[],
+        ):
 
-        self.source_label.append(-1)
-        self.topology_label.append(-1)
-        self.particle_label.append(-1)
-        self.physics_label.append(-1)
+        self.x.extend([x])
+        self.y.extend([y])
+        self.z.extend([z])
+        self.t_drift.extend([t_drift])
+        self.ts_pps.extend([ts_pps])
+        self.Q.extend([Q])
+        self.E.extend([E])
+        self.segment_ids.extend([segment_ids])
+        self.segment_fractions.extend([segment_fractions])
 
-        self.unique_topology.append(-1)
-        self.unique_particle.append(-1)
-        self.unique_physics.append(-1)
+        self.source_label.extend([-1])
+        self.topology_label.extend([-1])
+        self.particle_label.extend([-1])
+        self.physics_label.extend([-1])
 
-        self.source_labels.append([-1 for ii in range(len(segment_ids))])
-        self.topology_labels.append([-1 for ii in range(len(segment_ids))])
-        self.particle_labels.append([-1 for ii in range(len(segment_ids))])
-        self.physics_labels.append([-1 for ii in range(len(segment_ids))])
+        self.unique_topology.extend([-1])
+        self.unique_particle.extend([-1])
+        self.unique_physics.extend([-1])
 
-        self.unique_topologies.append([-1 for ii in range(len(segment_ids))])
-        self.unique_particles.append([-1 for ii in range(len(segment_ids))])
-        self.unique_physicses.append([-1 for ii in range(len(segment_ids))])
+        self.source_labels.extend([-1 for _ in range(len([segment_ids]))])
+        self.topology_labels.extend([-1 for _ in range(len([segment_ids]))])
+        self.particle_labels.extend([-1 for _ in range(len([segment_ids]))])
+        self.physics_labels.extend([-1 for _ in range(len([segment_ids]))])
+
+        self.unique_topologies.extend([-1 for _ in range(len([segment_ids]))])
+        self.unique_particles.extend([-1 for _ in range(len([segment_ids]))])
+        self.unique_physicses.extend([-1 for _ in range(len([segment_ids]))])
 
 
-    
+
+        

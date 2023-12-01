@@ -106,9 +106,11 @@ class SimulationWrangler:
 
         print("Processing hits")
         self.process_event_hits(hits, hits_back_track)
+        print("Done processing hits")
     
     #@profile
     def save_event(self):
+        # I think we may need to add event_id here?
         self.det_point_cloud.x = np.array(self.det_point_cloud.x)
         self.det_point_cloud.y = np.array(self.det_point_cloud.y)
         self.det_point_cloud.z = np.array(self.det_point_cloud.z)
@@ -229,31 +231,39 @@ class SimulationWrangler:
             self.segmentid_trackid[segment['segment_id']] = segment['traj_id']
             self.segmentid_hit[segment['segment_id']] = []
     
-    #@profile
-    def process_event_hits(self,
-        event_hits,
-        event_hits_back_track
-    ):
-        for ii, hit in enumerate(event_hits):
-            if ii % 1000 == 0:
-                print('Processing hit', ii, 'of', len(event_hits))
-            segment_ids = event_hits_back_track['segment_id'][ii]
-            segment_fractions = event_hits_back_track['fraction'][ii]
-            self.det_point_cloud.add_point(
-                hit['x'], 
-                hit['y'],
-                hit['z'],
-                hit['t_drift'], 
-                hit['ts_pps'], 
-                hit['Q'], 
-                hit['E'], 
-                segment_ids[(segment_ids != 0)],
-                segment_fractions[(segment_ids != 0)]
+     def process_event_hits(self, event_hits, event_hits_back_track, batch_size=250):
+        num_hits = len(event_hits)
+        for batch_start in range(0, num_hits, batch_size):
+            print(batch_start)
+            batch_end = min(batch_start + batch_size, num_hits)
+            batch_hits = event_hits[batch_start:batch_end]
+            batch_back_track = event_hits_back_track[batch_start:batch_end]
+
+            # Batch processing for 'det_point_cloud'
+            x = batch_hits['x']
+            y = batch_hits['y']
+            z = batch_hits['z']
+            t_drift = batch_hits['t_drift']
+            ts_pps = batch_hits['ts_pps']
+            Q = batch_hits['Q']
+            E = batch_hits['E']
+
+            segment_ids = batch_back_track['segment_id']
+            segment_fractions = batch_back_track['fraction']
+
+            non_zero_segment_ids = segment_ids[segment_ids != 0]
+
+            self.det_point_cloud.add_points(
+                x, y, z, t_drift, ts_pps, Q, E,
+                non_zero_segment_ids,
+                segment_fractions[segment_ids != 0]
             )
-            for segmentid in segment_ids[(segment_ids != 0)]:
-                if segmentid in self.segmentid_hit.keys():
-                    self.segmentid_hit[segmentid].append(ii)
-                    self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
+
+            # Update dictionaries
+            for ii, segmentid in enumerate(non_zero_segment_ids):
+                if segmentid in self.segmentid_hit:
+                    self.segmentid_hit[segmentid].append(ii + batch_start)
+                    self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii + batch_start)
     
     #@profile
     def get_total_hit_energy(self, 
@@ -454,7 +464,10 @@ class SimulationWrangler:
     def get_index_trackid(self,
         hit, trackid
     ):
-        for ii, particle in enumerate(self.det_point_cloud.particle_labels[hit]):
-            if particle == trackid:
-                return ii
-        return -1
+        if self.det_point_cloud.particle_labels is not None:
+            for ii, particle in enumerate([self.det_point_cloud.particle_labels[hit]]):
+                if particle == trackid:
+                    return ii
+            return -1
+        else:
+            print("Warning: particle labels not set for hit", hit)
