@@ -249,38 +249,43 @@ class Arrakis(H5FlowStage):
             hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
             hits = flow_file["charge/calib_final_hits/data"]
 
-            event_ids = np.unique(flow_file['mc_truth/segments/data']['event_id'])
-            event_loop = tqdm(
-                enumerate(event_ids, 0), 
-                total=len(event_ids), 
-                leave=True,
-                position=0,
-                colour='green'
-            )
-            for jj, event_id in event_loop: # maybe put the event loop back (it looked nice)
-                if jj == 3:
-                    break
-                event_trajectories = trajectories[trajectories['event_id'] == event_id]
-                event_segments = segments[segments['event_id'] == event_id]
-                event_stacks = stacks[stacks == event_id]
-                hits_back_track_mask = np.any(
-                    np.isin(hits_back_track['segment_id'], event_segments['segment_id']), 
-                    axis=1
-                )
-                event_back_track_hits = hits_back_track[hits_back_track_mask]
-                event_hits = hits[hits_back_track_mask]
+            # event_ids = np.unique(flow_file['mc_truth/segments/data']['event_id'])
+            # event_loop = tqdm(
+            #     enumerate(event_ids, 0), 
+            #     total=len(event_ids), 
+            #     leave=True,
+            #     position=0,
+            #     colour='green'
+            # )
+            # for jj, event_id in event_loop:
+            #     if jj == 3:
+            #         break
+            #     event_trajectories = trajectories[trajectories['event_id'] == event_id]
+            #     event_segments = segments[segments['event_id'] == event_id]
+            #     event_stacks = stacks[stacks == event_id]
+            #     hits_back_track_mask = np.any(
+            #         np.isin(hits_back_track['segment_id'], event_segments['segment_id']), 
+            #         axis=1
+            #     )
+            #     event_back_track_hits = hits_back_track[hits_back_track_mask]
+            #     event_hits = hits[hits_back_track_mask]
                 
-                self.simulation_wrangler.process_event(
-                    event_id,
-                    event_trajectories,
-                    event_segments,
-                    event_stacks,
-                    event_back_track_hits,
-                    event_hits
-                )
-                self.simulation_labeling_logic.process_event()
-                self.simulation_wrangler.save_event()
-                event_loop.set_description(f"Running ArrakisND - Event: [{jj+1}/{len(event_ids)}]")
-            self.simulation_wrangler.save_events(
-                simulation_file
+            self.simulation_wrangler.process_event(
+                trajectories,
+                segments,
+                stacks,
+                hits_back_track,
+                hits,
+                # event_id,
+                # event_trajectories,
+                # event_segments,
+                # event_stacks,
+                # event_back_track_hits,
+                # event_hits
             )
+            self.simulation_labeling_logic.process_event()
+            self.simulation_wrangler.save_event()
+            #event_loop.set_description(f"Running ArrakisND - Event: [{jj+1}/{len(event_ids)}]")
+        self.simulation_wrangler.save_events(
+            simulation_file
+        )

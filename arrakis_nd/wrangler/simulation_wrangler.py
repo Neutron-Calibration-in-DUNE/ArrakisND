@@ -38,7 +38,7 @@ class SimulationWrangler:
         self.trackid_hit = {}
         self.segmentid_hit = {}
 
-    @profile
+    #@profile
     def clear_event(self):
 
         self.det_point_cloud.clear()
@@ -62,15 +62,15 @@ class SimulationWrangler:
         self.trackid_hit = {}
         self.segmentid_hit = {}
     
-    @profile
+    #@profile
     def clear_point_clouds(self):
         self.det_point_clouds = {}
     
-    @profile
+    #@profile
     def set_hit_labels(self,
         hit, trackid, topology, 
-        particle, physics, unique_topology # what is particle???
-    ): # TODO: this will throw an error if hit/trackid is an array (and for some reason some of them are arrays...)
+        particle, physics, unique_topology
+    ):
         track_index = self.get_index_trackid(hit, trackid)
         if track_index != -1:
             self.det_point_cloud.topology_labels[hit][track_index] = topology.value
@@ -84,9 +84,9 @@ class SimulationWrangler:
         self.det_point_cloud.unique_topology[hit] = unique_topology
         self.det_point_cloud.unique_particle[hit] = trackid
 
-    @profile
+    #@profile
     def process_event(self,
-        event_id,
+        #event_id,
         event_trajectories,
         event_segments,
         event_stacks,
@@ -94,13 +94,20 @@ class SimulationWrangler:
         hits
     ):
         self.clear_event()
-        self.det_point_cloud.event = event_id
+        #self.det_point_cloud.event = event_id
+        print("Processing trajectories")
         self.process_event_trajectories(event_trajectories)
+
+        print("Processing stacks")
         self.process_event_stacks(event_stacks)
+
+        print("Processing segments")
         self.process_event_segments(event_segments)
+
+        print("Processing hits")
         self.process_event_hits(hits, hits_back_track)
     
-    @profile
+    #@profile
     def save_event(self):
         self.det_point_cloud.x = np.array(self.det_point_cloud.x)
         self.det_point_cloud.y = np.array(self.det_point_cloud.y)
@@ -118,7 +125,7 @@ class SimulationWrangler:
         self.det_point_cloud.unique_physics = np.array(self.det_point_cloud.unique_physics)
         self.det_point_clouds[self.det_point_cloud.event] = copy.deepcopy(self.det_point_cloud)
         
-    @profile
+    #@profile
     def save_events(self,
         simulation_file
     ):
@@ -166,7 +173,7 @@ class SimulationWrangler:
             meta=meta,
         )
 
-    @profile
+    #@profile
     def process_event_trajectories(self,
         event_trajectories
     ):
@@ -207,13 +214,13 @@ class SimulationWrangler:
             self.trackid_hit[track_id] = []
             self.trackid_segmentid[track_id] = []
 
-    @profile
+    #@profile
     def process_event_stacks(self,
         event_stacks
     ):
         pass
         
-    @profile
+    #@profile
     def process_event_segments(self,
         event_segments
     ):
@@ -222,12 +229,14 @@ class SimulationWrangler:
             self.segmentid_trackid[segment['segment_id']] = segment['traj_id']
             self.segmentid_hit[segment['segment_id']] = []
     
-    @profile
+    #@profile
     def process_event_hits(self,
         event_hits,
         event_hits_back_track
     ):
         for ii, hit in enumerate(event_hits):
+            if ii % 1000 == 0:
+                print('Processing hit', ii, 'of', len(event_hits))
             segment_ids = event_hits_back_track['segment_id'][ii]
             segment_fractions = event_hits_back_track['fraction'][ii]
             self.det_point_cloud.add_point(
@@ -246,7 +255,7 @@ class SimulationWrangler:
                     self.segmentid_hit[segmentid].append(ii)
                     self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
     
-    @profile
+    #@profile
     def get_total_hit_energy(self, 
         hits
     ):
@@ -255,13 +264,13 @@ class SimulationWrangler:
             energy += self.det_point_cloud.E[hit]
         return energy
 
-    @profile
+    #@profile
     def get_primaries_generator_label(self,
         label
     ):
         pass
     
-    @profile
+    #@profile
     def get_primaries_pdg_code(self,
         pdg
     ):
@@ -271,7 +280,7 @@ class SimulationWrangler:
                 primaries.append(track_id)
         return primaries
 
-    @profile
+    #@profile
     def get_primaries_abs_pdg_code(self,
         pdg
     ):
@@ -281,7 +290,7 @@ class SimulationWrangler:
                 primaries.append(track_id)
         return primaries
     
-    @profile
+    #@profile
     def get_hits_trackid(self,
         trackids
     ):
@@ -291,7 +300,7 @@ class SimulationWrangler:
         ]
         return hits
     
-    @profile
+    #@profile
     def get_segments_trackid(self,
         trackids
     ):
@@ -301,7 +310,7 @@ class SimulationWrangler:
         ]
         return segments
 
-    @profile
+    #@profile
     def get_trackid_pdg_code(self,
         pdg
     ):
@@ -311,7 +320,7 @@ class SimulationWrangler:
                 trackid.append(track_id)
         return trackid   
     
-    @profile
+    #@profile
     def get_daughters_trackid(self,
         trackids
     ):
@@ -321,7 +330,7 @@ class SimulationWrangler:
         ]
         return daughters
     
-    @profile
+    #@profile
     def filter_trackid_not_pdg_code(self,
         trackids, pdg
     ):
@@ -331,7 +340,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_pdg_code(self,
         trackids, pdg
     ):
@@ -341,7 +350,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_not_abs_pdg_code(self,
         trackids, pdg
     ):
@@ -351,7 +360,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_abs_pdg_code(self,
         trackids, pdg
     ):
@@ -361,7 +370,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_not_process(self,
         trackids, process
     ):
@@ -371,7 +380,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_process(self,
         trackids, process
     ):
@@ -381,7 +390,7 @@ class SimulationWrangler:
         ]
         return trackid
     
-    @profile
+    #@profile
     def filter_trackid_not_subprocess(self,
         trackids, subprocess
     ):
@@ -391,7 +400,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_subprocess(self,
         trackids, subprocess
     ):
@@ -401,7 +410,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_not_endprocess(self,
         trackids, endprocess
     ):
@@ -411,7 +420,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_endprocess(self,
         trackids, endprocess
     ):
@@ -421,7 +430,7 @@ class SimulationWrangler:
         ]
         return trackid
     
-    @profile
+    #@profile
     def filter_trackid_not_endsubprocess(self,
         trackids, endsubprocess
     ):
@@ -431,7 +440,7 @@ class SimulationWrangler:
         ]
         return trackid
 
-    @profile
+    #@profile
     def filter_trackid_endsubprocess(self,
         trackids, endsubprocess
     ):
@@ -441,7 +450,7 @@ class SimulationWrangler:
         ]
         return trackid
     
-    @profile
+    #@profile
     def get_index_trackid(self,
         hit, trackid
     ):

@@ -14,25 +14,25 @@ class SimulationLabelingLogic:
 
         self.topology_label = 0
     
-    @profile
+    #@profile
     def iterate_topology_label(self):
         self.topology_label += 1
         return self.topology_label
-    @profile
+    #@profile
     def set_labels(self,
         hits, segments, trackid,
         topology, physics, unique_topology
     ):
-        for hit in hits: # TODO: hit should now not be an array!
+        for hit in hits:
             self.simulation_wrangler.set_hit_labels(
                 hit, 
                 trackid,
                 topology, 
-                trackid,  # TODO: check!! "particle??"
+                trackid, #TODO: make sure this is supposed to be trackid
                 physics, 
                 unique_topology
             )
-    @profile
+    #@profile
     def set_labels_list(self,
         hits, segments, trackid,
         topology, physics, unique_topology
@@ -40,13 +40,13 @@ class SimulationLabelingLogic:
         for ii in range(len(hits)):
             self.set_labels(
                 hits[ii],
-                segments[ii], # segments is not used
+                segments[ii],
                 trackid[ii], 
                 topology, 
                 physics, 
                 unique_topology
             )
-    @profile
+    #@profile
     def set_labels_array(self,
         hits, segments, trackid,
         topology, physics, unique_topology
@@ -54,13 +54,13 @@ class SimulationLabelingLogic:
         for ii in range(len(hits)):
             self.set_labels_list(
                 hits[ii],
-                segments[ii], # segments is not used
+                segments[ii],
                 trackid[ii], 
                 topology, 
                 physics, 
                 unique_topology
             )
-    @profile
+    #@profile
     def process_event(self):
         
         self.topology_label = 0
@@ -85,7 +85,7 @@ class SimulationLabelingLogic:
         self.process_rn222()
         self.process_cosmics()
 
-    @profile
+    #@profile
     def process_showers(self,
         particle, topology_label
     ):
@@ -126,19 +126,19 @@ class SimulationLabelingLogic:
         photon_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(daughters, 22)
         self.process_showers_list(elec_daughters, topology_label)
         self.process_showers_list(photon_daughters, topology_label)
-    @profile
+    #@profile
     def process_showers_list(self,
         particles, topology_label
     ):
         for particle in particles:
             self.process_showers(particle, topology_label)
-    @profile
+    #@profile
     def process_showers_array(self,
         particles
     ):
         for particle in particles:
             self.process_showers_list(particle, self.iterate_topology_label())
-    @profile
+    #@profile
     def process_electrons(self):
         electrons = self.simulation_wrangler.get_primaries_pdg_code(11)
         for electron in electrons:
@@ -165,7 +165,7 @@ class SimulationLabelingLogic:
             )
             self.process_showers_list(electron_progeny, shower_label)
             self.process_showers_list(other_daughters, self.iterate_topology_label())
-    @profile
+    #@profile
     def process_positrons(self):
         positrons = self.simulation_wrangler.get_primaries_pdg_code(-11)
         for positron in positrons:
@@ -192,13 +192,12 @@ class SimulationLabelingLogic:
             )
             self.process_showers_list(positron_progeny, shower_label)
             self.process_showers_list(other_daughters, self.iterate_topology_label())
-    @profile   
+    #@profile   
     def process_gammas(self):
         gammas = self.simulation_wrangler.get_primaries_abs_pdg_code(22)
         for gamma in gammas:
             gamma_daughters = self.simulation_wrangler.trackid_daughters[gamma]
             elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(gamma_daughters, 11)
-            other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(gamma_daughters, 11)
             elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
             elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
 
@@ -218,7 +217,7 @@ class SimulationLabelingLogic:
                 shower_label
             )
             self.process_showers_list(gamma_progeny, shower_label)
-    @profile
+    #@profile
     def process_muons(self):
         muons = self.simulation_wrangler.get_trackid_pdg_code(13)
         for muon in muons:
@@ -277,7 +276,7 @@ class SimulationLabelingLogic:
             self.process_showers_list(other_elec_daughters, self.iterate_topology_label())
             self.process_showers_list(other_daughters, self.iterate_topology_label())
             self.process_showers_list(muon_progeny, self.iterate_topology_label())
-    @profile
+    #@profile
     def process_anti_muons(self):
         muons = self.simulation_wrangler.get_trackid_pdg_code(-13)
         for muon in muons:
@@ -339,7 +338,7 @@ class SimulationLabelingLogic:
             self.process_showers_list(muon_progeny, self.iterate_topology_label())
 
     # Start adding from here. Not 100% sure I'm doing it correctly! 
-    @profile
+    #@profile
     def process_pion0s(self):
         """
         (From Wikipedia: https://en.wikipedia.org/wiki/Pion)
@@ -375,7 +374,10 @@ class SimulationLabelingLogic:
                 TopologyLabel.Shower, PhysicsLabel.PhotonShower,
                 cluster_label
             )
-    @profile
+
+            self.process_showers_list(pi0_daughters, self.iterate_topology_label())
+            self.process_showers_list(pi0_progeny, self.iterate_topology_label())
+    #@profile
     def process_pion_plus(self):
         pipluses = self.simulation_wrangler.get_trackid_pdg_code(211)
         for piplus in pipluses:
@@ -405,7 +407,7 @@ class SimulationLabelingLogic:
             
             self.process_showers_list(other_daughters, self.iterate_topology_label())
             self.process_showers_list(piplus_progeny, self.iterate_topology_label())
-    @profile
+    #@profile
     def process_pion_minus(self):
         pimins = self.simulation_wrangler.get_trackid_pdg_code(-211)
         for pimin in pimins:
@@ -435,7 +437,7 @@ class SimulationLabelingLogic:
             
             self.process_showers_list(other_daughters, self.iterate_topology_label())
             self.process_showers_list(pimin_progeny, self.iterate_topology_label())
-    @profile
+    #@profile
     def process_kaon0s(self):
         ka0s = self.simulation_wrangler.get_trackid_pdg_code(311)
         for ka0 in ka0s:
@@ -449,7 +451,7 @@ class SimulationLabelingLogic:
                 TopologyLabel.Shower, PhysicsLabel.PhotonShower,
                 cluster_label
             )
-
+            self.process_showers_list(ka0_daughters, self.iterate_topology_label())
 
     def process_kaon_plus(self):
 
@@ -524,9 +526,7 @@ class SimulationLabelingLogic:
             other_elec_daughters = self.simulation_wrangler.filter_trackid_not_process(elec_daughters, PhysicsLabel.HadronIonization)
 
             delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
-            other_elec_hits = self.simulation_wrangler.get_hits_trackid(other_elec_daughters)
             delta_segments = self.simulation_wrangler.get_segments_trackid(delta_daughters)
-            other_elec_segments = self.simulation_wrangler.get_segments_trackid(other_elec_daughters)
 
             proton_progeny = self.simulation_wrangler.trackid_progeny[proton]
             proton_hits = self.simulation_wrangler.get_hits_trackid(proton)
@@ -600,28 +600,28 @@ class SimulationLabelingLogic:
         ar37 = self.simulation_wrangler.get_trackid_pdg_code(1000180370)
         ar36 = self.simulation_wrangler.get_trackid_pdg_code(1000180360)
         
-        ar41_daughters = self.simulation_wrangler.get_daughters_trackid(ar41)
-        ar40_daughters = self.simulation_wrangler.get_daughters_trackid(ar40)
-        ar39_daughters = self.simulation_wrangler.get_daughters_trackid(ar39)
-        ar38_daughters = self.simulation_wrangler.get_daughters_trackid(ar38)
-        ar37_daughters = self.simulation_wrangler.get_daughters_trackid(ar37)
-        ar36_daughters = self.simulation_wrangler.get_daughters_trackid(ar36)
+        # ar41_daughters = self.simulation_wrangler.get_daughters_trackid(ar41)
+        # ar40_daughters = self.simulation_wrangler.get_daughters_trackid(ar40)
+        # ar39_daughters = self.simulation_wrangler.get_daughters_trackid(ar39)
+        # ar38_daughters = self.simulation_wrangler.get_daughters_trackid(ar38)
+        # ar37_daughters = self.simulation_wrangler.get_daughters_trackid(ar37)
+        # ar36_daughters = self.simulation_wrangler.get_daughters_trackid(ar36)
 
         s33 = self.simulation_wrangler.get_trackid_pdg_code(1000160330)
-        s33_daughters = self.simulation_wrangler.get_daughters_trackid(s33)
+        # s33_daughters = self.simulation_wrangler.get_daughters_trackid(s33)
         s35 = self.simulation_wrangler.get_trackid_pdg_code(1000160350)
-        s35_daughters = self.simulation_wrangler.get_daughters_trackid(s35)
+        # s35_daughters = self.simulation_wrangler.get_daughters_trackid(s35)
         s36 = self.simulation_wrangler.get_trackid_pdg_code(1000160360)
-        s36_daughters = self.simulation_wrangler.get_daughters_trackid(s36)
+        # s36_daughters = self.simulation_wrangler.get_daughters_trackid(s36)
 
         cl36 = self.simulation_wrangler.get_trackid_pdg_code(1000170360)
-        cl36_daughters = self.simulation_wrangler.get_daughters_trackid(cl36)
+        # cl36_daughters = self.simulation_wrangler.get_daughters_trackid(cl36)
         cl37 = self.simulation_wrangler.get_trackid_pdg_code(1000170370)
-        cl37_daughters = self.simulation_wrangler.get_daughters_trackid(cl37)
+        # cl37_daughters = self.simulation_wrangler.get_daughters_trackid(cl37)
         cl39 = self.simulation_wrangler.get_trackid_pdg_code(1000170390)
-        cl39_daughters = self.simulation_wrangler.get_daughters_trackid(cl39)
+        # cl39_daughters = self.simulation_wrangler.get_daughters_trackid(cl39)
         cl40 = self.simulation_wrangler.get_trackid_pdg_code(1000170400)
-        cl40_daughters = self.simulation_wrangler.get_daughters_trackid(cl40)
+        # cl40_daughters = self.simulation_wrangler.get_daughters_trackid(cl40)
 
         for ar in ar41:
             ar41_hits = self.simulation_wrangler.get_hits_trackid(ar)
@@ -748,9 +748,9 @@ class SimulationLabelingLogic:
         
         inelastic_alphas = self.simulation_wrangler.filter_trackid_process(alphas, PhysicsLabel.NeutronInelastic)
         
-        deuteron_daughters = self.simulation_wrangler.get_daughters_trackid(deuterons)
-        triton_daughters = self.simulation_wrangler.get_daughters_trackid(tritons)
-        inelastic_alpha_daughters = self.simulation_wrangler.get_daughters_trackid(inelastic_alphas)
+        # deuteron_daughters = self.simulation_wrangler.get_daughters_trackid(deuterons)
+        # triton_daughters = self.simulation_wrangler.get_daughters_trackid(tritons)
+        # inelastic_alpha_daughters = self.simulation_wrangler.get_daughters_trackid(inelastic_alphas)
         
         for deuteron in deuterons:
             deuteron_hits = self.simulation_wrangler.get_hits_trackid(deuteron)
@@ -791,7 +791,7 @@ class SimulationLabelingLogic:
                
         mc_data = SimulationWrangler.get_instance()
         ar39 = mc_data.get_primaries_generator_label(PhysicsLabel.Ar39)
-        ar39_daughters = mc_data.get_daughters_trackid(ar39)
+        # ar39_daughters = mc_data.get_daughters_trackid(ar39)
         
         for ar in ar39:
             ar39_hits = mc_data.get_hits_trackid(ar)
@@ -817,7 +817,7 @@ class SimulationLabelingLogic:
         mc_data = SimulationWrangler.get_instance()
         ar42 = mc_data.get_primaries_generator_label(PhysicsLabel.Ar42)
         ar42_betas = mc_data.filter_trackid_pdgcode(ar42, 1000180420)
-        ar42_daughters = mc_data.get_daughter_trackid_trackid(ar42_betas)
+        # ar42_daughters = mc_data.get_daughter_trackid_trackid(ar42_betas)
 
         for ar in ar42:
             ar42_hits = mc_data.get_hits_trackid(ar)
@@ -844,7 +844,7 @@ class SimulationLabelingLogic:
         """
         mc_data = SimulationWrangler.get_instance()
         kr85 = mc_data.get_primaries_generator_label(PhysicsLabel.Kr85)
-        kr85_daughters = mc_data.get_daughters_trackid(kr85)
+        # kr85_daughters = mc_data.get_daughters_trackid(kr85)
 
         for kr in kr85:
             kr85_hits= mc_data.get_hits_trackid(kr)
@@ -970,9 +970,9 @@ class SimulationLabelingLogic:
         cosmics = mc_data.get_primaries_generator_label(ParticleLabel.Cosmics) # there's no cosmics label?
         electrons = mc_data.filter_trackid_pdg_code(cosmics, 11)
         positrons = mc_data.filter_trackid_pdg_code(cosmics, -11)
-        gammas = mc_data.filter_trackid_abs_pdg_code(cosmics, 22)
-        neutrons = mc_data.filter_trackid_pdg_code(cosmics, 2112)
-        anti_neutrons = mc_data.filter_trackid_pdg_code(cosmics, -2112)
+        # gammas = mc_data.filter_trackid_abs_pdg_code(cosmics, 22)
+        # neutrons = mc_data.filter_trackid_pdg_code(cosmics, 2112)
+        # anti_neutrons = mc_data.filter_trackid_pdg_code(cosmics, -2112)
 
         for electron in electrons:
             electron_daughters = mc_data.get_daughters_trackid(electron)
