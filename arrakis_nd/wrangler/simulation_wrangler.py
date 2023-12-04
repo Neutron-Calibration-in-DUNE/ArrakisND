@@ -231,8 +231,8 @@ class SimulationWrangler:
             self.segmentid_trackid[segment['segment_id']] = segment['traj_id']
             self.segmentid_hit[segment['segment_id']] = []
     
-     def process_event_hits(self, event_hits, event_hits_back_track, batch_size=250):
-        num_hits = len(event_hits)
+    def process_event_hits(self, event_hits, event_hits_back_track, batch_size=250):
+        num_hits = len(event_hits) +1
         for batch_start in range(0, num_hits, batch_size):
             print(batch_start)
             batch_end = min(batch_start + batch_size, num_hits)
@@ -464,10 +464,11 @@ class SimulationWrangler:
     def get_index_trackid(self,
         hit, trackid
     ):
-        if self.det_point_cloud.particle_labels is not None:
+        try:
             for ii, particle in enumerate([self.det_point_cloud.particle_labels[hit]]):
                 if particle == trackid:
                     return ii
             return -1
-        else:
+        except:
             print("Warning: particle labels not set for hit", hit)
+            print("Trackid", trackid)
