@@ -71,18 +71,29 @@ class SimulationWrangler:
         hit, trackid, topology, 
         particle, physics, unique_topology
     ):
-        track_index = self.get_index_trackid(hit, trackid)
-        if track_index != -1:
-            self.det_point_cloud.topology_labels[hit][track_index] = topology.value
-            self.det_point_cloud.particle_labels[hit][track_index] = self.trackid_pdgcode[particle]
-            self.det_point_cloud.physics_labels[hit][track_index] = physics.value
-            self.det_point_cloud.unique_topologies[hit][track_index] = unique_topology
-            self.det_point_cloud.unique_particles[hit][track_index] = trackid
-        self.det_point_cloud.topology_label[hit] = topology.value
-        self.det_point_cloud.particle_label[hit] = self.trackid_pdgcode[particle]
-        self.det_point_cloud.physics_label[hit] = physics.value
-        self.det_point_cloud.unique_topology[hit] = unique_topology
-        self.det_point_cloud.unique_particle[hit] = trackid
+        try:
+            track_indices = np.asarray(self.get_index_trackid(hit, trackid)).flatten()
+            hits = np.asarray(hit).flatten()
+            for hit in hits:
+                for track_index in track_indices:
+                    if track_index != -1:
+                        self.det_point_cloud.topology_labels[hit][track_index] = topology.value
+                        self.det_point_cloud.particle_labels[hit][track_index] = self.trackid_pdgcode[particle]
+                        self.det_point_cloud.physics_labels[hit][track_index] = physics.value
+                        self.det_point_cloud.unique_topologies[hit][track_index] = unique_topology
+                        self.det_point_cloud.unique_particles[hit][track_index] = trackid
+                self.det_point_cloud.topology_label[hit] = topology.value
+                self.det_point_cloud.particle_label[hit] = self.trackid_pdgcode[particle]
+                self.det_point_cloud.physics_label[hit] = physics.value
+                self.det_point_cloud.unique_topology[hit] = unique_topology
+                self.det_point_cloud.unique_particle[hit] = trackid
+        except:
+            print("Warning in set_hit_labels")
+            print("Hit", hit)
+            print("Trackid", trackid)
+            print("Topology", topology.value)
+            print("Particle", particle)
+            print("Physics", physics.value)
 
     #@profile
     def process_event(self,
@@ -304,9 +315,10 @@ class SimulationWrangler:
     def get_hits_trackid(self,
         trackids
     ):
+        trackids_np = np.array(trackids).astype(int).flatten()
         hits = [
             self.trackid_hit[track_id]
-            for track_id in trackids
+            for track_id in trackids_np
         ]
         return hits
     
@@ -314,9 +326,10 @@ class SimulationWrangler:
     def get_segments_trackid(self,
         trackids
     ):
+        trackids_np = np.array(trackids).astype(int).flatten()
         segments = [
             self.trackid_segmentid[track_id]
-            for track_id in trackids
+            for track_id in trackids_np
         ]
         return segments
 
@@ -349,6 +362,17 @@ class SimulationWrangler:
             if self.trackid_pdgcode[track_id] != pdg
         ]
         return trackid
+    
+    # def filter_trackid_pdg_code(self, trackids, pdg):
+    #     trackids_np = np.array(trackids).astype(int)
+    #     trackid_pdgcode_np = np.array(self.trackid_pdgcode)
+    #     return trackids_np[np.abs(trackid_pdgcode_np[trackids_np]) != pdg].tolist()
+    
+    # def filter_trackid_not_pdg_code(self, trackids, pdg):
+    #     if not trackids:  # if trackids is empty
+    #         return []
+    #     pdg_codes = np.array([self.trackid_pdgcode[track_id] for track_id in trackids])
+    #     return np.array(trackids)[np.abs(pdg_codes) != pdg].tolist()
 
     #@profile
     def filter_trackid_pdg_code(self,
@@ -359,27 +383,39 @@ class SimulationWrangler:
             if self.trackid_pdgcode[track_id] == pdg
         ]
         return trackid
-
+    
     #@profile
     def filter_trackid_not_abs_pdg_code(self,
         trackids, pdg
     ):
-        trackid = [
-            track_id for track_id in trackids
-            if abs(self.trackid_pdgcode[track_id]) != abs(pdg)
-        ]
-        return trackid
+        try:
+            trackid = [
+                track_id for track_id in trackids
+                if abs(self.trackid_pdgcode[track_id]) != abs(pdg)
+            ]
+            return trackid
+        except:
+            print("Warning in filter_trackid_not_abs_pdg_code")
+            print("Trackids", trackids)
+            print("Pdg", pdg)
+            return []
 
     #@profile
     def filter_trackid_abs_pdg_code(self,
         trackids, pdg
     ):
-        trackid = [
-            track_id for track_id in trackids
-            if abs(self.trackid_pdgcode[track_id]) == abs(pdg)
-        ]
-        return trackid
-
+        try:
+            trackid = [
+                track_id for track_id in trackids
+                if abs(self.trackid_pdgcode[track_id]) == abs(pdg)
+            ]
+            return trackid
+        except:
+            print("Warning in filter_trackid_abs_pdg_code")
+            print("Trackids", trackids)
+            print("Pdg", pdg)
+            return []
+    
     #@profile
     def filter_trackid_not_process(self,
         trackids, process
@@ -399,7 +435,7 @@ class SimulationWrangler:
             if self.trackid_process[track_id] == process
         ]
         return trackid
-    
+
     #@profile
     def filter_trackid_not_subprocess(self,
         trackids, subprocess
