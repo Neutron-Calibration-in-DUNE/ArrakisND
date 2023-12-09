@@ -68,36 +68,28 @@ class SimulationWrangler:
     
     #@profile
     def set_hit_labels(self,
-        hit, trackid, topology, 
+        hit, segment_id, topology, 
         particle, physics, unique_topology
     ):
+        point_cloud_index = self.get_index_trackid(hit, segment_id)
+        if point_cloud_index != -1:
+            self.det_point_cloud.data["topology_labels"][hit][point_cloud_index] = topology.value
+            self.det_point_cloud.data["particle_labels"][hit][point_cloud_index] = self.trackid_pdgcode[particle]
+            self.det_point_cloud.data["physics_labels"][hit][point_cloud_index] = physics.value
+            self.det_point_cloud.data["unique_topologies"][hit][point_cloud_index] = unique_topology
+            self.det_point_cloud.data["unique_particles"][hit][point_cloud_index] = segment_id
+        self.det_point_cloud.data["topology_label"][hit] = topology.value
+        self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[particle]
         try:
-            track_indices = np.asarray(self.get_index_trackid(hit, trackid)).flatten()
-            hits = np.asarray(hit).flatten()
-            for hit in hits:
-                for track_index in track_indices:
-                    if track_index != -1:
-                        self.det_point_cloud.topology_labels[hit][track_index] = topology.value
-                        self.det_point_cloud.particle_labels[hit][track_index] = self.trackid_pdgcode[particle]
-                        self.det_point_cloud.physics_labels[hit][track_index] = physics.value
-                        self.det_point_cloud.unique_topologies[hit][track_index] = unique_topology
-                        self.det_point_cloud.unique_particles[hit][track_index] = trackid
-                self.det_point_cloud.topology_label[hit] = topology.value
-                self.det_point_cloud.particle_label[hit] = self.trackid_pdgcode[particle]
-                self.det_point_cloud.physics_label[hit] = physics.value
-                self.det_point_cloud.unique_topology[hit] = unique_topology
-                self.det_point_cloud.unique_particle[hit] = trackid
+            self.det_point_cloud.data["physics_label"][hit] = physics.value
         except:
-            print("Warning in set_hit_labels")
-            print("Hit", hit)
-            print("Trackid", trackid)
-            print("Topology", topology.value)
-            print("Particle", particle)
-            print("Physics", physics.value)
+            self.det_point_cloud.data["physics_label"][hit] = physics.value[0]
+        self.det_point_cloud.data["unique_topology"][hit] = unique_topology
+        self.det_point_cloud.data["unique_particle"][hit] = segment_id
 
     #@profile
     def process_event(self,
-        #event_id,
+        event_id,
         event_trajectories,
         event_segments,
         event_stacks,
@@ -105,7 +97,8 @@ class SimulationWrangler:
         hits
     ):
         self.clear_event()
-        #self.det_point_cloud.event = event_id
+        self.det_point_cloud.data['event'] = event_id
+        
         print("Processing trajectories")
         self.process_event_trajectories(event_trajectories)
 
@@ -117,26 +110,27 @@ class SimulationWrangler:
 
         print("Processing hits")
         self.process_event_hits(hits, hits_back_track)
-        print("Done processing hits")
+        
+        print("Done processing event")
     
     #@profile
     def save_event(self):
-        # I think we may need to add event_id here?
-        self.det_point_cloud.x = np.array(self.det_point_cloud.x)
-        self.det_point_cloud.y = np.array(self.det_point_cloud.y)
-        self.det_point_cloud.z = np.array(self.det_point_cloud.z)
-        self.det_point_cloud.t_drift = np.array(self.det_point_cloud.t_drift)
-        self.det_point_cloud.ts_pps = np.array(self.det_point_cloud.ts_pps)
-        self.det_point_cloud.Q = np.array(self.det_point_cloud.Q)
-        self.det_point_cloud.E = np.array(self.det_point_cloud.E)
-        self.det_point_cloud.source_label = np.array(self.det_point_cloud.source_label)
-        self.det_point_cloud.topology_label = np.array(self.det_point_cloud.topology_label)
-        self.det_point_cloud.particle_label = np.array(self.det_point_cloud.particle_label)
-        self.det_point_cloud.physics_label = np.array(self.det_point_cloud.physics_label)
-        self.det_point_cloud.unique_topology = np.array(self.det_point_cloud.unique_topology)
-        self.det_point_cloud.unique_particle = np.array(self.det_point_cloud.unique_particle)
-        self.det_point_cloud.unique_physics = np.array(self.det_point_cloud.unique_physics)
-        self.det_point_clouds[self.det_point_cloud.event] = copy.deepcopy(self.det_point_cloud)
+        self.det_point_cloud.data['x'] = np.array(self.det_point_cloud.data['x'])
+        self.det_point_cloud.data['y'] = np.array(self.det_point_cloud.data['y'])
+        self.det_point_cloud.data['z'] = np.array(self.det_point_cloud.data['z'])
+        self.det_point_cloud.data['t_drift'] = np.array(self.det_point_cloud.data['t_drift'])
+        self.det_point_cloud.data['ts_pps'] = np.array(self.det_point_cloud.data['ts_pps'])
+        self.det_point_cloud.data['Q'] = np.array(self.det_point_cloud.data['Q'])
+        self.det_point_cloud.data['E'] = np.array(self.det_point_cloud.data['E'])
+        self.det_point_cloud.data['source_label'] = np.array(self.det_point_cloud.data['source_label'])
+        self.det_point_cloud.data['topology_label'] = np.array(self.det_point_cloud.data['topology_label'])
+        self.det_point_cloud.data['particle_label'] = np.array(self.det_point_cloud.data['particle_label'])
+        self.det_point_cloud.data['physics_label'] = np.array(self.det_point_cloud.data['physics_label'])
+        self.det_point_cloud.data['unique_topology'] = np.array(self.det_point_cloud.data['unique_topology'])
+        self.det_point_cloud.data['unique_particle'] = np.array(self.det_point_cloud.data['unique_particle'])
+        self.det_point_cloud.data['unique_physics'] = np.array(self.det_point_cloud.data['unique_physics'])
+        self.det_point_clouds[self.det_point_cloud.data['event']] = copy.deepcopy(self.det_point_cloud)
+ 
         
     #@profile
     def save_events(self,
@@ -183,6 +177,7 @@ class SimulationWrangler:
         }
         np.savez(
             output_file,
+            data=self.det_point_clouds,
             meta=meta,
         )
 
@@ -203,6 +198,7 @@ class SimulationWrangler:
             # iterate over daughters
             self.trackid_daughters[track_id] = []
             self.trackid_descendants[track_id] = []
+            
             if particle['parent_id'] != -1:
                 self.trackid_daughters[particle['parent_id']].append(track_id)
                 self.trackid_descendants[particle['parent_id']].append(track_id)
@@ -238,43 +234,33 @@ class SimulationWrangler:
         event_segments
     ):
         for ii, segment in enumerate(event_segments):
-            self.trackid_segmentid[segment['traj_id']].append(segment['segment_id'])
-            self.segmentid_trackid[segment['segment_id']] = segment['traj_id']
-            self.segmentid_hit[segment['segment_id']] = []
+            self.trackid_segmentid[segment['traj_id']].append(segment['segment_id']) # segment_ids belonging to a track_id
+            self.segmentid_trackid[segment['segment_id']] = segment['traj_id'] # track_id belonging to a segment_id
+            self.segmentid_hit[segment['segment_id']] = [] # hit_ids belonging to a segment_id
     
-    def process_event_hits(self, event_hits, event_hits_back_track, batch_size=250):
-        num_hits = len(event_hits) +1
-        for batch_start in range(0, num_hits, batch_size):
-            print(batch_start)
-            batch_end = min(batch_start + batch_size, num_hits)
-            batch_hits = event_hits[batch_start:batch_end]
-            batch_back_track = event_hits_back_track[batch_start:batch_end]
+    def process_event_hits(self,
+        event_hits,
+        event_hits_back_track
+    ):
 
-            # Batch processing for 'det_point_cloud'
-            x = batch_hits['x']
-            y = batch_hits['y']
-            z = batch_hits['z']
-            t_drift = batch_hits['t_drift']
-            ts_pps = batch_hits['ts_pps']
-            Q = batch_hits['Q']
-            E = batch_hits['E']
-
-            segment_ids = batch_back_track['segment_id']
-            segment_fractions = batch_back_track['fraction']
-
-            non_zero_segment_ids = segment_ids[segment_ids != 0]
-
-            self.det_point_cloud.add_points(
-                x, y, z, t_drift, ts_pps, Q, E,
-                non_zero_segment_ids,
-                segment_fractions[segment_ids != 0]
+        for ii, hit in enumerate(event_hits):
+            segment_ids = event_hits_back_track['segment_id'][ii]
+            segment_fractions = event_hits_back_track['fraction'][ii]
+            self.det_point_cloud.add_point(
+                hit['x'], 
+                hit['y'],
+                hit['z'],
+                hit['t_drift'], 
+                hit['ts_pps'], 
+                hit['Q'], 
+                hit['E'], 
+                segment_ids,
+                segment_fractions
             )
-
-            # Update dictionaries
-            for ii, segmentid in enumerate(non_zero_segment_ids):
-                if segmentid in self.segmentid_hit:
-                    self.segmentid_hit[segmentid].append(ii + batch_start)
-                    self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii + batch_start)
+            for segmentid in segment_ids[(segment_ids != 0)]:
+                if segmentid in self.segmentid_hit.keys():
+                    self.segmentid_hit[segmentid].append(ii)
+                    self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
     
     #@profile
     def get_total_hit_energy(self, 
@@ -282,7 +268,11 @@ class SimulationWrangler:
     ):
         energy = 0.0
         for hit in hits:
-            energy += self.det_point_cloud.E[hit]
+            try:
+                energy += self.det_point_cloud.data['E'][hit]
+            except:
+                energy += 0.0
+                print("Warning in get_total_hit_energy")
         return energy
 
     #@profile
@@ -297,7 +287,7 @@ class SimulationWrangler:
     ):
         primaries = []
         for track_id, parent_id in self.trackid_parentid.items():
-            if parent_id == 0 and self.trackid_pdgcode[track_id] == pdg:
+            if parent_id == -1 and self.trackid_pdgcode[track_id] == pdg:
                 primaries.append(track_id)
         return primaries
 
@@ -307,7 +297,7 @@ class SimulationWrangler:
     ):
         primaries = []
         for track_id, parent_id in self.trackid_parentid.items():
-            if parent_id == 0 and abs(self.trackid_pdgcode[track_id]) == abs(pdg):
+            if parent_id == -1 and abs(self.trackid_pdgcode[track_id]) == abs(pdg):
                 primaries.append(track_id)
         return primaries
     
@@ -363,16 +353,6 @@ class SimulationWrangler:
         ]
         return trackid
     
-    # def filter_trackid_pdg_code(self, trackids, pdg):
-    #     trackids_np = np.array(trackids).astype(int)
-    #     trackid_pdgcode_np = np.array(self.trackid_pdgcode)
-    #     return trackids_np[np.abs(trackid_pdgcode_np[trackids_np]) != pdg].tolist()
-    
-    # def filter_trackid_not_pdg_code(self, trackids, pdg):
-    #     if not trackids:  # if trackids is empty
-    #         return []
-    #     pdg_codes = np.array([self.trackid_pdgcode[track_id] for track_id in trackids])
-    #     return np.array(trackids)[np.abs(pdg_codes) != pdg].tolist()
 
     #@profile
     def filter_trackid_pdg_code(self,
@@ -498,13 +478,9 @@ class SimulationWrangler:
     
     #@profile
     def get_index_trackid(self,
-        hit, trackid
+        hit, segment_id
     ):
-        try:
-            for ii, particle in enumerate([self.det_point_cloud.particle_labels[hit]]):
-                if particle == trackid:
-                    return ii
-            return -1
-        except:
-            print("Warning: particle labels not set for hit", hit)
-            print("Trackid", trackid)
+        index = np.where(
+            self.det_point_cloud.data['segment_ids'][hit] == segment_id
+        )
+        return index

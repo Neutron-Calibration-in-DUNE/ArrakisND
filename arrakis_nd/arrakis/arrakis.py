@@ -251,15 +251,18 @@ class Arrakis(H5FlowStage):
 
             event_ids = np.unique(flow_file['mc_truth/segments/data']['event_id'])
             event_loop = tqdm(
-                enumerate(event_ids, 0), 
+                enumerate(event_ids, 0),
                 total=len(event_ids), 
                 leave=True,
-                position=0,
+                position=1,
                 colour='green'
             )
             for jj, event_id in event_loop:
-                if jj == 3:
+                if event_id==0: # skip the first event for now, it is very large and takes forever to process
+                    continue
+                if jj == 15:
                     break
+                print(event_id)
                 event_trajectories = trajectories[trajectories['event_id'] == event_id]
                 event_segments = segments[segments['event_id'] == event_id]
                 event_stacks = stacks[stacks == event_id]
@@ -269,13 +272,9 @@ class Arrakis(H5FlowStage):
                 )
                 event_back_track_hits = hits_back_track[hits_back_track_mask]
                 event_hits = hits[hits_back_track_mask]
-                
+
                 self.simulation_wrangler.process_event(
-                    # trajectories,
-                    # segments,
-                    # stacks,
-                    # hits_back_track,
-                    # hits,
+                    event_id,
                     event_trajectories,
                     event_segments,
                     event_stacks,
@@ -285,5 +284,6 @@ class Arrakis(H5FlowStage):
                 self.simulation_labeling_logic.process_event()
                 self.simulation_wrangler.save_event()
             self.simulation_wrangler.save_events(
-                simulation_file
+                #simulation_file
+                "test.npz"
             )
