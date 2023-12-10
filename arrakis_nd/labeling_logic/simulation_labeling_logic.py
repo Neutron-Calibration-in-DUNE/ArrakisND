@@ -498,7 +498,7 @@ class SimulationLabelingLogic:
                 track_label
             )
             
-            self.set_labels(
+            self.set_labels_list(
                 elec_hits, elec_segments, elec_daughters,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 track_label
@@ -529,7 +529,7 @@ class SimulationLabelingLogic:
                 track_label
             )
             
-            self.set_labels(
+            self.set_labels_list(
                 elec_hits, elec_segments, elec_daughters,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 track_label
@@ -563,7 +563,7 @@ class SimulationLabelingLogic:
                 track_label
             )
             
-            self.set_labels(
+            self.set_labels_list(
                 delta_hits, delta_segments, delta_daughters,
                 TopologyLabel.Track, PhysicsLabel.DeltaElectron,
                 track_label
@@ -1046,7 +1046,7 @@ class SimulationLabelingLogic:
                     shower_label
                 )
 
-                self.set_labels(
+                self.set_labels_list(
                     elec_hits, elec_segments, elec_daughters,
                     TopologyLabel.Shower, PhysicsLabel.PositronShower,
                     shower_label
