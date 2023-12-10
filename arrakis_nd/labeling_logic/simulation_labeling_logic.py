@@ -576,43 +576,44 @@ class SimulationLabelingLogic:
 
     def process_neutron_captures(self):
         neutrons = self.simulation_wrangler.get_trackid_pdg_code(2112)
-        neutron_daughters = self.simulation_wrangler.get_daughters_trackid(neutrons)
-        gamma_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(neutron_daughters, 22)
-        other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(neutron_daughters, 22)
-        capture_daughters = self.simulation_wrangler.filter_trackid_process(gamma_daughters, PhysicsLabel.NeutronCaptureGammaOther)
-        other_gammas = self.simulation_wrangler.filter_trackid_not_process(gamma_daughters, PhysicsLabel.NeutronCaptureGammaOther)
+        for neutron in neutrons:
+            neutron_daughters = self.simulation_wrangler.trackid_daughters[neutron]
+            gamma_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(neutron_daughters, 22)
+            other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(neutron_daughters, 22)
+            capture_daughters = self.simulation_wrangler.filter_trackid_process(gamma_daughters, PhysicsLabel.NeutronCaptureGammaOther)
+            other_gammas = self.simulation_wrangler.filter_trackid_not_process(gamma_daughters, PhysicsLabel.NeutronCaptureGammaOther)
 
-        for capture in capture_daughters:
-            for gamma in capture:
-                gamma_energy = self.simulation_wrangler.get_total_hit_energy(gamma, 5)
-                gamma_hits = self.simulation_wrangler.get_hits_trackid(gamma)
-                gamma_segments = self.simulation_wrangler.get_segments_trackid(gamma)
+            for capture in capture_daughters:
+                for gamma in capture:
+                    gamma_energy = self.simulation_wrangler.get_total_hit_energy(gamma, 5)
+                    gamma_hits = self.simulation_wrangler.get_hits_trackid(gamma)
+                    gamma_segments = self.simulation_wrangler.get_segments_trackid(gamma)
 
-                particle_label = PhysicsLabel.NeutronCaptureGammaOther
-                if gamma_energy in {0.00474, 0.00475}:
-                    particle_label = PhysicsLabel.NeutronCaptureGamma474
-                elif gamma_energy in {0.00336, 0.00337}:
-                    particle_label = PhysicsLabel.NeutronCaptureGamma336
-                elif gamma_energy in {0.00256, 0.00257}:
-                    particle_label = PhysicsLabel.NeutronCaptureGamma256
-                elif gamma_energy in {0.00118, 0.00119}:
-                    particle_label = PhysicsLabel.NeutronCaptureGamma118
-                elif gamma_energy in {0.00083, 0.00084}:
-                    particle_label = PhysicsLabel.NeutronCaptureGamma083
-                elif gamma_energy in {0.00051, 0.00052}:
-                    particle_label = PhysicsLabel.NeutronCaptureGamma051
-                elif gamma_energy in {0.00016, 0.00017}:
-                    particle_label = PhysicsLabel.NeutronCaptureGamma016
+                    particle_label = PhysicsLabel.NeutronCaptureGammaOther
+                    if gamma_energy in {0.00474, 0.00475}:
+                        particle_label = PhysicsLabel.NeutronCaptureGamma474
+                    elif gamma_energy in {0.00336, 0.00337}:
+                        particle_label = PhysicsLabel.NeutronCaptureGamma336
+                    elif gamma_energy in {0.00256, 0.00257}:
+                        particle_label = PhysicsLabel.NeutronCaptureGamma256
+                    elif gamma_energy in {0.00118, 0.00119}:
+                        particle_label = PhysicsLabel.NeutronCaptureGamma118
+                    elif gamma_energy in {0.00083, 0.00084}:
+                        particle_label = PhysicsLabel.NeutronCaptureGamma083
+                    elif gamma_energy in {0.00051, 0.00052}:
+                        particle_label = PhysicsLabel.NeutronCaptureGamma051
+                    elif gamma_energy in {0.00016, 0.00017}:
+                        particle_label = PhysicsLabel.NeutronCaptureGamma016
 
-                cluster_label = self.iterate_topology_label()
-                self.set_labels(
-                    gamma_hits, gamma_segments, gamma,
-                    TopologyLabel.Blip, particle_label,
-                    cluster_label
-                )
-                
-        self.process_showers(other_daughters, self.iterate_topology_label())
-        self.process_showers(other_gammas, self.iterate_topology_label())
+                    cluster_label = self.iterate_topology_label()
+                    self.set_labels(
+                        gamma_hits, gamma_segments, gamma,
+                        TopologyLabel.Blip, particle_label,
+                        cluster_label
+                    )
+                    
+            self.process_showers(other_daughters, self.iterate_topology_label())
+            self.process_showers(other_gammas, self.iterate_topology_label())
 
 
     def process_nuclear_recoils(self):
