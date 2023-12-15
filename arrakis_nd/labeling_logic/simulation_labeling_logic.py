@@ -75,7 +75,7 @@ class SimulationLabelingLogic:
         self.process_anti_muons()
         # print("processing pions")
         self.process_pion0s()
-        # self.process_pion_plus()
+        self.process_pion_plus()
         # self.process_pion_minus()
         # print("processing kaons")
         # self.process_kaon0s()
@@ -376,12 +376,12 @@ class SimulationLabelingLogic:
             descendants_segments = self.simulation_wrangler.get_segments_trackid(pi0_descendants)
             self.set_labels_list(
                 descendants_hits, descendants_segments, pi0_descendants,
-                TopologyLabel.Shower, PhysicsLabel.PhotonShower,
+                TopologyLabel.Shower, PhysicsLabel.PhotonShower, # TODO: check this
                 cluster_label
             )
 
             # label pi0 descendants as showers
-            # this is very inefficient
+            # this is very inefficient for some reason...
             #pi0_daughters = self.simulation_wrangler.trackid_daughters[pi0]
             #pi0_progeny = self.simulation_wrangler.trackid_progeny[pi0]
             #self.process_showers_list(pi0_daughters, self.iterate_topology_label()) # but these will not be labeled photon showers
@@ -394,7 +394,7 @@ class SimulationLabelingLogic:
         for piplus in pipluses:
             # label piplus as HIP ionization
             piplus_daughters = self.simulation_wrangler.trackid_daughters[piplus]
-            #piplus_progeny = self.simulation_wrangler.trackid_progeny[piplus]
+            piplus_progeny = self.simulation_wrangler.trackid_progeny[piplus]
             piplus_hits = self.simulation_wrangler.trackid_hit[piplus]
             piplus_segments = self.simulation_wrangler.trackid_segmentid[piplus]
 
@@ -406,19 +406,27 @@ class SimulationLabelingLogic:
             )
             # label electron daughters as ..? showers?
             elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(piplus_daughters, 11)
-            other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(piplus_daughters, 11)
-            
             elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
             elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
-            
             self.set_labels_list(
                 elec_hits, elec_segments, elec_daughters,
-                TopologyLabel.Track, PhysicsLabel.HIPIonization,
+                TopologyLabel.Track, PhysicsLabel.ElectronShower, # TODO: check this
                 track_label
             )
-            
+            # label muon daughters as ..? tracks?
+            muon_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(piplus_daughters, 13)
+            muon_segments = self.simulation_wrangler.get_segments_trackid(muon_daughters)
+            muon_hits = self.simulation_wrangler.get_hits_trackid(muon_daughters)
+            self.set_labels_list(
+                muon_hits, muon_segments, muon_daughters,
+                TopologyLabel.Track, PhysicsLabel.MIPIonization, # TODO: check this
+                self.iterate_topology_label()
+            )
+            # label all other daughters and progeny as showers
+            not_elec_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(piplus_daughters, 11)
+            other_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(not_elec_daughters, 13)
             self.process_showers_list(other_daughters, self.iterate_topology_label())
-            #self.process_showers_list(piplus_progeny, self.iterate_topology_label())
+            self.process_showers_list(piplus_progeny, self.iterate_topology_label())
     #@profile
     def process_pion_minus(self):
         pimins = self.simulation_wrangler.get_trackid_pdg_code(-211)
@@ -562,7 +570,7 @@ class SimulationLabelingLogic:
 
             self.process_showers_list(other_daughters, self.iterate_topology_label())
 
-            # we do not need these anymore (I think)
+            # we do not need these anymore (I think) # TODO: check this
             # proton_progeny = self.simulation_wrangler.trackid_progeny[proton]
             # self.process_showers_list(proton_progeny, self.iterate_topology_label())
 
@@ -763,7 +771,7 @@ class SimulationLabelingLogic:
         tritons = self.simulation_wrangler.get_trackid_pdg_code(1000010030)
         alphas = self.simulation_wrangler.get_trackid_pdg_code(1000020040)
         
-        inelastic_alphas = self.simulation_wrangler.filter_trackid_process(alphas, PhysicsLabel.NuclearRecoil)
+        inelastic_alphas = self.simulation_wrangler.filter_trackid_process(alphas, PhysicsLabel.NuclearRecoil) # TODO: fix this
         
         # deuteron_daughters = self.simulation_wrangler.get_daughters_trackid(deuterons)
         # triton_daughters = self.simulation_wrangler.get_daughters_trackid(tritons)
