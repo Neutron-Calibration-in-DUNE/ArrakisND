@@ -96,71 +96,62 @@ class SimulationLabelingLogic:
 
     def process_showers(self, particle, topology_label):
         simulation_wrangler = self.simulation_wrangler
-        # try:
+
+        # label the particle
         particle_hits = simulation_wrangler.trackid_hit[particle]
         particle_segments = simulation_wrangler.trackid_segmentid[particle]
-        particle_process = simulation_wrangler.trackid_process[particle]
         particle_pdgcode = simulation_wrangler.trackid_pdgcode[particle]
-        particle_progeny = simulation_wrangler.trackid_descendants[particle]
-        bremm_progeny = simulation_wrangler.filter_trackid_subprocess(particle_progeny, 3)
-        conv_progeny = simulation_wrangler.filter_trackid_subprocess(particle_progeny, 14)
-        # except:
-        #     print("Something went wrong in process_showers")
-        #     print("particle: ", particle)
-        #     print("topology_label: ", topology_label)
-        #     particle_hits = []
-        #     particle_segments = []
-        #     particle_process = "empty"
-        #     particle_pdgcode = 0
+        
+        if particle_pdgcode == 11:
+            physics_label = PhysicsLabel.ElectronShower
+        elif particle_pdgcode == -11:
+            physics_label = PhysicsLabel.PositronShower
+        elif abs(particle_pdgcode) == 22:
+            physics_label = PhysicsLabel.PhotonShower
+        else:
+            physics_label = None
+
+        if physics_label is not None:
+            self.set_labels(
+                        particle_hits, particle_segments, particle,
+                        TopologyLabel.Shower, physics_label,
+                        topology_label
+                    )
+
+        # label the descendants
+        particle_descendants = simulation_wrangler.trackid_descendants[particle]
+        bremm_descendants = simulation_wrangler.filter_trackid_subprocess(particle_descendants, 3)
+        conv_descendants = simulation_wrangler.filter_trackid_subprocess(particle_descendants, 14)
+
+        descendants_hits = self.simulation_wrangler.get_hits_trackid(particle_descendants)
+        descendants_segments = self.simulation_wrangler.get_segments_trackid(particle_descendants)
 
         if (
-            len(bremm_progeny) > 0 or len(conv_progeny) > 0
-            # particle_process == "primary" or # TODO: use process number instead
-            # particle_process == "conv" or # TODO: use process number instead
-            # particle_process == "compt" or # TODO: use process number instead
+            len(bremm_descendants) > 0 or len(conv_descendants) > 0
             # simulation_wrangler.get_total_hit_energy(particle_hits) >= self.shower_threshold
         ):
-            print(particle)
-            if particle_pdgcode == 11:
-                physics_label = PhysicsLabel.ElectronShower
-            elif particle_pdgcode == -11:
-                physics_label = PhysicsLabel.PositronShower
-            elif abs(particle_pdgcode) == 22:
-                physics_label = PhysicsLabel.PhotonShower
-            else:
-                physics_label = None
-
-            elec_hits = self.simulation_wrangler.get_hits_trackid(particle_progeny)
-            elec_segments = self.simulation_wrangler.get_segments_trackid(particle_progeny)
 
             if physics_label is not None:
                 self.set_labels_list(
-                    elec_hits, elec_segments, particle_progeny,
+                    descendants_hits, descendants_segments, particle_descendants,
                     TopologyLabel.Shower, physics_label,
                     topology_label
                 )
+        # this will just print the subprocesses of the particle descendants
+        # if none of the descendants are created by bremm or conv
+        # mostly low energy particles with only compton scattering and ionization?
+        # give them shower topology label but undefined physics label for now
         else:
             processes = []
-            for progeny in particle_progeny:
+            for progeny in particle_descendants:
                 processes.append(simulation_wrangler.trackid_subprocess[progeny])
             if len(processes) > 0:
-                print(processes)
-        # else:
-        #     self.set_labels(
-        #         particle_hits, particle_segments, particle,
-        #         TopologyLabel.Blip, PhysicsLabel.ElectronRecoil,
-        #         topology_label
-        #     )
-
-        # try:
-        #     daughters = simulation_wrangler.trackid_daughters[particle]
-        #     elec_daughters = simulation_wrangler.filter_trackid_abs_pdg_code(daughters, 11)
-        #     photon_daughters = simulation_wrangler.filter_trackid_abs_pdg_code(daughters, 22)
-
-        #     self.process_showers_list(elec_daughters, topology_label)
-        #     self.process_showers_list(photon_daughters, topology_label)
-        # except:
-        #     print("Something went wrong in process_showers")
+                print("processes: ", processes)
+            self.set_labels_list(
+                descendants_hits, descendants_segments, particle_descendants,
+                TopologyLabel.Shower, PhysicsLabel.Undefined,
+                topology_label
+            )
 
     #@profile
     def process_showers_list(self,
