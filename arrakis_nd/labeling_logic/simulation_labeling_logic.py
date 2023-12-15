@@ -66,7 +66,7 @@ class SimulationLabelingLogic:
         
         self.topology_label = 0
         # print("processing electrons")
-        # self.process_electrons()
+        self.process_electrons()
         # self.process_positrons()
         # print("processing gammas")
         # self.process_gammas()
@@ -95,28 +95,32 @@ class SimulationLabelingLogic:
         #self.process_cosmics() # cosmics label doesn't exist yet
 
     def process_showers(self, particle, topology_label):
-
         simulation_wrangler = self.simulation_wrangler
-        try:
-            particle_hits = simulation_wrangler.trackid_hit[particle]
-            particle_segments = simulation_wrangler.trackid_segmentid[particle]
-            particle_process = simulation_wrangler.trackid_process[particle]
-            particle_pdgcode = simulation_wrangler.trackid_pdgcode[particle]
-        except:
-            print("Something went wrong in process_showers")
-            print("particle: ", particle)
-            print("topology_label: ", topology_label)
-            particle_hits = []
-            particle_segments = []
-            particle_process = "empty"
-            particle_pdgcode = 0
+        # try:
+        particle_hits = simulation_wrangler.trackid_hit[particle]
+        particle_segments = simulation_wrangler.trackid_segmentid[particle]
+        particle_process = simulation_wrangler.trackid_process[particle]
+        particle_pdgcode = simulation_wrangler.trackid_pdgcode[particle]
+        particle_progeny = simulation_wrangler.trackid_descendants[particle]
+        bremm_progeny = simulation_wrangler.filter_trackid_subprocess(particle_progeny, 3)
+        conv_progeny = simulation_wrangler.filter_trackid_subprocess(particle_progeny, 14)
+        # except:
+        #     print("Something went wrong in process_showers")
+        #     print("particle: ", particle)
+        #     print("topology_label: ", topology_label)
+        #     particle_hits = []
+        #     particle_segments = []
+        #     particle_process = "empty"
+        #     particle_pdgcode = 0
 
         if (
-            particle_process == "primary" or # TODO: use process number instead
-            particle_process == "conv" or # TODO: use process number instead
-            particle_process == "compt" or # TODO: use process number instead
-            simulation_wrangler.get_total_hit_energy(particle_hits) >= self.shower_threshold
+            len(bremm_progeny) > 0 or len(conv_progeny) > 0
+            # particle_process == "primary" or # TODO: use process number instead
+            # particle_process == "conv" or # TODO: use process number instead
+            # particle_process == "compt" or # TODO: use process number instead
+            # simulation_wrangler.get_total_hit_energy(particle_hits) >= self.shower_threshold
         ):
+            print(particle)
             if particle_pdgcode == 11:
                 physics_label = PhysicsLabel.ElectronShower
             elif particle_pdgcode == -11:
@@ -126,28 +130,37 @@ class SimulationLabelingLogic:
             else:
                 physics_label = None
 
+            elec_hits = self.simulation_wrangler.get_hits_trackid(particle_progeny)
+            elec_segments = self.simulation_wrangler.get_segments_trackid(particle_progeny)
+
             if physics_label is not None:
-                self.set_labels(
-                    particle_hits, particle_segments, particle,
+                self.set_labels_list(
+                    elec_hits, elec_segments, particle_progeny,
                     TopologyLabel.Shower, physics_label,
                     topology_label
                 )
         else:
-            self.set_labels(
-                particle_hits, particle_segments, particle,
-                TopologyLabel.Blip, PhysicsLabel.ElectronRecoil,
-                topology_label
-            )
+            processes = []
+            for progeny in particle_progeny:
+                processes.append(simulation_wrangler.trackid_subprocess[progeny])
+            if len(processes) > 0:
+                print(processes)
+        # else:
+        #     self.set_labels(
+        #         particle_hits, particle_segments, particle,
+        #         TopologyLabel.Blip, PhysicsLabel.ElectronRecoil,
+        #         topology_label
+        #     )
 
-        try:
-            daughters = simulation_wrangler.trackid_daughters[particle]
-            elec_daughters = simulation_wrangler.filter_trackid_abs_pdg_code(daughters, 11)
-            photon_daughters = simulation_wrangler.filter_trackid_abs_pdg_code(daughters, 22)
+        # try:
+        #     daughters = simulation_wrangler.trackid_daughters[particle]
+        #     elec_daughters = simulation_wrangler.filter_trackid_abs_pdg_code(daughters, 11)
+        #     photon_daughters = simulation_wrangler.filter_trackid_abs_pdg_code(daughters, 22)
 
-            self.process_showers_list(elec_daughters, topology_label)
-            self.process_showers_list(photon_daughters, topology_label)
-        except:
-            print("Something went wrong in process_showers")
+        #     self.process_showers_list(elec_daughters, topology_label)
+        #     self.process_showers_list(photon_daughters, topology_label)
+        # except:
+        #     print("Something went wrong in process_showers")
 
     #@profile
     def process_showers_list(self,
@@ -155,6 +168,7 @@ class SimulationLabelingLogic:
     ):
         for particle in particles:
             self.process_showers(particle, topology_label)
+            
     #@profile
     def process_showers_array(self,
         particles
@@ -163,31 +177,32 @@ class SimulationLabelingLogic:
             self.process_showers_list(particle, self.iterate_topology_label())
     #@profile
     def process_electrons(self):
-        electrons = self.simulation_wrangler.get_primaries_pdg_code(11)
+        electrons = self.simulation_wrangler.get_trackid_pdg_code(11)
         for electron in electrons:
-            electron_daughters = self.simulation_wrangler.trackid_daughters[electron]
-            elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(electron_daughters, 11)
-            other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(electron_daughters, 11)
-            elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
-            elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
+            self.process_showers(electron, self.iterate_topology_label())
+            # electron_daughters = self.simulation_wrangler.trackid_daughters[electron]
+            # elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(electron_daughters, 11)
+            # other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(electron_daughters, 11)
+            # elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
+            # elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
 
-            electron_progeny = self.simulation_wrangler.trackid_progeny[electron]
-            electron_hits = self.simulation_wrangler.trackid_hit[electron]
-            electron_segment = self.simulation_wrangler.trackid_segmentid[electron]
+            # electron_progeny = self.simulation_wrangler.trackid_progeny[electron]
+            # electron_hits = self.simulation_wrangler.trackid_hit[electron]
+            # electron_segment = self.simulation_wrangler.trackid_segmentid[electron]
 
-            shower_label = self.iterate_topology_label()
-            self.set_labels(
-                electron_hits, electron_segment, electron,
-                TopologyLabel.Shower, PhysicsLabel.ElectronShower,
-                shower_label
-            )
-            self.set_labels_list(
-                elec_hits, elec_segments, elec_daughters,
-                TopologyLabel.Shower, PhysicsLabel.ElectronShower,
-                shower_label
-            )
-            self.process_showers_list(electron_progeny, shower_label)
-            self.process_showers_list(other_daughters, self.iterate_topology_label())
+            # shower_label = self.iterate_topology_label()
+            # self.set_labels(
+            #     electron_hits, electron_segment, electron,
+            #     TopologyLabel.Shower, PhysicsLabel.ElectronShower,
+            #     shower_label
+            # )
+            # self.set_labels_list(
+            #     elec_hits, elec_segments, elec_daughters,
+            #     TopologyLabel.Shower, PhysicsLabel.ElectronShower,
+            #     shower_label
+            # )
+            # self.process_showers_list(electron_progeny, shower_label)
+            # self.process_showers_list(other_daughters, self.iterate_topology_label())
     #@profile
     def process_positrons(self):
         positrons = self.simulation_wrangler.get_primaries_pdg_code(-11)
@@ -283,7 +298,7 @@ class SimulationLabelingLogic:
 
             # not_decay_elec_daughters = self.simulation_wrangler.filter_trackid_not_process(elec_daughters, 6)
             # not_muon_capture_elec_daughters = self.simulation_wrangler.filter_trackid_not_process(not_decay_elec_daughters, "muonCaptureAtRest")
-            # other_elec_daughters = self.simulation_wrangler.filter_trackid_not_process(not_muon_capture_elec_daughters, "muIoni")
+            other_elec_daughters = self.simulation_wrangler.filter_trackid_not_subprocess(elec_em_daughters, 2)
 
 
             # # self.set_labels_list(
@@ -306,7 +321,7 @@ class SimulationLabelingLogic:
             # self.process_showers_array(delta_elec_daughters)
             # self.process_showers_list(other_elec_daughters, self.iterate_topology_label())
             # self.process_showers_list(other_daughters, self.iterate_topology_label())
-            # self.process_showers_list(muon_progeny, self.iterate_topology_label())
+            self.process_showers_list(other_elec_daughters, self.iterate_topology_label())
 
     #@profile
     def process_anti_muons(self):

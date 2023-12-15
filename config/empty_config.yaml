@@ -1,7 +1,7 @@
 # Test config for ArrakisND
 arrakis_nd:
   process_type:      "npz"  # npz or flow
-  simulation_folder: "/local_data/"
+  simulation_folder: "/home/ncarrara/workspace/"
   simulation_files: [
     "MiniRun4_1E19_RHC.flow.00000.FLOW.h5"
   ]

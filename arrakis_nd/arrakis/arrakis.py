@@ -260,6 +260,8 @@ class Arrakis(H5FlowStage):
             for jj, event_id in event_loop:
                 if event_id==0: # skip the first event for now, it is very large and takes forever to process
                     continue
+                if event_id > 10:
+                    break
                 print(event_id)
                 event_trajectories = trajectories[trajectories['event_id'] == event_id]
                 event_segments = segments[segments['event_id'] == event_id]

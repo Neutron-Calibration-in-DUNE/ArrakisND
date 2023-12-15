@@ -130,6 +130,7 @@ class SimulationWrangler:
         self.det_point_cloud.data['unique_particle'] = np.array(self.det_point_cloud.data['unique_particle'])
         self.det_point_cloud.data['unique_physics'] = np.array(self.det_point_cloud.data['unique_physics'])
         self.det_point_clouds[self.det_point_cloud.data['event']] = copy.deepcopy(self.det_point_cloud)
+        print(self.det_point_clouds)
  
         
     #@profile
@@ -175,6 +176,7 @@ class SimulationWrangler:
                 for key, value in classification_labels["hit"].items()
             },    
         }
+        
         np.savez(
             output_file,
             data=self.det_point_clouds,
