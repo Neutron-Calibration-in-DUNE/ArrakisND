@@ -427,6 +427,15 @@ class SimulationWrangler:
             if self.trackid_subprocess[track_id] != subprocess
         ]
         return trackid
+    
+    def filter_trackid_not__process_and_subprocess(self,
+        trackids, process, subprocess
+    ):
+        trackid = [
+            track_id for track_id in trackids
+            if not (self.trackid_process[track_id] == process and self.trackid_subprocess[track_id] == subprocess)
+        ]
+        return trackid
 
     #@profile
     def filter_trackid_subprocess(self,
