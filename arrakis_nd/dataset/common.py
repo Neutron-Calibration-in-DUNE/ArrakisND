@@ -3,83 +3,136 @@
 from enum import Enum
 import numpy as np
 
-class TopologyLabel(Enum):
-    Undefined = -1
-    Noise = 0
-    Blip = 1
-    Track = 2
-    Shower = 3
 
 class ParticleLabel(Enum):
     Undefined = -1
     Noise = 0
     Electron = 11
     Positron = -11
-    ElectronNeutrino = 12,
-    AntiElectronNeutrino = -12,
-    Muon = 13,
-    AntiMuon = -13,
-    MuonNeutrino = 14,
-    AntiMuonNeutrino = -14,
-    Tauon = 15,
-    AntiTauon = -15,
-    TauonNeutrino = 16,
-    AntiTauonNeutrino = -16,
-    Gamma = 22,
-    Pion0 = 111,
-    PionPlus = 211,
-    PionMinus = -211,
-    Kaon0 = 311,
-    KaonPlus = 321,
-    KaonMinus = -321,
-    Neutron = 2112,
-    AntiNeutron = -2112,
-    Proton = 2212,
-    AntiProton = -2212,
-    Deuteron = 1000010020,
-    Triton = 1000010030,
+    ElectronNeutrino = 12
+    AntiElectronNeutrino = -12
+    Muon = 13
+    AntiMuon = -13
+    MuonNeutrino = 14
+    AntiMuonNeutrino = -14
+    Tauon = 15
+    AntiTauon = -15
+    TauonNeutrino = 16
+    AntiTauonNeutrino = -16
+    Gamma = 22
+    Pion0 = 111
+    PionPlus = 211
+    PionMinus = -211
+    Kaon0 = 311
+    KaonPlus = 321
+    KaonMinus = -321
+    Neutron = 2112
+    AntiNeutron = -2112
+    Proton = 2212
+    AntiProton = -2212
+    Deuteron = 1000010020
+    Triton = 1000010030
     Alpha = 1000020040
 
+
+class TopologyLabel(Enum):
+    """
+    High-level description of the shape of certain
+    event types.
+    """
+    Undefined = -1
+    Noise = 0
+    Blip = 1
+    Track = 2
+    Shower = 3
+
+
 class PhysicsLabel(Enum):
-    Undefined = -1,
-    Noise = 0,
-    MIPIonization = 1,
-    HIPIonization = 2,
-    DeltaElectron = 3,
-    MichelElectron = 4,
-    ElectronShower = 5,
-    PositronShower = 6,
-    PhotonShower = 7,
-    NeutronCaptureGamma474 = 8,
-    NeutronCaptureGamma336 = 9,
-    NeutronCaptureGamma256 = 10,
-    NeutronCaptureGamma118 = 11,
-    NeutronCaptureGamma083 = 12,
-    NeutronCaptureGamma051 = 13,
-    NeutronCaptureGamma016 = 14,
-    NeutronCaptureGammaOther = 15,
-    Ar39 = 16,
-    Ar42 = 17,
-    K42 = 18,
-    Kr85 = 19,
-    Rn222 = 20,
-    Po218a = 21,
-    Po218b = 22,
-    At218a = 23,
-    At218b = 24,
-    Rn218 = 25,
-    Pb214 = 26,
-    Bi214a = 27,
-    Bi214b = 28,
-    Po214 = 29,
-    Tl210 = 30,
-    Pb210a = 31,
-    Pb210b = 32,
-    Bi210a = 33,
-    Bi210b = 34,
-    Po210 = 35,
-    NuclearRecoil = 36,
-    ElectronRecoil = 37
+    """
+    Low-level descriptions of topological types.
+    This further breaks down the blip/track/shower
+    topology labels into microscale physics.
+    """
+    Undefined = -1
+    Noise = 0
+
+    # Track-like objects
+    MIPIonization = 1
+    HIPIonization = 2
+    DeltaElectron = 3
+    MichelElectron = 4
+
+    # Shower-like objects
+    GammaConversion = 5
+    Bremmstrahlung = 6
+
+    # Blip-like objects
+    GammaScatter = 9
+    NeutronCaptureGamma474 = 10
+    NeutronCaptureGamma336 = 11
+    NeutronCaptureGamma256 = 12
+    NeutronCaptureGamma118 = 13
+    NeutronCaptureGamma083 = 14
+    NeutronCaptureGamma051 = 15
+    NeutronCaptureGamma016 = 16
+    NeutronCaptureGammaOther = 17
+    AlphaDecay = 18
+    BetaDecay = 19
+    GammaDecay = 20
+    NuclearRecoil = 21
+    ElectronRecoil = 22
+
+
+class SourceLabel(Enum):
+    Undefined = -1
+    Noise = 0
+    Cosmics = 1
+    Beam = 2
+    Radiological = 3
+    PNS = 4
+    Laser = 5
+    HEPevt = 6
+    Solar = 7
+    Supernova = 8
+
+
+class InteractionLabel(Enum):
+    Undefined = -1
+    Noise = 0
+    Primary = 1
+    # Neutrino interactions
+    
+    # Shower like interactions
+    ElectronShower = 5
+    PositronShower = 6
+    PhotonShower = 7
+    Pi0Shower = 8
+
+    # Neutron captures
+    NeutronCapture = 10
+
+    # Radiological interactions
+    Ar39 = 18
+    Ar42 = 19
+    K42 = 20
+    Kr85 = 21
+    Rn222 = 22
+    Po218a = 23
+    Po218b = 24
+    At218a = 25
+    At218b = 26
+    Rn218 = 27
+    Pb214 = 28
+    Bi214a = 29
+    Bi214b = 30
+    Po214 = 31
+    Tl210 = 32
+    Pb210a = 33
+    Pb210b = 34
+    Bi210a = 35
+    Bi210b = 36
+    Po210 = 37
+
 
 classification_labels = {
     "source":  {
@@ -138,39 +191,45 @@ classification_labels = {
         2:  "hip_ionization",
         3:  "delta_electron",
         4:  "michel_electron",
-        5:  "electron_shower",
-        6:  "positron_shower",
-        7:  "photon_shower",
-        8:  "neutron_capture_gamma_474",
-        9:  "neutron_capture_gamma_336",
-        10: "neutron_capture_gamma_256",
-        11: "neutron_capture_gamma_118",
-        12: "neutron_capture_gamma_083",
-        13: "neutron_capture_gamma_051",
-        14: "neutron_capture_gamma_016",
-        15: "neutron_capture_gamma_other",
-        16: "ar39",
-        17: "ar42",
-        18: "k42",
-        19: "kr85",
-        20: "rn222",
-        21: "po218a",
-        22: "po218b",
-        23: "at218a",
-        24: "at218b",
-        25: "rn218",
-        26: "pb214",
-        27: "bi214a",
-        28: "bi214b",
-        29: "po214",
-        30: "tl210",
-        31: "pb210a",
-        32: "pb210b",
-        33: "bi210a",
-        34: "bi210b",
-        35: "po210",
-        36: "nuclear_recoil",
-        37: "electron_recoil"
+        5:  "gamma_conversion",
+        6:  "bremmstrahlung",
+        #7:  "photon_shower",
+        #8:  "pi0_shower",
+        9:  "gamma_scatter",
+        10: "neutron_capture_gamma_474",
+        11: "neutron_capture_gamma_336",
+        12: "neutron_capture_gamma_256",
+        13: "neutron_capture_gamma_118",
+        14: "neutron_capture_gamma_083",
+        15: "neutron_capture_gamma_051",
+        16: "neutron_capture_gamma_016",
+        17: "neutron_capture_gamma_other",
+        18: "alpha_decay",
+        19: "beta_decay",
+        20: "gamma_decay",
+        # 18: "ar39",
+        # 19: "ar42",
+        # 20: "k42",
+        # 21: "kr85",
+        # 22: "rn222",
+        # 23: "po218a",
+        # 24: "po218b",
+        # 25: "at218a",
+        # 26: "at218b",
+        # 27: "rn218",
+        # 28: "pb214",
+        # 29: "bi214a",
+        # 30: "bi214b",
+        # 31: "po214",
+        # 32: "tl210",
+        # 33: "pb210a",
+        # 34: "pb210b",
+        # 35: "bi210a",
+        # 36: "bi210b",
+        # 37: "po210",
+        21: "nuclear_recoil",
+        22: "electron_recoil",
+        # Shower-like objects
     },
 
     "hit": {

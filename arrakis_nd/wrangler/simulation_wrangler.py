@@ -68,7 +68,7 @@ class SimulationWrangler:
     
     #@profile
     def set_hit_labels(self,
-        hit, segment_id, topology, 
+        hit, segment_id, topology,
         particle, physics, unique_topology
     ):
         point_cloud_index = self.get_index_trackid(hit, segment_id)
@@ -130,7 +130,6 @@ class SimulationWrangler:
         self.det_point_cloud.data['unique_particle'] = np.array(self.det_point_cloud.data['unique_particle'])
         self.det_point_cloud.data['unique_physics'] = np.array(self.det_point_cloud.data['unique_physics'])
         self.det_point_clouds[self.det_point_cloud.data['event']] = copy.deepcopy(self.det_point_cloud)
-        print(self.det_point_clouds)
  
         
     #@profile
@@ -212,13 +211,15 @@ class SimulationWrangler:
             ancestry = []
             while mother != -1:
                 level += 1
+                if track_id not in self.trackid_descendants[mother]:
+                    self.trackid_descendants[mother].append(track_id)
                 temp_track_id = mother
                 ancestry.append(mother)
                 mother = self.trackid_parentid[temp_track_id]
                 
                 if level > 1 and mother != -1:
                     self.trackid_progeny[mother].append(temp_track_id)
-                    self.trackid_descendants[mother].append(temp_track_id)
+                    
 
             self.trackid_ancestorlevel[track_id] = level
             self.trackid_ancestry[track_id] = ancestry
@@ -332,6 +333,15 @@ class SimulationWrangler:
         trackid = []
         for track_id, pdg_code in self.trackid_pdgcode.items():
             if pdg_code == pdg:
+                trackid.append(track_id)
+        return trackid   
+
+    def get_trackid_abs_pdg_code(self,
+        pdg
+    ):
+        trackid = []
+        for track_id, pdg_code in self.trackid_pdgcode.items():
+            if abs(pdg_code) == abs(pdg):
                 trackid.append(track_id)
         return trackid   
     
