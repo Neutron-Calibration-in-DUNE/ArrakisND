@@ -47,11 +47,11 @@ class TopologyLabel(Enum):
     Shower = 3
 
 
-class PhysicsLabel(Enum):
+class PhysicsMicroLabel(Enum):
     """
-    Low-level descriptions of topological types.
+    micro-level descriptions of topological types.
     This further breaks down the blip/track/shower
-    topology labels into microscale physics.
+    topology labels into micro-level physics.
     """
     Undefined = -1
     Noise = 0
@@ -59,100 +59,82 @@ class PhysicsLabel(Enum):
     # Track-like objects
     MIPIonization = 1
     HIPIonization = 2
+    ElectronIonization = 3
+    GammaCompton = 4
+    GammaConversion = 5
+    NuclearRecoil = 6
+    ElectronRecoil = 7
+
+
+class PhysicsMesoLabel(Enum):
+    """
+    meso-level descriptions of topological types.
+    """
+    Undefined = -1
+    Noise = 0
+
+    MIP = 1
+    HIP = 2
     DeltaElectron = 3
     MichelElectron = 4
-
-    # Shower-like objects
-    GammaConversion = 5
-    Bremmstrahlung = 6
-
-    # Blip-like objects
-    GammaScatter = 9
-    NeutronCaptureGamma474 = 10
-    NeutronCaptureGamma336 = 11
-    NeutronCaptureGamma256 = 12
-    NeutronCaptureGamma118 = 13
-    NeutronCaptureGamma083 = 14
-    NeutronCaptureGamma051 = 15
-    NeutronCaptureGamma016 = 16
-    NeutronCaptureGammaOther = 17
-    AlphaDecay = 18
-    BetaDecay = 19
-    GammaDecay = 20
-    NuclearRecoil = 21
-    ElectronRecoil = 22
-
-
-class SourceLabel(Enum):
-    Undefined = -1
-    Noise = 0
-    Cosmics = 1
-    Beam = 2
-    Radiological = 3
-    PNS = 4
-    Laser = 5
-    HEPevt = 6
-    Solar = 7
-    Supernova = 8
-
-
-class InteractionLabel(Enum):
-    Undefined = -1
-    Noise = 0
-    Primary = 1
-    # Neutrino interactions
-
-    # Shower like interactions
     ElectronShower = 5
     PositronShower = 6
     PhotonShower = 7
-    Pi0Shower = 8
+    NeutronCaptureGamma474 = 8
+    NeutronCaptureGamma336 = 9
+    NeutronCaptureGamma256 = 10
+    NeutronCaptureGamma118 = 11
+    NeutronCaptureGamma083 = 12
+    NeutronCaptureGamma051 = 13
+    NeutronCaptureGamma016 = 14
+    NeutronCaptureGammaOther = 15
+    Pi0Decay = 16
+    AlphaDecay = 17
+    BetaDecay = 18
+    GammaDecay = 19
 
-    # Neutron captures
-    NeutronCapture = 10
+
+class PhysicsMacroLabel(Enum):
+    """
+    macro-level descriptions of topological types
+    """
+    Undefined = -1
+    Noise = 0
+
+    # Neutrino interactions
+    CCNue = 1
+    CCNuMu = 2
+    NC = 3
+
+    NeutronCapture = 4
+    Cosmics = 5
 
     # Radiological interactions
-    Ar39 = 18
-    Ar42 = 19
-    K42 = 20
-    Kr85 = 21
-    Rn222 = 22
-    Po218a = 23
-    Po218b = 24
-    At218a = 25
-    At218b = 26
-    Rn218 = 27
-    Pb214 = 28
-    Bi214a = 29
-    Bi214b = 30
-    Po214 = 31
-    Tl210 = 32
-    Pb210a = 33
-    Pb210b = 34
-    Bi210a = 35
-    Bi210b = 36
-    Po210 = 37
+    Ar39 = 6
+    Ar42 = 7
+    K42 = 8
+    Kr85 = 9
+    Rn222 = 10
+    Po218a = 11
+    Po218b = 12
+    At218a = 13
+    At218b = 14
+    Rn218 = 15
+    Pb214 = 16
+    Bi214a = 17
+    Bi214b = 18
+    Po214 = 19
+    Tl210 = 20
+    Pb210a = 21
+    Pb210b = 22
+    Bi210a = 23
+    Bi210b = 24
+    Po210 = 25
+
+    BiPo = 26
 
 
 classification_labels = {
-    "source":  {
-        -1: "undefined",
-        0:  "noise",
-        1:  "cosmics",
-        2:  "beam",
-        3:  "radiological",
-        4:  "pns",
-        5:  "hepevt",
-    },
-
-    "topology": {
-        -1: "undefined",
-        0:  "noise",
-        1:  "blip",
-        2:  "track",
-        3:  "shower",
-    },
-
     "particle": {
         -1:     "undefined",
         0:      "noise",
@@ -183,55 +165,62 @@ classification_labels = {
         1000010030: "triton",
         1000020040: "alpha"
     },
-
-    "physics": {
+    "topology": {
+        -1: "undefined",
+        0:  "noise",
+        1:  "blip",
+        2:  "track",
+        3:  "shower",
+    },
+    "physics_micro": {
         -1: "undefined",
         0:  "noise",
         1:  "mip_ionization",
         2:  "hip_ionization",
+        3:  "electron_ionization",
+        4:  "gamma_compton",
+        5:  "gamma_conversion",
+        6:  "nuclear_recoil",
+        7:  "electron_recoil"
+    },
+    "physics_meso": {
+        -1: "undefined",
+        0:  "noise",
+        1:  "mip",
+        2:  "hip",
         3:  "delta_electron",
         4:  "michel_electron",
-        5:  "gamma_conversion",
-        6:  "bremmstrahlung",
-        #7:  "photon_shower",
-        #8:  "pi0_shower",
-        9:  "gamma_scatter",
-        10: "neutron_capture_gamma_474",
-        11: "neutron_capture_gamma_336",
-        12: "neutron_capture_gamma_256",
-        13: "neutron_capture_gamma_118",
-        14: "neutron_capture_gamma_083",
-        15: "neutron_capture_gamma_051",
-        16: "neutron_capture_gamma_016",
-        17: "neutron_capture_gamma_other",
-        18: "alpha_decay",
-        19: "beta_decay",
-        20: "gamma_decay",
-        # 18: "ar39",
-        # 19: "ar42",
-        # 20: "k42",
-        # 21: "kr85",
-        # 22: "rn222",
-        # 23: "po218a",
-        # 24: "po218b",
-        # 25: "at218a",
-        # 26: "at218b",
-        # 27: "rn218",
-        # 28: "pb214",
-        # 29: "bi214a",
-        # 30: "bi214b",
-        # 31: "po214",
-        # 32: "tl210",
-        # 33: "pb210a",
-        # 34: "pb210b",
-        # 35: "bi210a",
-        # 36: "bi210b",
-        # 37: "po210",
-        21: "nuclear_recoil",
-        22: "electron_recoil",
-        # Shower-like objects
+        5:  "electron_shower",
+        6:  "positron_shower",
+        7:  "photon_shower",
+        8:  "neutron_capture_gamma_474",
+        9:  "neutron_capture_gamma_336",
+        10: "neutron_capture_gamma_256",
+        11: "neutron_capture_gamma_118",
+        12: "neutron_capture_gamma_083",
+        13: "neutron_capture_gamma_051",
+        14: "neutron_capture_gamma_016",
+        15: "neutron_capture_gamma_other",
+        16: "pi0_decay",
+        17: "alpha_decay",
+        18: "beta_decay",
+        19: "gamma_decay",
     },
-
+    "physics_macro": {
+        -1: "undefined",
+        0:  "noise",
+        1:  "cc_nu_e",
+        2:  "cc_nu_mu",
+        3:  "nc",
+        4:  "neutron_capture",
+        5:  "cosmics",
+        6:  "ar39",
+        7:  "ar42",
+        8:  "k42",
+        9:  "kr895",
+        10: "rn222",
+        26: "bi_po"
+    },
     "hit": {
         0:  "induction",
         1:  "hit",
@@ -254,7 +243,7 @@ subspaces = {
 }
 # experimental constraints for the
 # measured higgs mass and DM relic density.
-# current FANL+BNL limits on muon g-2 is: 
+# current FANL+BNL limits on muon g-2 is:
 #   1.16592061(41) × 10−11
 base_constraints = {
     "higgs_mass":       125.09,
@@ -268,12 +257,12 @@ base_constraints = {
 # MSSM parameter values.
 cmssm_constraints = {
     "m1":   {
-        "bounds": [[0, -50.0],[50.0, 4000.0]], 
-        "prior": "uniform", 
+        "bounds": [[0, -50.0],[50.0, 4000.0]],
+        "prior": "uniform",
         "type": "continuous"
     },
     "m2":   {
-        "bounds": [[-4000.0, -100.0],[100.0, 4000.0]], 
+        "bounds": [[-4000.0, -100.0],[100.0, 4000.0]],
         "prior": "uniform", 
         "type": "continuous"
     },

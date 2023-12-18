@@ -1,7 +1,8 @@
 """
 
 """
-import uproot,os,getpass,socket
+import getpass
+import socket
 from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,10 +14,12 @@ from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud
 from arrakis_nd.dataset.common import classification_labels
 from arrakis_nd.wrangler.common import wrangler_modes
 
+
 class SimulationWrangler:
     """
     """
-    def __init__(self,
+    def __init__(
+        self,
         name:   str = '',
         config: dict = {},
         meta:   dict = {}
@@ -116,24 +119,35 @@ class SimulationWrangler:
         segment_id,
         topology,
         particle,
-        physics,
+        physics_micro,
+        physics_meso,
+        physics_macro,
         unique_topology
     ):
         point_cloud_index = self.get_index_trackid(hit, segment_id)
         if point_cloud_index != -1:
             self.det_point_cloud.data["topology_labels"][hit][point_cloud_index] = topology.value
             self.det_point_cloud.data["particle_labels"][hit][point_cloud_index] = self.trackid_pdgcode[particle]
-            self.det_point_cloud.data["physics_labels"][hit][point_cloud_index] = physics.value
-            self.det_point_cloud.data["unique_topologies"][hit][point_cloud_index] = unique_topology
-            self.det_point_cloud.data["unique_particles"][hit][point_cloud_index] = segment_id
+            self.det_point_cloud.data["physics_micro_labels"][hit][point_cloud_index] = physics_micro.value
+            self.det_point_cloud.data["physics_meso_labels"][hit][point_cloud_index] = physics_meso.value
+            self.det_point_cloud.data["physics_macro_labels"][hit][point_cloud_index] = physics_macro.value
+            self.det_point_cloud.data["unique_topologt_labels"][hit][point_cloud_index] = unique_topology
+            self.det_point_cloud.data["unique_particle_labels"][hit][point_cloud_index] = segment_id
         self.det_point_cloud.data["topology_label"][hit] = topology.value
         self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[particle]
+        self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
+        self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
+        self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
         try:
-            self.det_point_cloud.data["physics_label"][hit] = physics.value
+            self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
+            self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
+            self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
         except:
-            self.det_point_cloud.data["physics_label"][hit] = physics.value[0]
-        self.det_point_cloud.data["unique_topology"][hit] = unique_topology
-        self.det_point_cloud.data["unique_particle"][hit] = segment_id
+            self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value[0]
+            self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value[0]
+            self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value[0]
+        self.det_point_cloud.data["unique_topology_label"][hit] = unique_topology
+        self.det_point_cloud.data["unique_particle_label"][hit] = segment_id
 
     def process_event(
         self,
@@ -159,13 +173,16 @@ class SimulationWrangler:
         self.det_point_cloud.data['ts_pps'] = np.array(self.det_point_cloud.data['ts_pps'])
         self.det_point_cloud.data['Q'] = np.array(self.det_point_cloud.data['Q'])
         self.det_point_cloud.data['E'] = np.array(self.det_point_cloud.data['E'])
-        self.det_point_cloud.data['source_label'] = np.array(self.det_point_cloud.data['source_label'])
         self.det_point_cloud.data['topology_label'] = np.array(self.det_point_cloud.data['topology_label'])
         self.det_point_cloud.data['particle_label'] = np.array(self.det_point_cloud.data['particle_label'])
-        self.det_point_cloud.data['physics_label'] = np.array(self.det_point_cloud.data['physics_label'])
-        self.det_point_cloud.data['unique_topology'] = np.array(self.det_point_cloud.data['unique_topology'])
-        self.det_point_cloud.data['unique_particle'] = np.array(self.det_point_cloud.data['unique_particle'])
-        self.det_point_cloud.data['unique_physics'] = np.array(self.det_point_cloud.data['unique_physics'])
+        self.det_point_cloud.data['physics_micro_label'] = np.array(self.det_point_cloud.data['physics_micro_label'])
+        self.det_point_cloud.data['physics_meso_label'] = np.array(self.det_point_cloud.data['physics_meso_label'])
+        self.det_point_cloud.data['physics_macro_label'] = np.array(self.det_point_cloud.data['physics_macro_label'])
+        self.det_point_cloud.data['unique_topology_label'] = np.array(self.det_point_cloud.data['unique_topology_label'])
+        self.det_point_cloud.data['unique_particle_label'] = np.array(self.det_point_cloud.data['unique_particle_label'])
+        self.det_point_cloud.data['unique_physics_micro_label'] = np.array(self.det_point_cloud.data['unique_physics_micro_label'])
+        self.det_point_cloud.data['unique_physics_meso_label'] = np.array(self.det_point_cloud.data['unique_physics_meso_label'])
+        self.det_point_cloud.data['unique_physics_macro_label'] = np.array(self.det_point_cloud.data['unique_physics_macro_label'])
         self.det_point_clouds[self.det_point_cloud.data['event']] = copy.deepcopy(self.det_point_cloud)
 
     def save_events(
@@ -185,14 +202,10 @@ class SimulationWrangler:
                 "t_drift": 0, "ts_pps": 1, "E": 2
             },
             "classes": {
-                "source": 0, "topology": 1, "particle": 2, "physics": 3
+                "particle": 0, "topology": 1, "physics_micro": 2, "physics_meso": 3, "physics_macro": 4
             },
             "clusters": {
                 "topology":  0, "particle": 1, "physics": 2
-            },
-            "source_labels": {
-                key: value
-                for key, value in classification_labels["source"].items()
             },
             "topology_labels": {
                 key: value
@@ -202,9 +215,17 @@ class SimulationWrangler:
                 key: value
                 for key, value in classification_labels["particle"].items()
             },
-            "physics_labels": {
+            "physics_micro_labels": {
                 key: value
-                for key, value in classification_labels["physics"].items()
+                for key, value in classification_labels["physics_micro"].items()
+            },
+            "physics_meso_labels": {
+                key: value
+                for key, value in classification_labels["physics_meso"].items()
+            },
+            "physics_macro_labels": {
+                key: value
+                for key, value in classification_labels["physics_macro"].items()
             },
             "hit_labels": {
                 key: value
