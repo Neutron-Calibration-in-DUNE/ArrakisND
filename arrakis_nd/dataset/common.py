@@ -101,7 +101,7 @@ class InteractionLabel(Enum):
     Noise = 0
     Primary = 1
     # Neutrino interactions
-    
+
     # Shower like interactions
     ElectronShower = 5
     PositronShower = 6

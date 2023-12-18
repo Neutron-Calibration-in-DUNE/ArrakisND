@@ -8,14 +8,55 @@ import matplotlib.pyplot as plt
 import copy
 import h5py
 
+from arrakis_nd.utils.logger import Logger
 from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud
-from arrakis_nd.dataset.common import *
+from arrakis_nd.dataset.common import classification_labels
+from arrakis_nd.wrangler.common import wrangler_modes
 
 class SimulationWrangler:
     """
     """
-    def __init__(self):
+    def __init__(self,
+        name:   str = '',
+        config: dict = {},
+        meta:   dict = {}
+    ):
+        self.name = name + '_simulation_wrangler'
+        self.config = config
+        self.meta = meta
 
+        if "device" in self.meta:
+            self.device = self.meta['device']
+        else:
+            self.device = 'cpu'
+        if meta['verbose']:
+            self.logger = Logger(self.name, output="both",   file_mode="w")
+        else:
+            self.logger = Logger(self.name, level='warning', file_mode="w")
+
+        self.topology_label = 0
+
+        self.parse_config()
+
+    def parse_config(self):
+        self.check_config()
+        self.parse_point_cloud()
+
+    def check_config(self):
+        if "wrangler_mode" not in self.config:
+            self.logger.warn('wranger_mode not specified in config! setting to "map"')
+            self.config['wrangler_mode'] = 'map'
+        if self.config['wrangler_mode'] not in wrangler_modes:
+            self.logger.error(f'specified wrangler_mode {self.config["wrangler_mode"]} not allowed!')
+        self.wrangler_mode = self.config["wrangler_mode"]
+        if self.wrangler_mode == "map":
+            self.clear_event = self.clear_event_maps
+            self.get_total_hit_energy = self.get_total_hit_energy_map
+        elif self.wrangler_mode == "numpy":
+            self.clear_event = self.clear_event_numpy
+            self.get_total_hit_energy = self.get_total_hit_energy_numpy
+
+    def parse_point_cloud(self):
         self.det_point_cloud = DetectorPointCloud()
         self.det_point_clouds = {}
 
@@ -30,7 +71,7 @@ class SimulationWrangler:
         self.trackid_progeny = {}
         self.trackid_descendants = {}
         self.trackid_ancestorlevel = {}
-        self.trackid_ancestry = {} 
+        self.trackid_ancestry = {}
 
         self.trackid_segmentid = {}
         self.segmentid_trackid = {}
@@ -38,8 +79,9 @@ class SimulationWrangler:
         self.trackid_hit = {}
         self.segmentid_hit = {}
 
-    #@profile
-    def clear_event(self):
+        self.track_id_array = None
+
+    def clear_event_maps(self):
 
         self.det_point_cloud.clear()
 
@@ -61,15 +103,21 @@ class SimulationWrangler:
 
         self.trackid_hit = {}
         self.segmentid_hit = {}
-    
-    #@profile
+
+    def clear_event_numpy(self):
+        self.track_id_array = None
+
     def clear_point_clouds(self):
         self.det_point_clouds = {}
-    
-    #@profile
-    def set_hit_labels(self,
-        hit, segment_id, topology,
-        particle, physics, unique_topology
+
+    def set_hit_labels(
+        self,
+        hit,
+        segment_id,
+        topology,
+        particle,
+        physics,
+        unique_topology
     ):
         point_cloud_index = self.get_index_trackid(hit, segment_id)
         if point_cloud_index != -1:
@@ -87,8 +135,8 @@ class SimulationWrangler:
         self.det_point_cloud.data["unique_topology"][hit] = unique_topology
         self.det_point_cloud.data["unique_particle"][hit] = segment_id
 
-    #@profile
-    def process_event(self,
+    def process_event(
+        self,
         event_id,
         event_trajectories,
         event_segments,
@@ -98,22 +146,11 @@ class SimulationWrangler:
     ):
         self.clear_event()
         self.det_point_cloud.data['event'] = event_id
-        
-        print("Processing trajectories")
         self.process_event_trajectories(event_trajectories)
-
-        print("Processing stacks")
         self.process_event_stacks(event_stacks)
-
-        print("Processing segments")
         self.process_event_segments(event_segments)
-
-        print("Processing hits")
         self.process_event_hits(hits, hits_back_track)
-        
-        print("Done processing event")
-    
-    #@profile
+
     def save_event(self):
         self.det_point_cloud.data['x'] = np.array(self.det_point_cloud.data['x'])
         self.det_point_cloud.data['y'] = np.array(self.det_point_cloud.data['y'])
@@ -130,10 +167,9 @@ class SimulationWrangler:
         self.det_point_cloud.data['unique_particle'] = np.array(self.det_point_cloud.data['unique_particle'])
         self.det_point_cloud.data['unique_physics'] = np.array(self.det_point_cloud.data['unique_physics'])
         self.det_point_clouds[self.det_point_cloud.data['event']] = copy.deepcopy(self.det_point_cloud)
- 
-        
-    #@profile
-    def save_events(self,
+
+    def save_events(
+        self,
         simulation_file
     ):
         output_file = simulation_file.replace('.h5', '')
@@ -165,41 +201,50 @@ class SimulationWrangler:
             "particle_labels": {
                 key: value
                 for key, value in classification_labels["particle"].items()
-            },      
+            },
             "physics_labels": {
                 key: value
                 for key, value in classification_labels["physics"].items()
-            },  
+            },
             "hit_labels": {
                 key: value
                 for key, value in classification_labels["hit"].items()
-            },    
+            },
         }
-        
+
         np.savez(
             output_file,
             data=self.det_point_clouds,
             meta=meta,
         )
 
-    #@profile
-    def process_event_trajectories(self,
+    def process_event_trajectories(
+        self,
+        event_trajectories
+    ):
+        if self.wrangler_mode == "map":
+            self.process_event_trajectories_map(event_trajectories)
+        elif self.wrangler_mode == "numpy":
+            self.process_event_trajectories_numpy(event_trajectories)
+
+    def process_event_trajectories_map(
+        self,
         event_trajectories
     ):
         for ii, particle in enumerate(event_trajectories):
-            track_id = particle['traj_id']                          
+            track_id = particle['traj_id']
             self.trackid_parentid[track_id] = particle['parent_id']
             self.trackid_pdgcode[track_id] = particle['pdg_id']
             self.trackid_process[track_id] = particle['start_process']
             self.trackid_subprocess[track_id] = particle['start_subprocess']
             self.trackid_endprocess[track_id] = particle['end_process']
             self.trackid_endsubprocess[track_id] = particle['end_subprocess']
-            self.trackid_energy[track_id] = particle['E_end'] # E_start or E_end?
-            
+            self.trackid_energy[track_id] = particle['E_end']                   # E_start or E_end?
+
             # iterate over daughters
             self.trackid_daughters[track_id] = []
             self.trackid_descendants[track_id] = []
-            
+
             if particle['parent_id'] != -1:
                 self.trackid_daughters[particle['parent_id']].append(track_id)
                 self.trackid_descendants[particle['parent_id']].append(track_id)
@@ -216,47 +261,92 @@ class SimulationWrangler:
                 temp_track_id = mother
                 ancestry.append(mother)
                 mother = self.trackid_parentid[temp_track_id]
-                
+
                 if level > 1 and mother != -1:
                     self.trackid_progeny[mother].append(temp_track_id)
-                    
 
             self.trackid_ancestorlevel[track_id] = level
             self.trackid_ancestry[track_id] = ancestry
             self.trackid_hit[track_id] = []
             self.trackid_segmentid[track_id] = []
 
-    #@profile
-    def process_event_stacks(self,
+    def process_event_trajectories_numpy(
+        self,
+        event_trajectories
+    ):
+        pass
+
+    def process_event_stacks(
+        self,
+        event_stacks
+    ):
+        if self.wrangler_mode == "map":
+            self.process_event_stacks_map(event_stacks)
+        elif self.wrangler_mode == "numpy":
+            self.process_event_stacks_numpy(event_stacks)
+
+    def process_event_stacks_map(
+        self,
         event_stacks
     ):
         pass
-        
-    #@profile
-    def process_event_segments(self,
+
+    def process_event_stacks_numpy(
+        self,
+        event_stacks
+    ):
+        pass
+
+    def process_event_segments(
+        self,
+        event_segments
+    ):
+        if self.wrangler_mode == "map":
+            self.process_event_segments_map(event_segments)
+        elif self.wrangler_mode == "numpy":
+            self.process_event_segments_numpy(event_segments)
+
+    def process_event_segments_map(
+        self,
         event_segments
     ):
         for ii, segment in enumerate(event_segments):
-            self.trackid_segmentid[segment['traj_id']].append(segment['segment_id']) # segment_ids belonging to a track_id
-            self.segmentid_trackid[segment['segment_id']] = segment['traj_id'] # track_id belonging to a segment_id
-            self.segmentid_hit[segment['segment_id']] = [] # hit_ids belonging to a segment_id
-    
-    def process_event_hits(self,
+            self.trackid_segmentid[segment['traj_id']].append(segment['segment_id'])    # segment_ids belonging to a track_id
+            self.segmentid_trackid[segment['segment_id']] = segment['traj_id']      # track_id belonging to a segment_id
+            self.segmentid_hit[segment['segment_id']] = []  # hit_ids belonging to a segment_id
+
+    def process_event_segments_numpy(
+        self,
+        event_segments
+    ):
+        pass
+
+    def process_event_hits(
+        self,
         event_hits,
         event_hits_back_track
     ):
+        if self.wrangler_mode == "map":
+            self.process_event_hits_map(event_hits, event_hits_back_track)
+        elif self.wrangler_mode == "numpy":
+            self.process_event_hits_numpy(event_hits, event_hits_back_track)
 
+    def process_event_hits_map(
+        self,
+        event_hits,
+        event_hits_back_track
+    ):
         for ii, hit in enumerate(event_hits):
             segment_ids = event_hits_back_track['segment_id'][ii]
             segment_fractions = event_hits_back_track['fraction'][ii]
             self.det_point_cloud.add_point(
-                hit['x'], 
+                hit['x'],
                 hit['y'],
                 hit['z'],
-                hit['t_drift'], 
-                hit['ts_pps'], 
-                hit['Q'], 
-                hit['E'], 
+                hit['t_drift'],
+                hit['ts_pps'],
+                hit['Q'],
+                hit['E'],
                 segment_ids,
                 segment_fractions
             )
@@ -264,28 +354,49 @@ class SimulationWrangler:
                 if segmentid in self.segmentid_hit.keys():
                     self.segmentid_hit[segmentid].append(ii)
                     self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
-    
-    #@profile
-    def get_total_hit_energy(self, 
+
+    def process_event_hits_numpy(
+        self,
+        event_hits,
+        event_hits_back_track
+    ):
+        pass
+
+    def get_total_hit_energy_map(
+        self,
         hits
     ):
+        """Get total energy from a list of hits
+
+        Args:
+            hits (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         energy = 0.0
         for hit in hits:
             try:
                 energy += self.det_point_cloud.data['E'][hit]
             except:
                 energy += 0.0
-                print("Warning in get_total_hit_energy")
+                self.logger.warn('error in collecting hit energy!')
         return energy
 
-    #@profile
-    def get_primaries_generator_label(self,
+    def get_total_hit_energy_numpy(
+        self,
+        hits
+    ):
+        pass
+
+    def get_primaries_generator_label(
+        self,
         label
     ):
         pass
-    
-    #@profile
-    def get_primaries_pdg_code(self,
+
+    def get_primaries_pdg_code(
+        self,
         pdg
     ):
         primaries = []
@@ -294,8 +405,8 @@ class SimulationWrangler:
                 primaries.append(track_id)
         return primaries
 
-    #@profile
-    def get_primaries_abs_pdg_code(self,
+    def get_primaries_abs_pdg_code(
+        self,
         pdg
     ):
         primaries = []
@@ -303,9 +414,9 @@ class SimulationWrangler:
             if parent_id == -1 and abs(self.trackid_pdgcode[track_id]) == abs(pdg):
                 primaries.append(track_id)
         return primaries
-    
-    #@profile
-    def get_hits_trackid(self,
+
+    def get_hits_trackid(
+        self,
         trackids
     ):
         trackids_np = np.array(trackids).astype(int).flatten()
@@ -314,9 +425,9 @@ class SimulationWrangler:
             for track_id in trackids_np
         ]
         return hits
-    
-    #@profile
-    def get_segments_trackid(self,
+
+    def get_segments_trackid(
+        self,
         trackids
     ):
         trackids_np = np.array(trackids).astype(int).flatten()
@@ -326,27 +437,28 @@ class SimulationWrangler:
         ]
         return segments
 
-    #@profile
-    def get_trackid_pdg_code(self,
+    def get_trackid_pdg_code(
+        self,
         pdg
     ):
         trackid = []
         for track_id, pdg_code in self.trackid_pdgcode.items():
             if pdg_code == pdg:
                 trackid.append(track_id)
-        return trackid   
+        return trackid
 
-    def get_trackid_abs_pdg_code(self,
+    def get_trackid_abs_pdg_code(
+        self,
         pdg
     ):
         trackid = []
         for track_id, pdg_code in self.trackid_pdgcode.items():
             if abs(pdg_code) == abs(pdg):
                 trackid.append(track_id)
-        return trackid   
-    
-    #@profile
-    def get_daughters_trackid(self,
+        return trackid
+
+    def get_daughters_trackid(
+        self,
         trackids
     ):
         daughters = [
@@ -354,31 +466,33 @@ class SimulationWrangler:
             for track_id in trackids
         ]
         return daughters
-    
-    #@profile
-    def filter_trackid_not_pdg_code(self,
-        trackids, pdg
+
+    def filter_trackid_not_pdg_code(
+        self,
+        trackids,
+        pdg
     ):
         trackid = [
             track_id for track_id in trackids
             if self.trackid_pdgcode[track_id] != pdg
         ]
         return trackid
-    
 
-    #@profile
-    def filter_trackid_pdg_code(self,
-        trackids, pdg
+    def filter_trackid_pdg_code(
+        self,
+        trackids,
+        pdg
     ):
         trackid = [
             track_id for track_id in trackids
             if self.trackid_pdgcode[track_id] == pdg
         ]
         return trackid
-    
-    #@profile
-    def filter_trackid_not_abs_pdg_code(self,
-        trackids, pdg
+
+    def filter_trackid_not_abs_pdg_code(
+        self,
+        trackids,
+        pdg
     ):
         try:
             trackid = [
@@ -392,9 +506,10 @@ class SimulationWrangler:
             print("Pdg", pdg)
             return []
 
-    #@profile
-    def filter_trackid_abs_pdg_code(self,
-        trackids, pdg
+    def filter_trackid_abs_pdg_code(
+        self,
+        trackids,
+        pdg
     ):
         try:
             trackid = [
@@ -407,10 +522,11 @@ class SimulationWrangler:
             print("Trackids", trackids)
             print("Pdg", pdg)
             return []
-    
-    #@profile
-    def filter_trackid_not_process(self,
-        trackids, process
+
+    def filter_trackid_not_process(
+        self,
+        trackids,
+        process
     ):
         trackid = [
             track_id for track_id in trackids
@@ -418,9 +534,10 @@ class SimulationWrangler:
         ]
         return trackid
 
-    #@profile
-    def filter_trackid_process(self,
-        trackids, process
+    def filter_trackid_process(
+        self,
+        trackids,
+        process
     ):
         trackid = [
             track_id for track_id in trackids
@@ -428,18 +545,22 @@ class SimulationWrangler:
         ]
         return trackid
 
-    #@profile
-    def filter_trackid_not_subprocess(self,
-        trackids, subprocess
+    def filter_trackid_not_subprocess(
+        self,
+        trackids,
+        subprocess
     ):
         trackid = [
             track_id for track_id in trackids
             if self.trackid_subprocess[track_id] != subprocess
         ]
         return trackid
-    
-    def filter_trackid_not__process_and_subprocess(self,
-        trackids, process, subprocess
+
+    def filter_trackid_not_process_and_subprocess(
+        self,
+        trackids,
+        process,
+        subprocess
     ):
         trackid = [
             track_id for track_id in trackids
@@ -447,8 +568,8 @@ class SimulationWrangler:
         ]
         return trackid
 
-    #@profile
-    def filter_trackid_subprocess(self,
+    def filter_trackid_subprocess(
+        self,
         trackids, subprocess
     ):
         trackid = [
@@ -457,9 +578,10 @@ class SimulationWrangler:
         ]
         return trackid
 
-    #@profile
-    def filter_trackid_not_endprocess(self,
-        trackids, endprocess
+    def filter_trackid_not_endprocess(
+        self,
+        trackids,
+        endprocess
     ):
         trackid = [
             track_id for track_id in trackids
@@ -467,19 +589,21 @@ class SimulationWrangler:
         ]
         return trackid
 
-    #@profile
-    def filter_trackid_endprocess(self,
-        trackids, endprocess
+    def filter_trackid_endprocess(
+        self,
+        trackids,
+        endprocess
     ):
         trackid = [
             track_id for track_id in trackids
             if self.trackid_endprocess[track_id] == endprocess
         ]
         return trackid
-    
-    #@profile
-    def filter_trackid_not_endsubprocess(self,
-        trackids, endsubprocess
+
+    def filter_trackid_not_endsubprocess(
+        self,
+        trackids,
+        endsubprocess
     ):
         trackid = [
             track_id for track_id in trackids
@@ -487,19 +611,21 @@ class SimulationWrangler:
         ]
         return trackid
 
-    #@profile
-    def filter_trackid_endsubprocess(self,
-        trackids, endsubprocess
+    def filter_trackid_endsubprocess(
+        self,
+        trackids,
+        endsubprocess
     ):
         trackid = [
             track_id for track_id in trackids
             if self.trackid_endsubprocess[track_id] == endsubprocess
         ]
         return trackid
-    
-    #@profile
-    def get_index_trackid(self,
-        hit, segment_id
+
+    def get_index_trackid(
+        self,
+        hit,
+        segment_id
     ):
         index = np.where(
             self.det_point_cloud.data['segment_ids'][hit] == segment_id

@@ -1,13 +1,13 @@
 """
-Blip main program
+ArrakisND main program
 """
 import argparse
 import torch
 
-from arrakis_nd.utils.logger import Logger, default_logger
+from arrakis_nd.utils.logger import Logger
 from arrakis_nd.utils.config import ConfigParser
-
 from arrakis_nd.arrakis.arrakis import Arrakis
+
 
 def run():
     """
@@ -15,8 +15,8 @@ def run():
     """
     parser = argparse.ArgumentParser(
         prog='Arrakis Module Runner',
-        description='This program runs the Arrakis module '+
-            'from a config file.',
+        description='This program runs the Arrakis module ' +
+                    'from a config file.',
         epilog='...'
     )
     parser.add_argument(
@@ -34,7 +34,7 @@ def run():
     logger.info("configuring arrakis...")
     config = ConfigParser(args.config_file).data
     if 'arrakis_nd' not in config.keys():
-        logger.error(f'arrakis_nd section not in config!')
+        logger.error('arrakis_nd section not in config!')
     arrakis_nd_config = config['arrakis_nd']
 
     system_info = logger.get_system_info()
@@ -49,24 +49,24 @@ def run():
         meta["verbose"] = arrakis_nd_config["verbose"]
     else:
         meta["verbose"] = False
-    
+
     # Eventually we will want to check that the order of the arrakis_nds makes sense,
     # and that the data products are compatible and available for the different modes.
 
     # check for devices
     if "gpu" not in arrakis_nd_config.keys():
-        logger.warn(f'"arrakis_nd:gpu" not specified in config!')
+        logger.warn('"arrakis_nd:gpu" not specified in config!')
         gpu = None
     else:
         gpu = arrakis_nd_config["gpu"]
     if "gpu_device" not in arrakis_nd_config.keys():
-        logger.warn(f'"arrakis_nd:gpu_device" not specified in config!')
+        logger.warn('"arrakis_nd:gpu_device" not specified in config!')
         gpu_device = None
     else:
         gpu_device = arrakis_nd_config["gpu_device"]
-    
+
     if torch.cuda.is_available():
-        logger.info(f"CUDA is available with devices:")
+        logger.info("CUDA is available with devices:")
         for ii in range(torch.cuda.device_count()):
             device_properties = torch.cuda.get_device_properties(ii)
             cuda_stats = f"name: {device_properties.name}, "
@@ -82,23 +82,25 @@ def run():
                 gpu_device = 0
             meta['device'] = torch.device(f"cuda:{gpu_device}")
             logger.info(
-                f"CUDA is available, using device {gpu_device}" + 
+                f"CUDA is available, using device {gpu_device}" +
                 f": {torch.cuda.get_device_name(gpu_device)}"
             )
         else:
-            gpu == False
-            logger.warn(f"CUDA not available! Using the cpu")
+            gpu is False
+            logger.warn("CUDA not available! Using the cpu")
             meta['device'] = torch.device("cpu")
     else:
-        logger.info(f"using cpu as device")
+        logger.info("using cpu as device")
         meta['device'] = torch.device("cpu")
     meta['gpu'] = gpu
-    
-    arrakis_dataset = Arrakis(
+
+    arrakis = Arrakis(
         name,
         arrakis_nd_config,
         meta
     )
+    arrakis.run_arrakis_nd()
+
 
 if __name__ == "__main__":
     run()
