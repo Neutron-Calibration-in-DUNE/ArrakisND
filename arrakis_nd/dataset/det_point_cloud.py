@@ -58,7 +58,44 @@ class DetectorPointCloud:
         segment_ids:    list=[],
         segment_fractions:  list=[],
     ):
-        pass
+        # Create a dictionary with the event data
+        event_data = {
+            'x': x,
+            'y': y,
+            'z': z,
+            't_drift': t_drift,
+            'ts_pps': ts_pps,
+            'Q': Q,
+            'E': E,
+            'topology_label': np.full(x.shape, -1),
+            'particle_label': np.full(x.shape, -1),
+            'physics_micro_label': np.full(x.shape, -1),
+            'physics_meso_label': np.full(x.shape, -1),
+            'physics_macro_label': np.full(x.shape, -1),
+            'unique_topology_label': np.full(x.shape, -1),
+            'unique_particle_label': np.full(x.shape, -1),
+            'unique_physics_micro_label': np.full(x.shape, -1),
+            'unique_physics_meso_label': np.full(x.shape, -1),
+            'unique_physics_macro_label': np.full(x.shape, -1),
+            'segment_ids': segment_ids,
+            'segment_fractions': segment_fractions,
+            'topology_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'particle_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'physics_micro_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'physics_meso_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'physics_macro_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'unique_topology_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'unique_particle_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'unique_physics_micro_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'unique_physics_meso_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'unique_physics_macro_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            }
+        # Append the event data to self.data
+        for key, value in event_data.items():
+            if self.data[key].size == 0:
+                self.data[key] = value
+            else:
+                self.data[key] = np.concatenate((self.data[key], value))
     
     def add_point(self,
         x:      float, 

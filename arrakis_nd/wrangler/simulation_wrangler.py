@@ -452,7 +452,19 @@ class SimulationWrangler:
         event_hits,
         event_hits_back_track
     ):
-        pass
+        segment_ids = event_hits_back_track['segment_id']
+        segment_fractions = event_hits_back_track['fraction']
+        self.det_point_cloud.add_point(
+                event_hits['x'],
+                event_hits['y'],
+                event_hits['z'],
+                event_hits['t_drift'],
+                event_hits['ts_pps'],
+                event_hits['Q'],
+                event_hits['E'],
+                segment_ids,
+                segment_fractions
+            )
 
     def get_total_hit_energy_map(
         self,
