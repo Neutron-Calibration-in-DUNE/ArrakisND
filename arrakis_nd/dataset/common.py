@@ -55,8 +55,6 @@ class PhysicsMicroLabel(Enum):
     """
     Undefined = -1
     Noise = 0
-
-    # Track-like objects
     MIPIonization = 1
     HIPIonization = 2
     ElectronIonization = 3
@@ -72,7 +70,6 @@ class PhysicsMesoLabel(Enum):
     """
     Undefined = -1
     Noise = 0
-
     MIP = 1
     HIP = 2
     DeltaElectron = 3

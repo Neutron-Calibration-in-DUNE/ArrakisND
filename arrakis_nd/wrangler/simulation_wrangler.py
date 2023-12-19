@@ -113,6 +113,31 @@ class SimulationWrangler:
 
     def clear_point_clouds(self):
         self.det_point_clouds = {}
+        
+    def print_particle_data(
+        self,
+        particle
+    ):
+        self.logger.info("## MCParticle #######################################")
+        self.logger.info(f"## TrackID:            [{'.' * 25}{particle}] ##")
+        self.logger.info(f"## PDG:                [{'.' * 25}{self.trackid_pdgcode[particle]}] ##")
+        self.logger.info(f"## Energy [MeV]:       [{'.' * 25}{self.trackid_energy[particle]}] ##")
+        self.logger.info(f"## Process:            [{'.' * 25}{self.trackid_process[particle]}] ##")
+        self.logger.info(f"## SubProcess:         [{'.' * 25}{self.trackid_subprocess[particle]}] ##")
+        self.logger.info(f"## Parent TrackID:     [{'.' * 25}{self.trackid_parentid[particle]}] ##")
+        self.logger.info(f"## Parent PDG:         [{'.' * 25}{self.trackid_pdgcode[self.trackid_parentid[particle]]}] ##")
+        self.logger.info(f"## Ancestor TrackID:   [{'.' * 25}{self.trackid_ancestry[particle][-1]}] ##")
+        self.logger.info(f"## Ancestor PDG:       [{'.' * 25}{self.trackid_pdgcode[self.trackid_ancestry[particle][-1]]}] ##")
+        self.logger.info(f"## Ancestor level:     [{'.' * 25}{self.trackid_ancestorlevel[particle]}] ##")
+        self.logger.info("## Progeny  [.....level] [...TrackID] [.......PDG] ##")
+        progeny = self.trackid_descendants[particle]
+        particle_level = self.trackid_ancestorlevel[particle]
+        for progeny_track_id in progeny:
+            self.logger.info(
+                f"##          [{'.' * 10}{self.trackid_ancestorlevel[progeny_track_id] - particle_level}] " +
+                f"[{'.' * 10}{progeny_track_id}] [{'.' * 10}{self.trackid_pdgcode[progeny_track_id]}] ##"
+            )
+        self.logger.info("#####################################################")
 
     def set_hit_labels(
         self,
@@ -138,9 +163,9 @@ class SimulationWrangler:
                 self.det_point_cloud.data["physics_macro_labels"][hit][point_cloud_index] = physics_macro.value
                 self.det_point_cloud.data["unique_topology_labels"][hit][point_cloud_index] = unique_topology
                 self.det_point_cloud.data["unique_particle_labels"][hit][point_cloud_index] = trackid
-                self.det_point_cloud.data['unique_physics_micro_labels'][hit][point_cloud_index] = unique_physics_micro.value
-                self.det_point_cloud.data['unique_physics_meso_labels'][hit][point_cloud_index] = unique_physics_meso.value
-                self.det_point_cloud.data['unique_physics_macro_labels'][hit][point_cloud_index] = unique_physics_macro.value
+                self.det_point_cloud.data['unique_physics_micro_labels'][hit][point_cloud_index] = unique_physics_micro
+                self.det_point_cloud.data['unique_physics_meso_labels'][hit][point_cloud_index] = unique_physics_meso
+                self.det_point_cloud.data['unique_physics_macro_labels'][hit][point_cloud_index] = unique_physics_macro
             
             self.det_point_cloud.data["topology_label"][hit] = topology.value
             self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[trackid]
@@ -158,11 +183,11 @@ class SimulationWrangler:
                 self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value[0]
             self.det_point_cloud.data["unique_topology_label"][hit] = unique_topology
             self.det_point_cloud.data["unique_particle_label"][hit] = trackid
-            self.det_point_cloud.data['unique_physics_micro_label'][hit][point_cloud_index] = unique_physics_micro.value
-            self.det_point_cloud.data['unique_physics_meso_label'][hit][point_cloud_index] = unique_physics_meso.value
-            self.det_point_cloud.data['unique_physics_macro_label'][hit][point_cloud_index] = unique_physics_macro.value
+            self.det_point_cloud.data['unique_physics_micro_label'][hit] = unique_physics_micro
+            self.det_point_cloud.data['unique_physics_meso_label'][hit] = unique_physics_meso
+            self.det_point_cloud.data['unique_physics_macro_label'][hit] = unique_physics_macro
 
-    def set_labels_list(
+    def set_hit_labels_list(
         self,
         hits:       list = [[]],
         segments:   list = [[]],
