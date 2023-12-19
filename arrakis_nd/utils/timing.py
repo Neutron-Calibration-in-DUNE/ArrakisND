@@ -66,7 +66,7 @@ class Timers:
 
     def reset_timers(self):
         self.timers = {
-            f'process_{process}': Timer(f'process_{process}', gpu=self.gpu) for process in process_functions
+            f'{process}': Timer(f'{process}', gpu=self.gpu) for process in process_functions
         }
 
     def synchronize(self):

@@ -6,11 +6,14 @@ Developers: Nicholas Carrara        [nmcarrara@ucdavis.edu]
 
 ChangeLog:  12/17/2023 - started putting together shower logic.
 """
+import numpy as np
+
 from arrakis_nd.utils.logger import Logger
-from arrakis_nd.wrangler.simulation_wrangler import SimulationWrangler
-from arrakis_nd.dataset.common import TopologyLabel, ParticleLabel, PhysicsLabel
+from arrakis_nd.dataset.common import TopologyLabel, PhysicsMicroLabel, PhysicsMesoLabel, PhysicsMacroLabel
 from arrakis_nd.utils.timing import Timers
 from arrakis_nd.utils.memory import MemoryTrackers
+from arrakis_nd.utils.utils import ResetableIterator
+
 
 class SimulationLabelingLogic:
     """
@@ -41,7 +44,10 @@ class SimulationLabelingLogic:
         else:
             self.logger = Logger(self.name, level='warning', file_mode="w")
 
-        self.topology_label = 0
+        self.unique_topology = ResetableIterator()
+        self.unique_physics_micro = ResetableIterator()
+        self.unique_physics_meso = ResetableIterator()
+        self.unique_physics_macro = ResetableIterator()
 
         self.parse_config()
 
@@ -69,67 +75,6 @@ class SimulationLabelingLogic:
     def parse_memory_trackers(self):
         self.memory_trackers = MemoryTrackers(gpu=self.gpu)
 
-    def iterate_topology_label(self):
-        self.topology_label += 1
-        return self.topology_label
-
-    def set_labels(
-        self,
-        hits:       list = [],
-        segments:   list = [],
-        trackid:    int = 0,
-        topology:   TopologyLabel = TopologyLabel.Undefined,
-        physics:    PhysicsLabel = PhysicsLabel.Undefined,
-        unique_topology:    int = 0,
-    ):
-        for hit in hits:
-            self.simulation_wrangler.set_hit_labels(
-                hit,
-                trackid,
-                topology,
-                trackid,
-                physics,
-                unique_topology
-            )
-
-    def set_labels_list(
-        self,
-        hits:       list = [[]],
-        segments:   list = [[]],
-        trackid:    list = [[]],
-        topology:   TopologyLabel = TopologyLabel.Undefined,
-        physics:    PhysicsLabel = PhysicsLabel.Undefined,
-        unique_topology:    int = 0,
-    ):
-        for ii in range(len(hits)):
-            self.set_labels(
-                hits[ii],
-                segments[ii],
-                trackid[ii],
-                topology,
-                physics,
-                unique_topology
-            )
-
-    def set_labels_array(
-        self,
-        hits:       list = [[[]]],
-        segments:   list = [[[]]],
-        trackid:    list = [[[]]],
-        topology:   TopologyLabel = TopologyLabel.Undefined,
-        physics:    PhysicsLabel = PhysicsLabel.Undefined,
-        unique_topology:    int = 0,
-    ):
-        for ii in range(len(hits)):
-            self.set_labels_list(
-                hits[ii],
-                segments[ii],
-                trackid[ii],
-                topology,
-                physics,
-                unique_topology
-            )
-
     def process_event(self):
         """
         Go through each of the individual logic functions
@@ -145,8 +90,11 @@ class SimulationLabelingLogic:
         else:
             self._process_event_without_timing()
 
-    def _process_event_with_timing(self):
-        self.topology_label = 0
+    def _process_event_without_timing(self):
+        self.unique_topology.reset
+        self.unique_physics_micro.reset
+        self.unique_physics_meso.reset
+        self.unique_physics_macro.reset
         self.process_electrons()
         self.process_positrons()
         self.process_gammas()
@@ -167,9 +115,16 @@ class SimulationLabelingLogic:
         self.process_kr85()
         self.process_rn222()
         self.process_cosmics()
+        self.process_primaries()
 
-    def _process_event_without_timing(self):
-        self.topology_label = 0
+    def _process_event_with_timing(self):
+        self.unique_topology.reset
+        self.unique_physics_micro.reset
+        self.unique_physics_meso.reset
+        self.unique_physics_macro.reset
+
+        self.timers.timers['process_all'].start()
+        self.memory_trackers.memory_trackers['process_all'].start()
 
         self.timers.timers['process_electrons'].start()
         self.memory_trackers.memory_trackers['process_electrons'].start()
@@ -291,48 +246,128 @@ class SimulationLabelingLogic:
         self.timers.timers['process_cosmics'].end()
         self.memory_trackers.memory_trackers['process_cosmics'].end()
 
-        # self.check_labels()
+        self.timers.timers['process_all'].end()
+        self.memory_trackers.memory_trackers['process_all'].end()
+
+        self.timers.timers['check_labels'].start()
+        self.memory_trackers.memory_trackers['check_labels'].start()
+        self.check_labels()
+        self.timers.timers['check_labels'].end()
+        self.memory_trackers.memory_trackers['check_labels'].end()
 
     def process_showers(
         self,
         particle:           int = 0,
         unique_topology:    int = 0
     ):
-        # label the particle
-        particle_hits = self.simulation_wrangler.trackid_hit[particle]
-        particle_segments = self.simulation_wrangler.trackid_segmentid[particle]
-        particle_pdgcode = self.simulation_wrangler.trackid_pdgcode[particle]
+        """
+        Showers can come in two flavors, electromagnetic and hadronic.  Only
+        dealing with the electromagnetic version for now.  The methodology
+        is to assume that each trackid is coming from an electron, positron
+        or gamma, but we should check this just in case.  The full shower,
+        if there is one, will be associated back to whichever particle
+        created the shower.
 
-        # label the descendants
+        Showers currently consist of
+            (1) topology label          - TopologyLabel.Shower = 3,
+            (3) physics_micro labels    - PhysicsMicroLabel.ElectronIonization = 3
+                                          PhysicsMicroLabel.GammaCompton = 4
+                                          PhysicsMicroLabel.GammaConversion = 5
+            (3) physics_meso labels     - PhysicsMesoLabel.ElectronShower = 5
+                                          PhysicsMesoLabel.PositronShower = 6
+                                          PhysicsMesoLabel.PhotonShower = 7
+            (4) physics_macro labels    - PhysicsMacroLabel.CCNue = 1
+                                          PhysicsMacroLabel.CCNuMu = 2
+                                          PhysicsMacroLabel.NC = 3
+                                          PhysicsMacroLabel.Cosmics = 5
+
+        The physics_micro labels are determined by performing a series of steps.
+        First, we look to see if there are any gamma conversion events within
+        the hierarchy.  This is denoted as subprocess 14 within edep-sim.
+        Each set of descendants from these gammas will get the physics_micro
+        label PhysicsMicroLabel.GammaConversion.  We then look for any compton
+        scatters or photo-electric effect.  Comptons which have the same parent
+        are linked by unique_physics_micro numbers, while photo-electric effect
+        have independent ones.  The photo-electric effect gets the labels
+        PhysicsMicroLabel.ElectronIonization.
+
+        The physics_meso labels are determined simply by the type of originating
+        particle for the shower.  If there is no shower, then the physics_meso
+        label ...
+
+        The physics_macro labels are determined by a separate function.
+
+        """
+        # First determine if this is a shower.
+        shower = True
+        shower_energy_threshold = 20.0
+
+        # shower or no shower?
+        if shower or shower_energy_threshold > 0.0:
+            topology = TopologyLabel.Shower
+        else:
+            topology = TopologyLabel.Blip
+
+        # unique_physics_meso is one number, and
+        #   physics_meso is one of the three for everyone.
+
+        # if no shower, then physics_meso is the particle type for each segment.
+        #   if the total energy is low enough, the topology type is changed to Blip.
+
+        if self.simulation_wrangler.trackid_pdgcode[particle] == 11:
+            physics_meso = PhysicsMesoLabel.ElectronShower
+        elif self.simulation_wrangler.trackid_pdgcode[particle] == -11:
+            physics_meso = PhysicsMesoLabel.PositronShower
+        elif self.simulation_wrangler.trackid_pdgcode[particle] == 22:
+            physics_meso = PhysicsMesoLabel.PhotonShower
+        else:
+            pass    # TODO: fix this in the future of course
+        unique_physics_meso = next(self.unique_physics_meso)
+
         particle_descendants = self.simulation_wrangler.trackid_descendants[particle]
-        bremm_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 3)
-        comp_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 13)
+        compton_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 13)
+        bremmstrahlung_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 3)
         phot_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 12)
         gamma_descendants = self.simulation_wrangler.filter_trackid_abs_pdg_code(particle_descendants, 22)
-        conv_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 14)
+        conversion_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 14)
 
-        descendants_hits = self.simulation_wrangler.get_hits_trackid(particle_descendants)
-        descendants_segments = self.simulation_wrangler.get_segments_trackid(particle_descendants)
+        # process gamma conversions
+        for conversion in conversion_descendants:
+            conversion_daughters = self.simulation_wrangler.trackid_daughters[conversion]
+            conversion_hits = self.simulation_wrangler.get_hits_trackid(conversion)
+            conversion_segments = self.simulation_wrangler.get_segments_trackid(conversion)
+            daughter_hits = self.simulation_wrangler.get_hits_trackid(conversion_daughters)
+            daughter_segments = self.simulation_wrangler.get_segments_trackid(conversion_daughters)
+            self.simulation_wrangler.set_hit_labels(
+                conversion_hits + daughter_hits,
+                conversion_segments + daughter_segments,
+                conversion + conversion_daughters,
+                topology,
+                PhysicsMicroLabel.GammaConversion,
+                physics_meso,
+                PhysicsMacroLabel.Undefined,
+                unique_topology,
+                self.unique_physics_micro(),
+                unique_physics_meso,
+                0,
+            )
+            # self.simulation_wrangler.set_labels_list(
+            #     daughter_hits, 
+            #     daughter_segments, 
+            #     conversion_daughters,
+            #     topology, PhysicsLabel.GammaConversion,
+            #     unique_topology
+            # )
+
+        # process compton scatters
+        compton_parents = self.simulation_wrangler.get_parentid_trackid(compton_descendants)
+        unique_compton_parents = np.unique(compton_parents)
+        for unique_compton_parent in unique_compton_parents:
+            unique_compton_descendants = compton_descendants[(compton_parents == unique_compton_parent)]
+            # these get labeled with the same unique_physics_micro label
 
         # process photo-electric effect
-        # process gamma conversions
-        for conv in conv_descendants:
-            conv_daughters = self.simulation_wrangler.trackid_daughters[conv]
-            conv_hits = self.simulation_wrangler.get_hits_trackid(conv)
-            conv_segments = self.simulation_wrangler.get_segments_trackid(conv)
-            daughter_hits = self.simulation_wrangler.get_hits_trackid(conv_daughters)
-            daughter_segments = self.simulation_wrangler.get_segments_trackid(conv_daughters)
-            self.set_labels(
-                conv_hits, conv_segments, conv,
-                TopologyLabel.Shower, PhysicsLabel.GammaConversion,
-                unique_topology
-            )
-            self.set_labels_list(
-                daughter_hits, daughter_segments, conv_daughters,
-                TopologyLabel.Shower, PhysicsLabel.GammaConversion,
-                unique_topology
-            )
-    
+
     def check_labels(self):
         for particle in self.simulation_wrangler.trackid_hit.keys():
             hits = self.simulation_wrangler.trackid_hit[particle]
@@ -372,100 +407,55 @@ class SimulationLabelingLogic:
         particles
     ):
         for particle in particles:
-            self.process_showers_list(particle, self.iterate_topology_label())
+            self.process_showers_list(particle, next(self.unique_topology))
 
+    """
+    Primaries may have to be handled differently due to the physics_macro scale.
+    Perhaps all we need is the GENIE information, and perhaps information about
+    the radiological generation.  The physics_macro for neutrino and radiological
+    will have to be handled separately.
+    """
     def process_electrons(self):
+        """
+        Primary electrons can come from ... cc_nue? nc? what else?
+        For now, only sending to showers.
+        """
         electrons = self.simulation_wrangler.get_primaries_pdg_code(11)
-        # electrons = self.simulation_wrangler.get_trackid_pdg_code(11)
         for electron in electrons:
-            self.process_showers(electron, self.iterate_topology_label())
-            # electron_daughters = self.simulation_wrangler.trackid_daughters[electron]
-            # elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(electron_daughters, 11)
-            # other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(electron_daughters, 11)
-            # elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
-            # elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
-
-            # electron_progeny = self.simulation_wrangler.trackid_progeny[electron]
-            # electron_hits = self.simulation_wrangler.trackid_hit[electron]
-            # electron_segment = self.simulation_wrangler.trackid_segmentid[electron]
-
-            # shower_label = self.iterate_topology_label()
-            # self.set_labels(
-            #     electron_hits, electron_segment, electron,
-            #     TopologyLabel.Shower, PhysicsLabel.ElectronShower,
-            #     shower_label
-            # )
-            # self.set_labels_list(
-            #     elec_hits, elec_segments, elec_daughters,
-            #     TopologyLabel.Shower, PhysicsLabel.ElectronShower,
-            #     shower_label
-            # )
-            # self.process_showers_list(electron_progeny, shower_label)
-            # self.process_showers_list(other_daughters, self.iterate_topology_label())
+            self.process_showers(electron, next(self.unique_topology))
 
     def process_positrons(self):
+        """
+        Primary positrons can come from ... cc_nue? nc? what else?
+        For now, only sending to showers.
+        """
         positrons = self.simulation_wrangler.get_primaries_pdg_code(-11)
         for positron in positrons:
-            self.process_showers(positron, self.iterate_topology_label())
-            # positron_daughters = self.simulation_wrangler.trackid_daughters[positron]
-            # elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(positron_daughters, 11)
-            # other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(positron_daughters, 11)
-            # elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
-            # elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
-
-            # positron_progeny = self.simulation_wrangler.trackid_progeny[positron]
-            # positron_hits = self.simulation_wrangler.trackid_hit[positron]
-            # positron_segment = self.simulation_wrangler.trackid_segmentid[positron]
-
-            # shower_label = self.iterate_topology_label()
-            # self.set_labels(
-            #     positron_hits, positron_segment, positron,
-            #     TopologyLabel.Shower, PhysicsLabel.ElectronShower,
-            #     shower_label
-            # )
-            # self.set_labels_list(
-            #     elec_hits, elec_segments, elec_daughters,
-            #     TopologyLabel.Shower, PhysicsLabel.ElectronShower,
-            #     shower_label
-            # )
-            # self.process_showers_list(positron_progeny, shower_label)
-            # self.process_showers_list(other_daughters, self.iterate_topology_label())
+            self.process_showers(positron, next(self.unique_topology))
 
     def process_gammas(self):
+        """
+        Primary gammas can come from ... cc_nue? nc? what else?
+        For now, only sending to showers.
+        """
         gammas = self.simulation_wrangler.get_primaries_abs_pdg_code(22)
         for gamma in gammas:
-
-            self.process_showers(gamma, self.iterate_topology_label())
-            # gamma_daughters = self.simulation_wrangler.trackid_daughters[gamma]
-            # elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(gamma_daughters, 11)
-            # elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
-            # elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
-
-            # gamma_progeny = self.simulation_wrangler.trackid_progeny[gamma]
-            # gamma_hits = self.simulation_wrangler.trackid_hit[gamma]
-            # gamma_segment = self.simulation_wrangler.trackid_segmentid[gamma]
-
-            # shower_label = self.iterate_topology_label()
-            # self.set_labels(
-            #     gamma_hits, gamma_segment, gamma,
-            #     TopologyLabel.Shower, PhysicsLabel.ElectronShower,
-            #     shower_label
-            # )
-            # self.set_labels_list(
-            #     elec_hits, elec_segments, elec_daughters,
-            #     TopologyLabel.Shower, PhysicsLabel.ElectronShower,
-            #     shower_label
-            # )
-            # self.process_showers_list(gamma_progeny, shower_label)
+            self.process_showers(gamma, next(self.unique_topology))
 
     def process_muons(self):
-        muons = self.simulation_wrangler.get_trackid_pdg_code(13)   # this is fast
+        """
+        Getting all muons, not just primaries, since they all need to
+        be labelled the same.  Therefore, these physics_macro labels
+        will need to be set somewhere else.  Or maybe that won't work
+        with the unique labels.
+        """
+        muons = self.simulation_wrangler.get_trackid_pdg_code(13)   # this is fast // XO
         for i, muon in enumerate(muons):
             # process MIP ionization
             muon_hits = self.simulation_wrangler.trackid_hit[muon]
             muon_segments = self.simulation_wrangler.trackid_segmentid[muon]
-            cluster_label = self.iterate_topology_label()
-            self.set_labels(
+            cluster_label = next(self.unique_topology)
+            self.simulation_wrangler.set_hit_labels(
                 muon_hits, muon_segments, muon,
                 TopologyLabel.Track, PhysicsLabel.MIPIonization,
                 cluster_label
@@ -479,20 +469,20 @@ class SimulationLabelingLogic:
             decay_daughters += self.simulation_wrangler.filter_trackid_subprocess(elec_daughters, 151)
             michel_decay_hits = self.simulation_wrangler.get_hits_trackid(decay_daughters)
             michel_decay_segments = self.simulation_wrangler.get_segments_trackid(decay_daughters)
-            self.set_labels_list(
+            self.simulation_wrangler.set_labels_list(
                 michel_decay_hits, michel_decay_segments, decay_daughters,
                 TopologyLabel.Track, PhysicsLabel.MichelElectron,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
             # process deltas
             elec_em_daughters = self.simulation_wrangler.filter_trackid_process(elec_daughters, 2)
             delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(elec_em_daughters, 2)
             delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
             delta_segments = self.simulation_wrangler.get_segments_trackid(delta_daughters)
-            self.set_labels_list(
+            self.simulation_wrangler.set_labels_list(
                 delta_hits, delta_segments, delta_daughters,
                 TopologyLabel.Track, PhysicsLabel.DeltaElectron,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
             # process other electrons not delta and not michel
             # these are the not delta daughters
@@ -501,7 +491,7 @@ class SimulationLabelingLogic:
             # # these are the not michel electrons of the not delta daughters
             # other_elec_daughters = self.simulation_wrangler.filter_trackid_not_process(not_delta_daughters, 6)
 
-            self.process_showers_list(other_daughters, self.iterate_topology_label())
+            self.process_showers_list(other_daughters, next(self.unique_topology))
 
     def process_anti_muons(self):
         muons = self.simulation_wrangler.get_trackid_pdg_code(-13)
@@ -509,8 +499,8 @@ class SimulationLabelingLogic:
             # process MIP ionization
             muon_hits = self.simulation_wrangler.trackid_hit[muon]
             muon_segments = self.simulation_wrangler.trackid_segmentid[muon]
-            cluster_label = self.iterate_topology_label()
-            self.set_labels(
+            cluster_label = next(self.unique_topology)
+            self.simulation_wrangler.set_hit_labels(
                 muon_hits, muon_segments, muon,
                 TopologyLabel.Track, PhysicsLabel.MIPIonization,
                 cluster_label
@@ -524,20 +514,20 @@ class SimulationLabelingLogic:
             decay_daughters += self.simulation_wrangler.filter_trackid_subprocess(elec_daughters, 151)
             michel_decay_hits = self.simulation_wrangler.get_hits_trackid(decay_daughters)
             michel_decay_segments = self.simulation_wrangler.get_segments_trackid(decay_daughters)
-            self.set_labels_list(
+            self.simulation_wrangler.set_labels_list(
                 michel_decay_hits, michel_decay_segments, decay_daughters,
                 TopologyLabel.Track, PhysicsLabel.MichelElectron,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
             # process deltas
             elec_em_daughters = self.simulation_wrangler.filter_trackid_process(elec_daughters, 2)
             delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(elec_em_daughters, 2)
             delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
             delta_segments = self.simulation_wrangler.get_segments_trackid(delta_daughters)
-            self.set_labels_list(
+            self.simulation_wrangler.set_labels_list(
                 delta_hits, delta_segments, delta_daughters,
                 TopologyLabel.Track, PhysicsLabel.DeltaElectron,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
             # process other electrons not delta and not michel
             # these are the not delta daughters
@@ -546,7 +536,7 @@ class SimulationLabelingLogic:
             # # these are the not michel electrons of the not delta daughters
             # other_elec_daughters = self.simulation_wrangler.filter_trackid_not_process(not_delta_daughters, 6)
 
-            self.process_showers_list(other_daughters, self.iterate_topology_label())
+            self.process_showers_list(other_daughters, next(self.unique_topology))
 
     # Start adding from here. Not 100% sure I'm doing it correctly! 
     
@@ -583,8 +573,8 @@ class SimulationLabelingLogic:
             pi0_hits = self.simulation_wrangler.trackid_hit[pi0]
             pi0_segments = self.simulation_wrangler.trackid_segmentid[pi0]
 
-            # cluster_label = self.iterate_topology_label()
-            # self.set_labels(
+            # cluster_label = next(self.unique_topology)
+            # self.simulation_wrangler.set_hit_labels(
             #     pi0_hits, pi0_segments, pi0,
             #     TopologyLabel.Shower, PhysicsLabel.PhotonShower,
             #     cluster_label
@@ -593,7 +583,7 @@ class SimulationLabelingLogic:
             # pi0_descendants = self.simulation_wrangler.trackid_descendants[pi0]
             # descendants_hits = self.simulation_wrangler.get_hits_trackid(pi0_descendants)
             # descendants_segments = self.simulation_wrangler.get_segments_trackid(pi0_descendants)
-            # self.set_labels_list(
+            # self.simulation_wrangler.set_labels_list(
             #     descendants_hits, descendants_segments, pi0_descendants,
             #     TopologyLabel.Shower, PhysicsLabel.Pi0Shower,               # TODO: check this
             #     cluster_label
@@ -602,9 +592,9 @@ class SimulationLabelingLogic:
             # this is very inefficient for some reason...
             # pi0_daughters = self.simulation_wrangler.trackid_daughters[pi0]
             # pi0_progeny = self.simulation_wrangler.trackid_progeny[pi0]
-            # self.process_showers_list(pi0_daughters, self.iterate_topology_label()) # but these will not be
+            # self.process_showers_list(pi0_daughters, next(self.unique_topology)) # but these will not be
             # labeled photon showers
-            # self.process_showers_list(pi0_progeny, self.iterate_topology_label()) # these will
+            # self.process_showers_list(pi0_progeny, next(self.unique_topology)) # these will
 
     def process_pion_plus(self):
         # pi plus can decay into muons or electrons
@@ -616,8 +606,8 @@ class SimulationLabelingLogic:
             piplus_hits = self.simulation_wrangler.trackid_hit[piplus]
             piplus_segments = self.simulation_wrangler.trackid_segmentid[piplus]
 
-            track_label = self.iterate_topology_label()
-            self.set_labels(
+            track_label = next(self.unique_topology)
+            self.simulation_wrangler.set_hit_labels(
                 piplus_hits, piplus_segments, piplus,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 track_label
@@ -626,7 +616,7 @@ class SimulationLabelingLogic:
             # elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(piplus_daughters, 11)
             # elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
             # elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
-            # self.set_labels_list(
+            # self.simulation_wrangler.set_labels_list(
             #     elec_hits, elec_segments, elec_daughters,
             #     TopologyLabel.Track, PhysicsLabel.ElectronShower, # TODO: check this
             #     track_label
@@ -635,16 +625,16 @@ class SimulationLabelingLogic:
             # muon_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(piplus_daughters, 13)
             # muon_segments = self.simulation_wrangler.get_segments_trackid(muon_daughters)
             # muon_hits = self.simulation_wrangler.get_hits_trackid(muon_daughters)
-            # self.set_labels_list(
+            # self.simulation_wrangler.set_labels_list(
             #     muon_hits, muon_segments, muon_daughters,
             #     TopologyLabel.Track, PhysicsLabel.MIPIonization, # TODO: check this
-            #     self.iterate_topology_label()
+            #     next(self.unique_topology)
             # )
             # label all other daughters and progeny as showers
             # not_elec_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(piplus_daughters, 11)
             # other_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(not_elec_daughters, 13)
-            # self.process_showers_list(other_daughters, self.iterate_topology_label())
-            self.process_showers_list(piplus_daughters, self.iterate_topology_label())
+            # self.process_showers_list(other_daughters, next(self.unique_topology))
+            self.process_showers_list(piplus_daughters, next(self.unique_topology))
 
     def process_pion_minus(self):
         pimins = self.simulation_wrangler.get_trackid_pdg_code(-211)
@@ -660,22 +650,22 @@ class SimulationLabelingLogic:
             # elec_segments = self.simulation_wrangler.get_segments_trackid(elec_daughters)
             # elec_hits = self.simulation_wrangler.get_hits_trackid(elec_daughters)
 
-            track_label = self.iterate_topology_label()
-            self.set_labels(
+            track_label = next(self.unique_topology)
+            self.simulation_wrangler.set_hit_labels(
                 pimin_hits, pimin_segments, pimin,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 track_label
             )
 
-            # self.set_labels_list(
+            # self.simulation_wrangler.set_labels_list(
             #     elec_hits, elec_segments, elec_daughters,
             #     TopologyLabel.Track, PhysicsLabel.HIPIonization,
             #     track_label
             # )
 
-            # self.process_showers_list(other_daughters, self.iterate_topology_label())
-            # self.process_showers_list(pimin_progeny, self.iterate_topology_label())
-            self.process_showers_list(pimin_daughters, self.iterate_topology_label())
+            # self.process_showers_list(other_daughters, next(self.unique_topology))
+            # self.process_showers_list(pimin_progeny, next(self.unique_topology))
+            self.process_showers_list(pimin_daughters, next(self.unique_topology))
 
     def process_kaon0s(self):
         ka0s = self.simulation_wrangler.get_trackid_pdg_code(311)
@@ -684,13 +674,13 @@ class SimulationLabelingLogic:
             ka0_hits = self.simulation_wrangler.trackid_hit[ka0]
             ka0_segments = self.simulation_wrangler.trackid_segmentid[ka0]
 
-            cluster_label = self.iterate_topology_label()
-            self.set_labels(
+            cluster_label = next(self.unique_topology)
+            self.simulation_wrangler.set_hit_labels(
                 ka0_hits, ka0_segments, ka0,
                 TopologyLabel.Shower, PhysicsLabel.PhotonShower,
                 cluster_label
             )
-            self.process_showers_list(ka0_daughters, self.iterate_topology_label())
+            self.process_showers_list(ka0_daughters, next(self.unique_topology))
 
     def process_kaon_plus(self):
 
@@ -707,22 +697,22 @@ class SimulationLabelingLogic:
             kaonplus_segments = self.simulation_wrangler.get_segments_trackid(kaonplus)
 
             # Set kaonplus detsim labels to Track:kaononMinus
-            track_label = self.iterate_topology_label()
-            self.set_labels(
+            track_label = next(self.unique_topology)
+            self.simulation_wrangler.set_hit_labels(
                 kaonplus_hits, kaonplus_segments, kaonplus,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 track_label
             )
 
-            # self.set_labels_list(
+            # self.simulation_wrangler.set_labels_list(
             #     elec_hits, elec_segments, elec_daughters,
             #     TopologyLabel.Track, PhysicsLabel.HIPIonization,
             #     track_label
             # )
 
-            # self.process_showers_list(other_daughters, self.iterate_topology_label())
-            # self.process_showers_list(kaonplus_progeny, self.iterate_topology_label())
-            self.process_showers_list(kaonplus_daughters, self.iterate_topology_label())
+            # self.process_showers_list(other_daughters, next(self.unique_topology))
+            # self.process_showers_list(kaonplus_progeny, next(self.unique_topology))
+            self.process_showers_list(kaonplus_daughters, next(self.unique_topology))
 
     def process_kaon_minus(self):
         kaonmins = self.simulation_wrangler.get_trackid_pdg_code(-321)
@@ -738,22 +728,22 @@ class SimulationLabelingLogic:
             kaonmin_segments = self.simulation_wrangler.get_segments_trackid(kaonmin)
 
             # Set kaonplus detsim labels to Track:kaononMinus
-            track_label = self.iterate_topology_label()
-            self.set_labels(
+            track_label = next(self.unique_topology)
+            self.simulation_wrangler.set_hit_labels(
                 kaonmin_hits, kaonmin_segments, kaonmin,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 track_label
             )
 
-            # self.set_labels_list(
+            # self.simulation_wrangler.set_labels_list(
             #     elec_hits, elec_segments, elec_daughters,
             #     TopologyLabel.Track, PhysicsLabel.HIPIonization,
             #     track_label
             # )
 
-            # self.process_showers_list(other_daughters, self.iterate_topology_label())
-            # self.process_showers_list(kaonmin_progeny, self.iterate_topology_label())
-            self.process_showers_list(kaonmin_daughters, self.iterate_topology_label())
+            # self.process_showers_list(other_daughters, next(self.unique_topology))
+            # self.process_showers_list(kaonmin_progeny, next(self.unique_topology))
+            self.process_showers_list(kaonmin_daughters, next(self.unique_topology))
 
     def process_protons(self):
         protons = self.simulation_wrangler.get_trackid_pdg_code(2212)
@@ -761,8 +751,8 @@ class SimulationLabelingLogic:
             # label protons as HIP ionization
             proton_hits = self.simulation_wrangler.get_hits_trackid(proton)
             proton_segments = self.simulation_wrangler.get_segments_trackid(proton)
-            cluster_label = self.iterate_topology_label()
-            self.set_labels(
+            cluster_label = next(self.unique_topology)
+            self.simulation_wrangler.set_hit_labels(
                 proton_hits, proton_segments, proton,
                 TopologyLabel.Track, PhysicsLabel.HIPIonization,
                 cluster_label
@@ -775,10 +765,10 @@ class SimulationLabelingLogic:
             # delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(elec_em_daughters, 2)
             # delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
             # delta_segments = self.simulation_wrangler.get_segments_trackid(delta_daughters)
-            # self.set_labels_list(
+            # self.simulation_wrangler.set_labels_list(
             #     delta_hits, delta_segments, delta_daughters,
             #     TopologyLabel.Track, PhysicsLabel.DeltaElectron,
-            #     self.iterate_topology_label()
+            #     next(self.unique_topology)
             # )
 
             # # process all other daughters as showers too
@@ -786,13 +776,13 @@ class SimulationLabelingLogic:
             # other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(proton_daughters, 11)
             # other_elec_daughters = self.simulation_wrangler.filter_trackid_not_process_and_subprocess(elec_daughters, 2, 2)
 
-            # self.process_showers_list(other_elec_daughters, self.iterate_topology_label())
+            # self.process_showers_list(other_elec_daughters, next(self.unique_topology))
 
-            # self.process_showers_list(other_daughters, self.iterate_topology_label())
-            self.process_showers_list(proton_daughters, self.iterate_topology_label())
+            # self.process_showers_list(other_daughters, next(self.unique_topology))
+            self.process_showers_list(proton_daughters, next(self.unique_topology))
             # we do not need these anymore (I think) # TODO: check this
             # proton_progeny = self.simulation_wrangler.trackid_progeny[proton]
-            # self.process_showers_list(proton_progeny, self.iterate_topology_label())
+            # self.process_showers_list(proton_progeny, next(self.unique_topology))
 
     def process_neutrons(self):
         """
@@ -835,15 +825,15 @@ class SimulationLabelingLogic:
                     elif gamma_energy in {0.00016, 0.00017}:
                         particle_label = PhysicsLabel.NeutronCaptureGamma016
 
-                    cluster_label = self.iterate_topology_label()
-                    self.set_labels(
+                    cluster_label = next(self.unique_topology)
+                    self.simulation_wrangler.set_hit_labels(
                         gamma_hits, gamma_segments, gamma,
                         TopologyLabel.Blip, particle_label,
                         cluster_label
                     )
 
-            self.process_showers_list(other_daughters, self.iterate_topology_label())
-            self.process_showers_list(other_gammas, self.iterate_topology_label())
+            self.process_showers_list(other_daughters, next(self.unique_topology))
+            self.process_showers_list(other_gammas, next(self.unique_topology))
 
     def process_nuclear_recoils(self):
         ar41 = self.simulation_wrangler.get_trackid_pdg_code(1000180410)
@@ -879,118 +869,118 @@ class SimulationLabelingLogic:
         for ar in ar41:
             ar41_hits = self.simulation_wrangler.get_hits_trackid(ar)
             ar41_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 ar41_hits, ar41_segments, ar,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for ar in ar40:
             ar40_hits = self.simulation_wrangler.get_hits_trackid(ar)
             ar40_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 ar40_hits, ar40_segments, ar,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for ar in ar39:
             ar39_hits = self.simulation_wrangler.get_hits_trackid(ar)
             ar39_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 ar39_hits, ar39_segments, ar,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for ar in ar38:
             ar38_hits = self.simulation_wrangler.get_hits_trackid(ar)
             ar38_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 ar38_hits, ar38_segments, ar,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for ar in ar37:
             ar37_hits = self.simulation_wrangler.get_hits_trackid(ar)
             ar37_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 ar37_hits, ar37_segments, ar,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for ar in ar36:
             ar36_hits = self.simulation_wrangler.get_hits_trackid(ar)
             ar36_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 ar36_hits, ar36_segments, ar,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for s in s33:
             s33_hits = self.simulation_wrangler.get_hits_trackid(s)
             s33_segments = self.simulation_wrangler.get_segments_trackid(s)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 s33_hits, s33_segments, s,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for s in s35:
             s35_hits = self.simulation_wrangler.get_hits_trackid(s)
             s35_segments = self.simulation_wrangler.get_segments_trackid(s)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 s35_hits, s35_segments, s,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for s in s36:
             s36_hits = self.simulation_wrangler.get_hits_trackid(s)
             s36_segments = self.simulation_wrangler.get_segments_trackid(s)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 s36_hits, s36_segments, s,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for cl in cl36:
             cl36_hits = self.simulation_wrangler.get_hits_trackid(cl)
             cl36_segments = self.simulation_wrangler.get_segments_trackid(cl)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 cl36_hits, cl36_segments, cl,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for cl in cl37:
             cl37_hits = self.simulation_wrangler.get_hits_trackid(cl)
             cl37_segments = self.simulation_wrangler.get_segments_trackid(cl)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 cl37_hits, cl37_segments, cl,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for cl in cl39:
             cl39_hits = self.simulation_wrangler.get_hits_trackid(cl)
             cl39_segments = self.simulation_wrangler.get_segments_trackid(cl)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 cl39_hits, cl39_segments, cl,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for cl in cl40:
             cl40_hits = self.simulation_wrangler.get_hits_trackid(cl)
             cl40_segments = self.simulation_wrangler.get_segments_trackid(cl)
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 cl40_hits, cl40_segments, cl,
                 TopologyLabel.Blip, PhysicsLabel.NuclearRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
     def process_electron_recoils(self):
@@ -1009,30 +999,30 @@ class SimulationLabelingLogic:
             deuteron_hits = self.simulation_wrangler.get_hits_trackid(deuteron)
             deuteron_segments = self.simulation_wrangler.get_segments_trackid(deuteron)
 
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 deuteron_hits, deuteron_segments, deuteron,
                 TopologyLabel.Blip, PhysicsLabel.ElectronRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for triton in tritons:
             triton_hits = self.simulation_wrangler.get_hits_trackid(triton)
             triton_segments = self.simulation_wrangler.get_segments_trackid(triton)
 
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 triton_hits, triton_segments, triton,
                 TopologyLabel.Blip, PhysicsLabel.ElectronRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
         for inelastic_alpha in inelastic_alphas:
             inelastic_alpha_hits = self.simulation_wrangler.get_hits_trackid(inelastic_alpha)
             inelastic_alpha_segments = self.simulation_wrangler.get_segments_trackid(inelastic_alpha)
 
-            self.set_labels(
+            self.simulation_wrangler.set_hit_labels(
                 inelastic_alpha_hits, inelastic_alpha_segments, inelastic_alpha,
                 TopologyLabel.Blip, PhysicsLabel.ElectronRecoil,
-                self.iterate_topology_label()
+                next(self.unique_topology)
             )
 
     def process_ar39(self):
@@ -1051,10 +1041,10 @@ class SimulationLabelingLogic:
         #         ar39_hits = mc_data.get_hits_trackid(ar)
         #         ar39_segments = mc_data.get_segments_trackid(ar)
 
-        #         self.set_labels(
+        #         self.simulation_wrangler.set_hit_labels(
         #             ar39_hits, ar39_segments, ar,
         #             TopologyLabel.Blip, PhysicsLabel.Ar39,
-        #             self.iterate_topology_label()
+        #             next(self.unique_topology)
         #         )
 
     def process_ar42(self):
@@ -1079,16 +1069,16 @@ class SimulationLabelingLogic:
         #         ar42_segments = mc_data.get_segments_trackid(ar)
 
         #         if mc_data.get_energy_trackid(ar) < 0.600:
-        #             self.set_labels(
+        #             self.simulation_wrangler.set_hit_labels(
         #                 ar42_hits, ar42_segments, ar,
         #                 TopologyLabel.Blip, PhysicsLabel.Ar42,
-        #                 self.iterate_topology_label()
+        #                 next(self.unique_topology)
         #             )
         #         else:
-        #             self.set_labels(
+        #             self.simulation_wrangler.set_hit_labels(
         #                 ar42_hits, ar42_segments, ar,
         #                 TopologyLabel.Blip, PhysicsLabel.K42,
-        #                 self.iterate_topology_label()
+        #                 next(self.unique_topology)
         #             )
 
     def process_kr85(self):
@@ -1107,10 +1097,10 @@ class SimulationLabelingLogic:
         #         kr85_hits= mc_data.get_hits_trackid(kr)
         #         kr85_segments = mc_data.get_segments_trackid(kr)
 
-        #         self.set_labels(
+        #         self.simulation_wrangler.set_hit_labels(
         #             kr85_hits, kr85_segments, kr,
         #             TopologyLabel.Blip, PhysicsLabel.Kr85,
-        #             self.iterate_topology_label()
+        #             next(self.unique_topology)
         # )
 
     def process_rn222(self):
@@ -1214,10 +1204,10 @@ class SimulationLabelingLogic:
         #         rn222_hits = mc_data.get_hits_trackid(rn)
         #         rn222_segments = mc_data.get_all_segments_trackid(rn)
 
-        #         self.set_labels(
+        #         self.simulation_wrangler.set_hit_labels(
         #             rn222_hits, rn222_segments, rn,
         #             TopologyLabel.Blip, mRn222Decays[index],
-        #             self.iterate_topology_label()
+        #             next(self.unique_topology)
         #         )
 
     def process_cosmics(self):
@@ -1244,21 +1234,21 @@ class SimulationLabelingLogic:
         #         electron_segments= mc_data.get_segments_trackid(electron)
 
         #         # Set electron detsim labels to Shower::ElectronShower
-        #         shower_label = self.iterate_topology_label()
-        #         self.set_labels(
+        #         shower_label = next(self.unique_topology)
+        #         self.simulation_wrangler.set_hit_labels(
         #             electron_hits, electron_segments, electron,
         #             TopologyLabel.Shower, PhysicsLabel.ElectronRecoil,
         #             shower_label
         #         )
 
-        #         self.set_labels(
+        #         self.simulation_wrangler.set_hit_labels(
         #             elec_hits, elec_segments, elec_daughters,
         #             TopologyLabel.Shower, PhysicsLabel.ElectronRecoil,
         #             shower_label
         #         )
 
         #         self.process_showers(electron_progeny, shower_label)
-        #         self.process_showers(other_daughters, self.iterate_topology_label())
+        #         self.process_showers(other_daughters, next(self.unique_topology))
         # if positrons is not None:
         #     for positron in positrons:
         #         positron_daughters = mc_data.get_daughters_trackid(positron)
@@ -1272,18 +1262,21 @@ class SimulationLabelingLogic:
         #         positron_segments = mc_data.get_segments_trackid(positron)
 
         #         # Set positron detsim labels to Shower::PositronShower
-        #         shower_label = self.iterate_topology_label()
-        #         self.set_labels(
+        #         shower_label = next(self.unique_topology)
+        #         self.simulation_wrangler.set_hit_labels(
         #             positron_hits, positron_segments, positron,
         #             TopologyLabel.Shower, PhysicsLabel.PositronShower,
         #             shower_label
         #         )
 
-        #         self.set_labels_list(
+        #         self.simulation_wrangler.set_labels_list(
         #             elec_hits, elec_segments, elec_daughters,
         #             TopologyLabel.Shower, PhysicsLabel.PositronShower,
         #             shower_label
         #         )
 
         #         self.process_showers(positron_progeny, shower_label)
-        #         self.process_showers(other_daughters, self.iterate_topology_label())
+        #         self.process_showers(other_daughters, next(self.unique_topology))
+
+    def process_primaries(self):
+        pass

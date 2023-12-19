@@ -65,7 +65,7 @@ class MemoryTrackers:
 
     def reset_trackers(self):
         self.memory_trackers = {
-            f'process_{process}': MemoryTracker(f'process_{process}', gpu=self.gpu) for process in process_functions
+            f'{process}': MemoryTracker(f'{process}', gpu=self.gpu) for process in process_functions
         }
 
     def synchronize(self):

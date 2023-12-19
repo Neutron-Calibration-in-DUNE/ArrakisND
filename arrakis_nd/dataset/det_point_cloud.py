@@ -10,8 +10,6 @@ class DetectorPointCloud:
         self.clear()
 
     def clear(self):
-        self.data = np.array(
-        )
         self.data = {
             'event': -1,
             'x': np.array([]),
@@ -26,27 +24,27 @@ class DetectorPointCloud:
 
             'topology_label':   np.array([]),
             'particle_label':   np.array([]),
-            'physics_micro':    np.array([]),
-            'physics_meso':     np.array([]),
-            'physics_macro':    np.array([]),
+            'physics_micro_label':    np.array([]),
+            'physics_meso_label':     np.array([]),
+            'physics_macro_label':    np.array([]),
 
             'unique_topology_label':   np.array([]),
             'unique_particle_label':   np.array([]),
-            'unique_physics_micro':    np.array([]),
-            'unique_physics_meso':     np.array([]),
-            'unique_physics_macro':    np.array([]),
+            'unique_physics_micro_label':    np.array([]),
+            'unique_physics_meso_label':     np.array([]),
+            'unique_physics_macro_label':    np.array([]),
 
             'topology_labels':   np.array([]),
             'particle_labels':   np.array([]),
-            'physics_micros':    np.array([]),
-            'physics_mesos':     np.array([]),
-            'physics_macros':    np.array([]),
+            'physics_micro_labels':    np.array([]),
+            'physics_meso_labels':     np.array([]),
+            'physics_macro_labels':    np.array([]),
 
             'unique_topology_labels':   np.array([]),
             'unique_particle_labels':   np.array([]),
-            'unique_physics_micros':    np.array([]),
-            'unique_physics_mesos':     np.array([]),
-            'unique_physics_macros':    np.array([]),
+            'unique_physics_micro_labels':    np.array([]),
+            'unique_physics_meso_labels':     np.array([]),
+            'unique_physics_macro_labels':    np.array([]),
         }
         
     def add_event(self,
@@ -108,14 +106,14 @@ class DetectorPointCloud:
         for key in [
             'topology_labels',
             'particle_labels',
-            'physics_micros',
-            'physics_mesos',
-            'physics_macros',
+            'physics_micro_labels',
+            'physics_meso_labels',
+            'physics_macro_labels',
             'unique_topology_labels',
             'unique_particle_labels',
-            'unique_physics_micros',
-            'unique_physics_mesos',
-            'unique_physics_macros',
+            'unique_physics_micro_labels',
+            'unique_physics_meso_labels',
+            'unique_physics_macro_labels',
         ]:
             if self.data[key].size == 0:
                 self.data[key] = minus_one_array

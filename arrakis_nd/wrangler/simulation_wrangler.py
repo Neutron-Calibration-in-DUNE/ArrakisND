@@ -11,6 +11,7 @@ import h5py
 
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud
+from arrakis_nd.dataset.common import TopologyLabel, PhysicsMicroLabel, PhysicsMesoLabel, PhysicsMacroLabel
 from arrakis_nd.dataset.common import classification_labels
 from arrakis_nd.wrangler.common import wrangler_modes
 
@@ -115,39 +116,109 @@ class SimulationWrangler:
 
     def set_hit_labels(
         self,
-        hit,
-        segment_id,
-        topology,
-        particle,
-        physics_micro,
-        physics_meso,
-        physics_macro,
-        unique_topology
+        hits:       list = [],
+        segments:   list = [],
+        trackid:    int = 0,
+        topology:   TopologyLabel = TopologyLabel.Undefined,
+        physics_micro:      PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
+        physics_meso:       PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
+        physics_macro:      PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
+        unique_topology:    int = 0,
+        unique_physics_micro:   int = 0,
+        unique_physics_meso:    int = 0,
+        unique_physics_macro:   int = 0,
     ):
-        point_cloud_index = self.get_index_trackid(hit, segment_id)
-        if point_cloud_index != -1:
-            self.det_point_cloud.data["topology_labels"][hit][point_cloud_index] = topology.value
-            self.det_point_cloud.data["particle_labels"][hit][point_cloud_index] = self.trackid_pdgcode[particle]
-            self.det_point_cloud.data["physics_micro_labels"][hit][point_cloud_index] = physics_micro.value
-            self.det_point_cloud.data["physics_meso_labels"][hit][point_cloud_index] = physics_meso.value
-            self.det_point_cloud.data["physics_macro_labels"][hit][point_cloud_index] = physics_macro.value
-            self.det_point_cloud.data["unique_topologt_labels"][hit][point_cloud_index] = unique_topology
-            self.det_point_cloud.data["unique_particle_labels"][hit][point_cloud_index] = segment_id
-        self.det_point_cloud.data["topology_label"][hit] = topology.value
-        self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[particle]
-        self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
-        self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
-        self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
-        try:
+        for hit in hits:
+            point_cloud_index = self.get_index_trackid(hit, trackid)
+            if point_cloud_index != -1:
+                self.det_point_cloud.data["topology_labels"][hit][point_cloud_index] = topology.value
+                self.det_point_cloud.data["particle_labels"][hit][point_cloud_index] = self.trackid_pdgcode[trackid]
+                self.det_point_cloud.data["physics_micro_labels"][hit][point_cloud_index] = physics_micro.value
+                self.det_point_cloud.data["physics_meso_labels"][hit][point_cloud_index] = physics_meso.value
+                self.det_point_cloud.data["physics_macro_labels"][hit][point_cloud_index] = physics_macro.value
+                self.det_point_cloud.data["unique_topology_labels"][hit][point_cloud_index] = unique_topology
+                self.det_point_cloud.data["unique_particle_labels"][hit][point_cloud_index] = trackid
+                self.det_point_cloud.data['unique_physics_micro_labels'][hit][point_cloud_index] = unique_physics_micro.value
+                self.det_point_cloud.data['unique_physics_meso_labels'][hit][point_cloud_index] = unique_physics_meso.value
+                self.det_point_cloud.data['unique_physics_macro_labels'][hit][point_cloud_index] = unique_physics_macro.value
+            
+            self.det_point_cloud.data["topology_label"][hit] = topology.value
+            self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[trackid]
             self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
             self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
             self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
-        except:
-            self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value[0]
-            self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value[0]
-            self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value[0]
-        self.det_point_cloud.data["unique_topology_label"][hit] = unique_topology
-        self.det_point_cloud.data["unique_particle_label"][hit] = segment_id
+            # TODO: What's going on with this?
+            try:
+                self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
+                self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
+                self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
+            except:
+                self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value[0]
+                self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value[0]
+                self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value[0]
+            self.det_point_cloud.data["unique_topology_label"][hit] = unique_topology
+            self.det_point_cloud.data["unique_particle_label"][hit] = trackid
+            self.det_point_cloud.data['unique_physics_micro_label'][hit][point_cloud_index] = unique_physics_micro.value
+            self.det_point_cloud.data['unique_physics_meso_label'][hit][point_cloud_index] = unique_physics_meso.value
+            self.det_point_cloud.data['unique_physics_macro_label'][hit][point_cloud_index] = unique_physics_macro.value
+
+    def set_labels_list(
+        self,
+        hits:       list = [[]],
+        segments:   list = [[]],
+        trackid:    int = 0,
+        topology:   TopologyLabel = TopologyLabel.Undefined,
+        physics_micro:      PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
+        physics_meso:       PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
+        physics_macro:      PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
+        unique_topology:    int = 0,
+        unique_physics_micro:   int = 0,
+        unique_physics_meso:    int = 0,
+        unique_physics_macro:   int = 0,
+    ):
+        for ii in range(len(hits)):
+            self.set_hit_labels(
+                hits[ii],
+                segments[ii],
+                trackid[ii],
+                topology,
+                physics_micro,
+                physics_meso,
+                physics_macro,
+                unique_topology,
+                unique_physics_micro,
+                unique_physics_meso,
+                unique_physics_macro,
+            )
+
+    def set_labels_array(
+        self,
+        hits:       list = [[[]]],
+        segments:   list = [[[]]],
+        trackid:    int = 0,
+        topology:   TopologyLabel = TopologyLabel.Undefined,
+        physics_micro:      PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
+        physics_meso:       PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
+        physics_macro:      PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
+        unique_topology:    int = 0,
+        unique_physics_micro:   int = 0,
+        unique_physics_meso:    int = 0,
+        unique_physics_macro:   int = 0,
+    ):
+        for ii in range(len(hits)):
+            self.set_hit_labels_list(
+                hits[ii],
+                segments[ii],
+                trackid[ii],
+                topology,
+                physics_micro,
+                physics_meso,
+                physics_macro,
+                unique_topology,
+                unique_physics_micro,
+                unique_physics_meso,
+                unique_physics_macro,
+            )
 
     def process_event(
         self,
@@ -477,6 +548,16 @@ class SimulationWrangler:
             if abs(pdg_code) == abs(pdg):
                 trackid.append(track_id)
         return trackid
+
+    def get_parentid_trackid(
+        self,
+        trackids
+    ):
+        parentid = [
+            self.trackid_parentid[track_id]
+            for track_id in trackids
+        ]
+        return parentid
 
     def get_daughters_trackid(
         self,
