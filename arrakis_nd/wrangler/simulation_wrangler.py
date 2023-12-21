@@ -323,15 +323,51 @@ class SimulationWrangler:
                 key: value
                 for key, value in classification_labels["physics_macro"].items()
             },
-            "hit_labels": {
-                key: value
-                for key, value in classification_labels["hit"].items()
-            },
         }
+        det_features = np.array([
+            np.vstack((
+                self.det_point_clouds[ii].data['x'],
+                self.det_point_clouds[ii].data['y'],
+                self.det_point_clouds[ii].data['z'],
+                self.det_point_clouds[ii].data['Q'])).T
+            for ii in self.det_point_clouds.keys()],
+            dtype=object
+        )
+        mc_features = np.array([
+            np.vstack((
+                self.det_point_clouds[ii].data['t_drift'],
+                self.det_point_clouds[ii].data['ts_pps'],
+                self.det_point_clouds[ii].data['E'])).T
+            for ii in self.det_point_clouds.keys()],
+            dtype=object
+        )
+        classes = np.array([
+            np.vstack((
+                self.det_point_clouds[ii].data['particle_label'],
+                self.det_point_clouds[ii].data['topology_label'],
+                self.det_point_clouds[ii].data['physics_micro_label'],
+                self.det_point_clouds[ii].data['physics_meso_label'],
+                self.det_point_clouds[ii].data['physics_macro_label'])).T
+            for ii in self.det_point_clouds.keys()],
+            dtype=object
+        )
+        clusters = np.array([
+            np.vstack((
+                self.det_point_clouds[ii].data['unique_particle_label'],
+                self.det_point_clouds[ii].data['unique_topology_label'],
+                self.det_point_clouds[ii].data['unique_physics_micro_label'],
+                self.det_point_clouds[ii].data['unique_physics_meso_label'],
+                self.det_point_clouds[ii].data['unique_physics_macro_label'])).T
+            for ii in self.det_point_clouds.keys()],
+            dtype=object
+        )
 
         np.savez(
             output_file,
-            data=self.det_point_clouds,
+            det_features=det_features,
+            mc_features=mc_features,
+            classes=classes,
+            clusters=clusters,
             meta=meta,
         )
 
@@ -453,20 +489,22 @@ class SimulationWrangler:
         event_hits,
         event_hits_back_track
     ):
+        segment_ids = event_hits_back_track['segment_id']
+        segment_fractions = event_hits_back_track['fraction']
+        self.det_point_cloud.add_event(
+            event_hits['x'],
+            event_hits['y'],
+            event_hits['z'],
+            event_hits['t_drift'],
+            event_hits['ts_pps'],
+            event_hits['Q'],
+            event_hits['E'],
+            segment_ids,
+            segment_fractions
+        )
         for ii, hit in enumerate(event_hits):
             segment_ids = event_hits_back_track['segment_id'][ii]
             segment_fractions = event_hits_back_track['fraction'][ii]
-            self.det_point_cloud.add_point(
-                hit['x'],
-                hit['y'],
-                hit['z'],
-                hit['t_drift'],
-                hit['ts_pps'],
-                hit['Q'],
-                hit['E'],
-                segment_ids,
-                segment_fractions
-            )
             for segmentid in segment_ids[(segment_ids != 0)]:
                 if segmentid in self.segmentid_hit.keys():
                     self.segmentid_hit[segmentid].append(ii)
@@ -477,19 +515,7 @@ class SimulationWrangler:
         event_hits,
         event_hits_back_track
     ):
-        segment_ids = event_hits_back_track['segment_id']
-        segment_fractions = event_hits_back_track['fraction']
-        self.det_point_cloud.add_point(
-                event_hits['x'],
-                event_hits['y'],
-                event_hits['z'],
-                event_hits['t_drift'],
-                event_hits['ts_pps'],
-                event_hits['Q'],
-                event_hits['E'],
-                segment_ids,
-                segment_fractions
-            )
+        pass
 
     def get_total_hit_energy_map(
         self,

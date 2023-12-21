@@ -46,17 +46,18 @@ class DetectorPointCloud:
             'unique_physics_meso_labels':     np.array([]),
             'unique_physics_macro_labels':    np.array([]),
         }
-        
-    def add_event(self,
-        x:      float, 
-        y:      float, 
-        z:      float, 
-        t_drift:    float, 
-        ts_pps: float, 
-        Q:      float, 
-        E:      float, 
-        segment_ids:    list=[],
-        segment_fractions:  list=[],
+
+    def add_event(
+        self,
+        x:          float,
+        y:          float,
+        z:          float,
+        t_drift:    float,
+        ts_pps:     float,
+        Q:          float,
+        E:          float,
+        segment_ids:    list = [],
+        segment_fractions:  list = [],
     ):
         # Create a dictionary with the event data
         event_data = {
@@ -89,24 +90,21 @@ class DetectorPointCloud:
             'unique_physics_micro_labels': np.full((x.shape[0], len(segment_ids)), -1),
             'unique_physics_meso_labels': np.full((x.shape[0], len(segment_ids)), -1),
             'unique_physics_macro_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            }
-        # Append the event data to self.data
-        for key, value in event_data.items():
-            if self.data[key].size == 0:
-                self.data[key] = value
-            else:
-                self.data[key] = np.concatenate((self.data[key], value))
-    
-    def add_point(self,
-        x:      float, 
-        y:      float, 
-        z:      float, 
-        t_drift:    float, 
-        ts_pps: float, 
-        Q:      float, 
-        E:      float, 
-        segment_ids:    list=[],
-        segment_fractions:  list=[],
+        }
+        for key, item in event_data.items():
+            self.data[key] = item
+
+    def add_point(
+        self,
+        x:          float,
+        y:          float,
+        z:          float,
+        t_drift:    float,
+        ts_pps:     float,
+        Q:          float,
+        E:          float,
+        segment_ids:    list = [],
+        segment_fractions:  list = [],
     ):
         for key, value in {
             'x': x,
