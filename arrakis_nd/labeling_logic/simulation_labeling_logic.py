@@ -306,11 +306,21 @@ class SimulationLabelingLogic:
 
         """
         # First determine if this is a shower.
-        shower = True
         shower_energy_threshold = 20.0
+        particle_descendants = self.simulation_wrangler.trackid_descendants[particle]
+        compton_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 13)
+        bremmstrahlung_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 3)
+        photoelectric_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 12)
+        gamma_descendants = self.simulation_wrangler.filter_trackid_abs_pdg_code(particle_descendants, 22)
+        conversion_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 14)
+
+        if len(conversion_descendants) > 0 and len(bremmstrahlung_descendants) > 0:
+            shower = True
+        else:
+            shower = False
 
         # shower or no shower?
-        if shower or shower_energy_threshold > 0.0:
+        if shower: # or shower_energy_threshold > 0.0:
             topology = TopologyLabel.Shower
         else:
             topology = TopologyLabel.Blip
@@ -320,28 +330,27 @@ class SimulationLabelingLogic:
 
         # if no shower, then physics_meso is the particle type for each segment.
         #   if the total energy is low enough, the topology type is changed to Blip.
-
-        if self.simulation_wrangler.trackid_pdgcode[particle] == 11:
-            physics_meso = PhysicsMesoLabel.ElectronShower
-        elif self.simulation_wrangler.trackid_pdgcode[particle] == -11:
-            physics_meso = PhysicsMesoLabel.PositronShower
-        elif self.simulation_wrangler.trackid_pdgcode[particle] == 22:
-            physics_meso = PhysicsMesoLabel.PhotonShower
+        if shower:
+            earliest_conversion = min(self.simulation_wrangler.get_tstart_trackid(conversion_descendants))
+            earliest_bremmstrahlung = min(self.simulation_wrangler.get_tstart_trackid(bremmstrahlung_descendants))
+            if earliest_conversion < earliest_bremmstrahlung:
+                physics_meso = PhysicsMesoLabel.PhotonShower
+            else:
+                physics_meso = PhysicsMesoLabel.ElectronShower
         else:
+        # if self.simulation_wrangler.trackid_pdgcode[particle] == 11:
+        #     physics_meso = PhysicsMesoLabel.ElectronShower
+        # elif self.simulation_wrangler.trackid_pdgcode[particle] == -11:
+        #     physics_meso = PhysicsMesoLabel.PositronShower
+        # elif self.simulation_wrangler.trackid_pdgcode[particle] == 22:
+        #     physics_meso = PhysicsMesoLabel.PhotonShower
+        # else:
             physics_meso = PhysicsMesoLabel.Undefined    # TODO: fix this in the future of course
         unique_physics_meso = next(self.unique_physics_meso)
-
-        particle_descendants = self.simulation_wrangler.trackid_descendants[particle]
-        compton_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 13)
-        bremmstrahlung_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 3)
-        photoelectric_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 12)
-        gamma_descendants = self.simulation_wrangler.filter_trackid_abs_pdg_code(particle_descendants, 22)
-        conversion_descendants = self.simulation_wrangler.filter_trackid_subprocess(particle_descendants, 14)
 
         # process gamma conversions
         for conversion in conversion_descendants:
             conversion_descendants = self.simulation_wrangler.trackid_descendants[conversion]
-            # conversion_descendants = self.simulation_wrangler.filter_trackid_not_process(conversion_descendants, 13)
             conversion_hits = self.simulation_wrangler.get_hits_trackid(conversion)
             conversion_segments = self.simulation_wrangler.get_segments_trackid(conversion)
             descendant_hits = self.simulation_wrangler.get_hits_trackid(conversion_descendants)
@@ -374,7 +383,24 @@ class SimulationLabelingLogic:
                 0,
             )
 
-        # # process compton scatters
+        leftover_descendants = remove_sublist(particle_descendants, conversion_descendants)
+        leftover_hits = self.simulation_wrangler.get_hits_trackid(leftover_descendants)
+        leftover_segments = self.simulation_wrangler.get_segments_trackid(leftover_descendants)
+        
+        self.simulation_wrangler.set_hit_labels_list(
+            leftover_hits,
+            leftover_segments,
+            leftover_descendants,
+            topology,
+            PhysicsMicroLabel.ElectronIonization,
+            physics_meso,
+            PhysicsMacroLabel.Undefined,
+            unique_topology,
+            next(self.unique_physics_micro),
+            next(self.unique_physics_meso),
+            0
+        )
+        # process compton scatters
         # compton_parents = np.array(self.simulation_wrangler.get_parentid_trackid(compton_descendants))
         # compton_descendants = np.array(compton_descendants)
         # unique_compton_parents = np.unique(compton_parents)
@@ -396,7 +422,7 @@ class SimulationLabelingLogic:
         #         unique_physics_meso,
         #         0
         #     )
-        # process photo-electric effect
+        # # process photo-electric effect
         # photoelectric_parents = np.array(self.simulation_wrangler.get_parentid_trackid(photoelectric_descendants))
         # photoelectric_descendants = np.array(photoelectric_descendants)
         # unique_photoelectric_parents = np.unique(photoelectric_parents)
@@ -716,7 +742,7 @@ class SimulationLabelingLogic:
     def process_kaon0s(self):
         ka0s = self.simulation_wrangler.get_trackid_pdg_code(311)
         for ka0 in ka0s:
-            self.process_showers_list(ka0, next(self.unique_topology))
+            self.process_showers(ka0, next(self.unique_topology))
 
     def process_kaon_plus(self):
         kaonpluses = self.simulation_wrangler.get_trackid_pdg_code(321)
@@ -800,46 +826,53 @@ class SimulationLabelingLogic:
         TODO: Only doing ar40 captures right now, need to update this.
         """
         neutrons = self.simulation_wrangler.get_trackid_pdg_code(2112)
-        pass
-        # for neutron in neutrons:
-        #     neutron_daughters = self.simulation_wrangler.trackid_daughters[neutron]
-        #     gamma_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(neutron_daughters, 22)
-        #     other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(neutron_daughters, 22)
-        #     capture_daughters = self.simulation_wrangler.filter_trackid_process(gamma_daughters, 131)
-        #     # 131 = GEANT process capture
-        #     other_gammas = self.simulation_wrangler.filter_trackid_not_process(gamma_daughters, 131)
+        for neutron in neutrons:
+            neutron_daughters = self.simulation_wrangler.trackid_daughters[neutron]
+            gamma_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(neutron_daughters, 22)
+            other_daughters = self.simulation_wrangler.filter_trackid_not_abs_pdg_code(neutron_daughters, 22)
+            capture_daughters = self.simulation_wrangler.filter_trackid_process(gamma_daughters, 131)
+            # 131 = GEANT process capture
+            other_gammas = self.simulation_wrangler.filter_trackid_not_process(gamma_daughters, 131)
 
-        #     for capture in capture_daughters:
-        #         for gamma in capture:
-        #             gamma_energy = self.simulation_wrangler.get_total_hit_energy(gamma, 5)
-        #             gamma_hits = self.simulation_wrangler.get_hits_trackid(gamma)
-        #             gamma_segments = self.simulation_wrangler.get_segments_trackid(gamma)
+            for capture in capture_daughters:
+                for gamma in capture:
+                    gamma_energy = self.simulation_wrangler.get_total_hit_energy(gamma, 5)
+                    gamma_hits = self.simulation_wrangler.get_hits_trackid(gamma)
+                    gamma_segments = self.simulation_wrangler.get_segments_trackid(gamma)
 
-        #             particle_label = PhysicsLabel.NeutronCaptureGammaOther
-        #             if gamma_energy in {0.00474, 0.00475}:
-        #                 particle_label = PhysicsLabel.NeutronCaptureGamma474
-        #             elif gamma_energy in {0.00336, 0.00337}:
-        #                 particle_label = PhysicsLabel.NeutronCaptureGamma336
-        #             elif gamma_energy in {0.00256, 0.00257}:
-        #                 particle_label = PhysicsLabel.NeutronCaptureGamma256
-        #             elif gamma_energy in {0.00118, 0.00119}:
-        #                 particle_label = PhysicsLabel.NeutronCaptureGamma118
-        #             elif gamma_energy in {0.00083, 0.00084}:
-        #                 particle_label = PhysicsLabel.NeutronCaptureGamma083
-        #             elif gamma_energy in {0.00051, 0.00052}:
-        #                 particle_label = PhysicsLabel.NeutronCaptureGamma051
-        #             elif gamma_energy in {0.00016, 0.00017}:
-        #                 particle_label = PhysicsLabel.NeutronCaptureGamma016
+                    physics_meso_label = PhysicsMesoLabel.NeutronCaptureGammaOther
+                    if gamma_energy in {0.00474, 0.00475}:
+                        physics_meso_label = PhysicsMesoLabel.NeutronCaptureGamma474
+                    elif gamma_energy in {0.00336, 0.00337}:
+                        physics_meso_label = PhysicsMesoLabel.NeutronCaptureGamma336
+                    elif gamma_energy in {0.00256, 0.00257}:
+                        physics_meso_label = PhysicsMesoLabel.NeutronCaptureGamma256
+                    elif gamma_energy in {0.00118, 0.00119}:
+                        physics_meso_label = PhysicsMesoLabel.NeutronCaptureGamma118
+                    elif gamma_energy in {0.00083, 0.00084}:
+                        physics_meso_label = PhysicsMesoLabel.NeutronCaptureGamma083
+                    elif gamma_energy in {0.00051, 0.00052}:
+                        physics_meso_label = PhysicsMesoLabel.NeutronCaptureGamma051
+                    elif gamma_energy in {0.00016, 0.00017}:
+                        physics_meso_label = PhysicsMesoLabel.NeutronCaptureGamma016
 
-        #             cluster_label = next(self.unique_topology)
-        #             self.simulation_wrangler.set_hit_labels(
-        #                 gamma_hits, gamma_segments, gamma,
-        #                 TopologyLabel.Blip, particle_label,
-        #                 cluster_label
-        #             )
+                    cluster_label = next(self.unique_topology)
+                    self.simulation_wrangler.set_hit_labels(
+                        gamma_hits, 
+                        gamma_segments, 
+                        gamma,
+                        TopologyLabel.Blip,
+                        PhysicsMicroLabel.GammaCompton, 
+                        physics_meso_label,
+                        PhysicsMacroLabel.Undefined,
+                        cluster_label,
+                        next(self.unique_physics_micro),
+                        next(self.unique_physics_meso),
+                        0
+                    )
 
-        #     self.process_showers_list(other_daughters, next(self.unique_topology))
-        #     self.process_showers_list(other_gammas, next(self.unique_topology))
+            self.process_showers_list(other_daughters, next(self.unique_topology))
+            self.process_showers_list(other_gammas, next(self.unique_topology))
 
     def process_nuclear_recoils(self):
         ar41 = self.simulation_wrangler.get_trackid_pdg_code(1000180410)

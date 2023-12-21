@@ -53,6 +53,7 @@ class SimulationWrangler:
         if self.config['wrangler_mode'] not in wrangler_modes:
             self.logger.error(f'specified wrangler_mode {self.config["wrangler_mode"]} not allowed!')
         self.wrangler_mode = self.config["wrangler_mode"]
+        
         if self.wrangler_mode == "map":
             self.clear_event = self.clear_event_maps
             self.get_total_hit_energy = self.get_total_hit_energy_map
@@ -71,6 +72,7 @@ class SimulationWrangler:
         self.trackid_endprocess = {}
         self.trackid_endsubprocess = {}
         self.trackid_energy = {}
+        self.trackid_tstart = {}
         self.trackid_daughters = {}
         self.trackid_progeny = {}
         self.trackid_descendants = {}
@@ -96,6 +98,7 @@ class SimulationWrangler:
         self.trackid_endprocess = {}
         self.trackid_endsubprocess = {}
         self.trackid_energy = {}
+        self.trackid_tstart = {}
         self.trackid_daughters = {}
         self.trackid_progeny = {}
         self.trackid_descendants = {}
@@ -393,6 +396,7 @@ class SimulationWrangler:
             self.trackid_endprocess[track_id] = particle['end_process']
             self.trackid_endsubprocess[track_id] = particle['end_subprocess']
             self.trackid_energy[track_id] = particle['E_end']                   # E_start or E_end?
+            self.trackid_tstart[track_id] = particle['t_start']
 
             # iterate over daughters
             self.trackid_daughters[track_id] = []
@@ -631,6 +635,16 @@ class SimulationWrangler:
             for track_id in trackids
         ]
         return daughters
+
+    def get_tstart_trackid(
+        self,
+        trackids
+    ):
+        tstart = [
+            self.trackid_tstart[track_id]
+            for track_id in trackids
+        ]
+        return tstart
 
     def filter_trackid_not_pdg_code(
         self,

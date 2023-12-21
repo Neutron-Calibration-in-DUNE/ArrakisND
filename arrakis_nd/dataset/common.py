@@ -103,7 +103,6 @@ class PhysicsMacroLabel(Enum):
     CCNuMu = 2
     NC = 3
 
-    NeutronCapture = 4
     Cosmics = 5
 
     # Radiological interactions
@@ -127,8 +126,6 @@ class PhysicsMacroLabel(Enum):
     Bi210a = 23
     Bi210b = 24
     Po210 = 25
-
-    BiPo = 26
 
 
 classification_labels = {

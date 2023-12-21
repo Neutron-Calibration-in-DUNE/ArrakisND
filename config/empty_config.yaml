@@ -9,4 +9,5 @@ arrakis_nd:
   gpu:      true
   gpu_device: 0
   debug:  true
+  # wrangler parameters
   shower_threshold: 20

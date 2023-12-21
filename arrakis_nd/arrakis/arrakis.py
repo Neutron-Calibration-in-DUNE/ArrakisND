@@ -236,7 +236,18 @@ class Arrakis(H5FlowStage):
             except:
                 self.logger.error(f'there was a problem processing flow file {simulation_file}')
             
-            trajectories = flow_file['mc_truth/trajectories/data']["event_id", "traj_id", "parent_id", "pdg_id", "start_process", "start_subprocess", "end_process", "end_subprocess", "E_end"]
+            trajectories = flow_file['mc_truth/trajectories/data'][
+                "event_id",
+                "traj_id",
+                "parent_id",
+                "pdg_id",
+                "start_process",
+                "start_subprocess",
+                "end_process",
+                "end_subprocess",
+                "E_end",
+                "t_start"
+            ]
             segments = flow_file['mc_truth/segments/data']['event_id', 'segment_id', 'traj_id']
             stacks = flow_file["mc_truth/stack/data"]['event_id']
             hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
@@ -253,10 +264,10 @@ class Arrakis(H5FlowStage):
             for jj, event_id in event_loop:
                 if event_id == 0:           # skip the first event for now, it is very large and takes forever to process
                     continue
-                if event_id > 4:
-                    self.simulation_labeling_logic.timers.evaluate_run()
-                    self.simulation_labeling_logic.memory_trackers.evaluate_run()
-                    break
+                # if event_id > 4:
+                #     self.simulation_labeling_logic.timers.evaluate_run()
+                #     self.simulation_labeling_logic.memory_trackers.evaluate_run()
+                #     break
                 event_trajectories = trajectories[trajectories['event_id'] == event_id]
                 event_segments = segments[segments['event_id'] == event_id]
                 event_stacks = stacks[stacks == event_id]
@@ -276,6 +287,8 @@ class Arrakis(H5FlowStage):
                     event_hits
                 )
                 self.simulation_labeling_logic.process_event()
+                if len(self.simulation_wrangler.det_point_cloud.data['x']) == 0:
+                    continue
                 self.simulation_wrangler.save_event()
                 event_loop.set_description(f"File: [{ii+1}/{len(self.simulation_files)}]")
                 # event_loop.set_postfix_str(f"num_process={:.2e}")
