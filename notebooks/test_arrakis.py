@@ -9,7 +9,7 @@ import seaborn as sn
 import h5flow
 
 arr = np.load('test.npz.arrakis_nd.npz', allow_pickle=True)
-event = 1
+event = 5
 det_features = arr['det_features'][event]
 mc_features = arr['mc_features'][event]
 classes = arr['classes'][event]
@@ -42,8 +42,8 @@ ax.scatter(
     x,
     y,
     z,
-    c=topology_labels,
-    s=E
+    c=physics_micro_labels,
+    s=q
 )
 plt.legend()
 plt.show()
