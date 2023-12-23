@@ -431,7 +431,16 @@ class SimulationWrangler:
         self,
         event_trajectories
     ):
-        pass
+
+        track_id = event_trajectories['traj_id']
+        self.trackid_parentid = event_trajectories['parent_id']
+        self.trackid_pdgcode = event_trajectories['pdg_id']
+        self.trackid_process = event_trajectories['start_process']
+        self.trackid_subprocess = event_trajectories['start_subprocess']
+        self.trackid_endprocess = event_trajectories['end_process']
+        self.trackid_endsubprocess = event_trajectories['end_subprocess']
+        self.trackid_energy = event_trajectories['E_end']                   # E_start or E_end?
+        # how to prevent looping for finding daughters?
 
     def process_event_stacks(
         self,
@@ -493,6 +502,10 @@ class SimulationWrangler:
         event_hits,
         event_hits_back_track
     ):
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
         segment_ids = event_hits_back_track['segment_id']
         segment_fractions = event_hits_back_track['fraction']
         self.det_point_cloud.add_event(
@@ -507,8 +520,11 @@ class SimulationWrangler:
             segment_fractions
         )
         for ii, hit in enumerate(event_hits):
+<<<<<<< Updated upstream
             segment_ids = event_hits_back_track['segment_id'][ii]
             segment_fractions = event_hits_back_track['fraction'][ii]
+=======
+>>>>>>> Stashed changes
             for segmentid in segment_ids[(segment_ids != 0)]:
                 if segmentid in self.segmentid_hit.keys():
                     self.segmentid_hit[segmentid].append(ii)
@@ -519,8 +535,29 @@ class SimulationWrangler:
         event_hits,
         event_hits_back_track
     ):
+<<<<<<< Updated upstream
         pass
 
+=======
+        segment_ids = event_hits_back_track['segment_id']
+        segment_fractions = event_hits_back_track['fraction']
+        self.det_point_cloud.add_event(
+                event_hits['x'],
+                event_hits['y'],
+                event_hits['z'],
+                event_hits['t_drift'],
+                event_hits['ts_pps'],
+                event_hits['Q'],
+                event_hits['E'],
+                segment_ids,
+                segment_fractions
+            )
+        for ii, hit in enumerate(event_hits):
+            for segmentid in segment_ids[(segment_ids != 0)]:
+                if segmentid in self.segmentid_hit.keys():
+                    self.segmentid_hit[segmentid].append(ii)
+                    self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
+>>>>>>> Stashed changes
     def get_total_hit_energy_map(
         self,
         hits
