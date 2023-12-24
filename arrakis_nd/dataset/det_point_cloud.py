@@ -60,6 +60,12 @@ class DetectorPointCloud:
         segment_fractions:  list = [],
     ):
         # Create a dictionary with the event data
+        # segment_ids = np.array(segment_ids)
+        # segment_fractions = np.array(segment_fractions)
+        mask = segment_ids != 0
+        segment_ids = np.array([segment_ids[ii][m].astype(int) for ii, m in enumerate(mask)], dtype=object)
+        segment_fractions = np.array([segment_fractions[ii][m] for ii, m in enumerate(mask)], dtype=object)
+        empty_labels = np.array([np.full_like(subarray, -1) for subarray in segment_ids], dtype=object)
         event_data = {
             'x': x,
             'y': y,
@@ -80,16 +86,16 @@ class DetectorPointCloud:
             'unique_physics_macro_label': np.full(x.shape, -1),
             'segment_ids': segment_ids,
             'segment_fractions': segment_fractions,
-            'topology_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'particle_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'physics_micro_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'physics_meso_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'physics_macro_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'unique_topology_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'unique_particle_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'unique_physics_micro_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'unique_physics_meso_labels': np.full((x.shape[0], len(segment_ids)), -1),
-            'unique_physics_macro_labels': np.full((x.shape[0], len(segment_ids)), -1),
+            'topology_labels': empty_labels,
+            'particle_labels': empty_labels,
+            'physics_micro_labels': empty_labels,
+            'physics_meso_labels': empty_labels,
+            'physics_macro_labels': empty_labels,
+            'unique_topology_labels': empty_labels,
+            'unique_particle_labels': empty_labels,
+            'unique_physics_micro_labels': empty_labels,
+            'unique_physics_meso_labels': empty_labels,
+            'unique_physics_macro_labels': empty_labels,
         }
         for key, item in event_data.items():
             self.data[key] = item

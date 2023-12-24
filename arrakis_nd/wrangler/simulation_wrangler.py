@@ -53,13 +53,18 @@ class SimulationWrangler:
         if self.config['wrangler_mode'] not in wrangler_modes:
             self.logger.error(f'specified wrangler_mode {self.config["wrangler_mode"]} not allowed!')
         self.wrangler_mode = self.config["wrangler_mode"]
-        
+
         if self.wrangler_mode == "map":
             self.clear_event = self.clear_event_maps
             self.get_total_hit_energy = self.get_total_hit_energy_map
         elif self.wrangler_mode == "numpy":
             self.clear_event = self.clear_event_numpy
             self.get_total_hit_energy = self.get_total_hit_energy_numpy
+
+        if "debug" not in self.config.keys():
+            self.logger.warn('debug not specified in config! setting to "False"')
+            self.config['debug'] = False
+        self.debug = self.config['debug']
 
     def parse_point_cloud(self):
         self.det_point_cloud = DetectorPointCloud()
@@ -116,7 +121,7 @@ class SimulationWrangler:
 
     def clear_point_clouds(self):
         self.det_point_clouds = {}
-        
+
     def print_particle_data(
         self,
         particle
@@ -128,10 +133,16 @@ class SimulationWrangler:
         self.logger.info(f"## Process:            [{'.' * 25}{self.trackid_process[particle]}] ##")
         self.logger.info(f"## SubProcess:         [{'.' * 25}{self.trackid_subprocess[particle]}] ##")
         self.logger.info(f"## Parent TrackID:     [{'.' * 25}{self.trackid_parentid[particle]}] ##")
-        self.logger.info(f"## Parent PDG:         [{'.' * 25}{self.trackid_pdgcode[self.trackid_parentid[particle]]}] ##")
-        self.logger.info(f"## Ancestor TrackID:   [{'.' * 25}{self.trackid_ancestry[particle][-1]}] ##")
-        self.logger.info(f"## Ancestor PDG:       [{'.' * 25}{self.trackid_pdgcode[self.trackid_ancestry[particle][-1]]}] ##")
-        self.logger.info(f"## Ancestor level:     [{'.' * 25}{self.trackid_ancestorlevel[particle]}] ##")
+        if self.trackid_parentid[particle] != -1:
+            self.logger.info(f"## Parent PDG:         [{'.' * 25}{self.trackid_pdgcode[self.trackid_parentid[particle]]}] ##")
+            self.logger.info(f"## Ancestor TrackID:   [{'.' * 25}{self.trackid_ancestry[particle][-1]}] ##")
+            self.logger.info(f"## Ancestor PDG:       [{'.' * 25}{self.trackid_pdgcode[self.trackid_ancestry[particle][-1]]}] ##")
+            self.logger.info(f"## Ancestor level:     [{'.' * 25}{self.trackid_ancestorlevel[particle]}] ##")
+        else:
+            self.logger.info(f"## Parent PDG:         [{'.' * 25}{-1}] ##")
+            self.logger.info(f"## Ancestor TrackID:   [{'.' * 25}{-1}] ##")
+            self.logger.info(f"## Ancestor PDG:       [{'.' * 25}{-1}] ##")
+            self.logger.info(f"## Ancestor level:     [{'.' * 25}{-1}] ##")
         self.logger.info("## Progeny  [.....level] [...TrackID] [.......PDG] ##")
         progeny = self.trackid_descendants[particle]
         particle_level = self.trackid_ancestorlevel[particle]
@@ -247,8 +258,45 @@ class SimulationWrangler:
                 unique_physics_meso,
                 unique_physics_macro,
             )
-
+            
     def process_event(
+        self,
+        event_id,
+        event_trajectories,
+        event_segments,
+        event_stacks,
+        hits_back_track,
+        hits
+    ):
+        """
+        Go through each of the individual logic functions
+        to process mid-level and high-level variables.
+
+        The list here should be exhaustive.  In debug mode, a
+        set of check functions are run which gathers statistics
+        on any failures, as well as timing and memory usage
+        information for each function.
+        """
+        if self.debug:
+            self._process_event_with_timing(
+                event_id,
+                event_trajectories,
+                event_segments,
+                event_stacks,
+                hits_back_track,
+                hits
+            )
+        else:
+            self._process_event_without_timing(
+                event_id,
+                event_trajectories,
+                event_segments,
+                event_stacks,
+                hits_back_track,
+                hits
+            )
+
+    def _process_event_without_timing(
         self,
         event_id,
         event_trajectories,
@@ -263,6 +311,48 @@ class SimulationWrangler:
         self.process_event_stacks(event_stacks)
         self.process_event_segments(event_segments)
         self.process_event_hits(hits, hits_back_track)
+    
+    def _process_event_with_timing(
+        self,
+        event_id,
+        event_trajectories,
+        event_segments,
+        event_stacks,
+        hits_back_track,
+        hits
+    ):
+        self.clear_event()
+        self.det_point_cloud.data['event'] = event_id
+
+        self.meta['timers'].start('wrangler_process_all')
+        self.meta['memory_trackers'].start('wrangler_process_all')
+
+        self.meta['timers'].start('wrangler_process_event_trajectories')
+        self.meta['memory_trackers'].start('wrangler_process_event_trajectories')
+        self.process_event_trajectories(event_trajectories)
+        self.meta['timers'].end('wrangler_process_event_trajectories')
+        self.meta['memory_trackers'].end('wrangler_process_event_trajectories')
+
+        self.meta['timers'].start('wrangler_process_event_stacks')
+        self.meta['memory_trackers'].start('wrangler_process_event_stacks')
+        self.process_event_stacks(event_stacks)
+        self.meta['timers'].end('wrangler_process_event_stacks')
+        self.meta['memory_trackers'].end('wrangler_process_event_stacks')
+
+        self.meta['timers'].start('wrangler_process_event_segments')
+        self.meta['memory_trackers'].start('wrangler_process_event_segments')
+        self.process_event_segments(event_segments)
+        self.meta['timers'].end('wrangler_process_event_segments')
+        self.meta['memory_trackers'].end('wrangler_process_event_segments')
+
+        self.meta['timers'].start('wrangler_process_event_hits')
+        self.meta['memory_trackers'].start('wrangler_process_event_hits')
+        self.process_event_hits(hits, hits_back_track)
+        self.meta['timers'].end('wrangler_process_event_hits')
+        self.meta['memory_trackers'].end('wrangler_process_event_hits')
+
+        self.meta['timers'].end('wrangler_process_all')
+        self.meta['memory_trackers'].end('wrangler_process_all')
 
     def save_event(self):
         self.det_point_cloud.data['x'] = np.array(self.det_point_cloud.data['x'])
@@ -373,6 +463,7 @@ class SimulationWrangler:
             clusters=clusters,
             meta=meta,
         )
+        self.clear_point_clouds()
 
     def process_event_trajectories(
         self,
@@ -502,12 +593,8 @@ class SimulationWrangler:
         event_hits,
         event_hits_back_track
     ):
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
-        segment_ids = event_hits_back_track['segment_id']
-        segment_fractions = event_hits_back_track['fraction']
+        segment_ids = np.array(event_hits_back_track['segment_id'])
+        segment_fractions = np.array(event_hits_back_track['fraction'])
         self.det_point_cloud.add_event(
             event_hits['x'],
             event_hits['y'],
@@ -520,11 +607,8 @@ class SimulationWrangler:
             segment_fractions
         )
         for ii, hit in enumerate(event_hits):
-<<<<<<< Updated upstream
             segment_ids = event_hits_back_track['segment_id'][ii]
             segment_fractions = event_hits_back_track['fraction'][ii]
-=======
->>>>>>> Stashed changes
             for segmentid in segment_ids[(segment_ids != 0)]:
                 if segmentid in self.segmentid_hit.keys():
                     self.segmentid_hit[segmentid].append(ii)
@@ -535,10 +619,6 @@ class SimulationWrangler:
         event_hits,
         event_hits_back_track
     ):
-<<<<<<< Updated upstream
-        pass
-
-=======
         segment_ids = event_hits_back_track['segment_id']
         segment_fractions = event_hits_back_track['fraction']
         self.det_point_cloud.add_event(
@@ -557,7 +637,7 @@ class SimulationWrangler:
                 if segmentid in self.segmentid_hit.keys():
                     self.segmentid_hit[segmentid].append(ii)
                     self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
->>>>>>> Stashed changes
+
     def get_total_hit_energy_map(
         self,
         hits

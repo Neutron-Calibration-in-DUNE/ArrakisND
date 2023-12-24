@@ -1,7 +1,7 @@
 """
 Utilities for ArrakisND
 """
-
+import numpy as np
 
 class ResetableIterator:
     def __init__(self):
@@ -26,3 +26,8 @@ def remove_sublist(
     remove_list
 ):
     return list(filter(lambda x: x not in remove_list, original_list))
+
+
+@np.vectorize
+def fill_with_minus_one(arr):
+    return np.full_like(arr, -1)

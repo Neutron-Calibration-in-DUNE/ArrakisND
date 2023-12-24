@@ -69,6 +69,12 @@ class Timers:
             f'{process}': Timer(f'{process}', gpu=self.gpu) for process in process_functions
         }
 
+    def start(self, function):
+        self.timers[function].start()
+
+    def end(self, function):
+        self.timers[function].end()
+
     def synchronize(self):
         torch.cuda.synchronize()
 

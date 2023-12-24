@@ -14,6 +14,8 @@ from h5flow.core import H5FlowStage, H5FlowDataManager, resources
 from arrakis_nd.arrakis.common import process_types
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.utils.config import ConfigParser
+from arrakis_nd.utils.timing import Timers
+from arrakis_nd.utils.memory import MemoryTrackers
 from arrakis_nd.wrangler.simulation_wrangler import SimulationWrangler
 from arrakis_nd.labeling_logic.simulation_labeling_logic import SimulationLabelingLogic
 
@@ -133,8 +135,16 @@ class Arrakis(H5FlowStage):
         self.check_config()
         self.parse_dataset_folder()
         self.parse_dataset_files()
+        self.parse_timers()
+        self.parse_memory_trackers()
         self.parse_simulation_wrangler()
         self.parse_simulation_labeling_logic()
+
+    def parse_timers(self):
+        self.meta['timers'] = Timers(gpu=self.meta['gpu'])
+
+    def parse_memory_trackers(self):
+        self.meta['memory_trackers'] = MemoryTrackers(gpu=self.meta['gpu'])
 
     def check_config(self):
         if "process_type" not in self.config:
@@ -149,20 +159,27 @@ class Arrakis(H5FlowStage):
         if ("simulation_folder" in self.config):
             self.simulation_folder = self.config["simulation_folder"]
             self.logger.info(
-                "Set simulation file folder from configuration. " +
+                "set simulation file folder from configuration. " +
                 f" simulation_folder : {self.simulation_folder}"
             )
         elif ('ARRAKIS_ND_SIMULATION_PATH' in os.environ):
-            self.logger.debug('Found ARRAKIS_ND_SIMULATION_PATH in environment')
+            self.logger.debug('found ARRAKIS_ND_SIMULATION_PATH in environment')
             self.simulation_folder = os.environ['ARRAKIS_ND_SIMULATION_PATH']
             self.logger.info(
-                "Setting simulation path from Enviroment." +
+                "setting simulation path from Enviroment." +
                 f" ARRAKIS_ND_SIMULATION_PATH = {self.simulation_folder}"
             )
         else:
-            self.logger.error('No simulation_folder specified in environment or configuration file!')
+            self.logger.error('no simulation_folder specified in environment or configuration file!')
         if not os.path.isdir(self.simulation_folder):
-            self.logger.error(f'Specified simulation folder "{self.simulation_folder}" does not exist!')
+            self.logger.error(f'specified simulation folder "{self.simulation_folder}" does not exist!')
+
+        if "output_folder" not in self.config:
+            self.logger.warn('output_folder not specified in config! setting to simulation_folder')
+            self.config["output_folder"] = self.config["simulation_folder"]
+        self.output_folder = self.config["output_folder"]
+        if not os.path.isdir(self.output_folder):
+            self.logger.error(f'specified output_folder {self.output_folder} does not exist!')
 
     def parse_dataset_files(self):
         if ('simulation_files' not in self.config):
@@ -226,7 +243,7 @@ class Arrakis(H5FlowStage):
             self.run_arrakis_nd_flow()
         else:
             self.logger.error(f'specified process_type {self.config["process_type"]} not allowed!')
-    
+
     # TODO: break this up into smaller functions
     def run_arrakis_nd_npz(self):
         self.logger.info('running arrakis_nd in npz mode')
@@ -235,7 +252,7 @@ class Arrakis(H5FlowStage):
                 flow_file = h5flow.data.H5FlowDataManager(self.simulation_folder + '/' + simulation_file, "r")
             except:
                 self.logger.error(f'there was a problem processing flow file {simulation_file}')
-            
+
             trajectories = flow_file['mc_truth/trajectories/data'][
                 "event_id",
                 "traj_id",
@@ -262,12 +279,6 @@ class Arrakis(H5FlowStage):
                 colour='green'
             )
             for jj, event_id in event_loop:
-                if event_id == 0:           # skip the first event for now, it is very large and takes forever to process
-                    continue
-                if event_id > 10:
-                    self.simulation_labeling_logic.timers.evaluate_run()
-                    self.simulation_labeling_logic.memory_trackers.evaluate_run()
-                    break
                 event_trajectories = trajectories[trajectories['event_id'] == event_id]
                 event_segments = segments[segments['event_id'] == event_id]
                 event_stacks = stacks[stacks == event_id]
@@ -290,14 +301,17 @@ class Arrakis(H5FlowStage):
                 if len(self.simulation_wrangler.det_point_cloud.data['x']) == 0:
                     continue
                 self.simulation_wrangler.save_event()
-                event_loop.set_description(f"File: [{ii+1}/{len(self.simulation_files)}]")
+                event_loop.set_description(f"File [{ii+1}/{len(self.simulation_files)}][{simulation_file}]")
                 # event_loop.set_postfix_str(f"num_process={:.2e}")
             self.simulation_wrangler.save_events(
-                "test.npz"
+                self.output_folder + '/' + simulation_file
             )
+            self.simulation_wrangler.clear_event()
+            flow_file.finish()
+            flow_file.close_file()
         if self.simulation_labeling_logic.debug:
-            self.simulation_labeling_logic.timers.evaluate_run()
-            self.simulation_labeling_logic.memory_trackers.evaluate_run()
+            self.meta['timers'].evaluate_run()
+            self.meta['memory_trackers'].evaluate_run()
 
     def run_arrakis_nd_flow(self):
         pass
