@@ -1,88 +1,170 @@
 """
 """
 import numpy as np
-import h5py
+
 
 class DetectorPointCloud:
-    """
-    A point cloud structure for an event, which consists of a three dimensional
-    set of points (x,y,z) together with the reconstructed charge (Q).  Extra variables
-    from simulation are the kinetic energy (E), the drift time (t_drift), the
-    ... (ts_pps), and the various labels.
-    """
-    def __init__(self):
-        self.clear()
-    
-    def clear(self):
-        """
-        
-        """
-        self.x = []
-        self.y = []
-        self.z = []
-        self.t_drift = []
-        self.ts_pps = []
-        self.Q = []
-        self.E = []
-        self.segment_ids = []
-        self.segment_fractions = []
-
-        self.source_label = []
-        self.topology_label = []
-        self.particle_label = []
-        self.physics_label = []
-
-        self.unique_topology = []
-        self.unique_particle = []
-        self.unique_physics = []
-
-        self.source_labels = []
-        self.topology_labels = []
-        self.particle_labels = []
-        self.physics_labels = []
-
-        self.unique_topologies = []
-        self.unique_particles = []
-        self.unique_physicses = []
-
-    def add_point(self,
-        x:      float, 
-        y:      float, 
-        z:      float, 
-        t_drift:    float, 
-        ts_pps: float, 
-        Q:      float, 
-        E:      float, 
-        segment_ids:    list=[],
-        segment_fractions:  list=[],
+    def __init__(
+        self,
     ):
-        self.x.append(x)
-        self.y.append(y)
-        self.z.append(z)
-        self.t_drift.append(t_drift)
-        self.ts_pps.append(ts_pps)
-        self.Q.append(Q)
-        self.E.append(E)
-        self.segment_ids.append(segment_ids)
-        self.segment_fractions.append(segment_fractions)
+        self.clear()
 
-        self.source_label.append(-1)
-        self.topology_label.append(-1)
-        self.particle_label.append(-1)
-        self.physics_label.append(-1)
+    def clear(self):
+        self.data = {
+            "event": -1,
+            "x": np.array([]),
+            "y": np.array([]),
+            "z": np.array([]),
+            "t_drift": np.array([]),
+            "ts_pps": np.array([]),
+            "Q": np.array([]),
+            "E": np.array([]),
+            "segment_ids": np.array([]),
+            "segment_fractions": np.array([]),
+            "topology_label": np.array([]),
+            "particle_label": np.array([]),
+            "physics_micro_label": np.array([]),
+            "physics_meso_label": np.array([]),
+            "physics_macro_label": np.array([]),
+            "unique_topology_label": np.array([]),
+            "unique_particle_label": np.array([]),
+            "unique_physics_micro_label": np.array([]),
+            "unique_physics_meso_label": np.array([]),
+            "unique_physics_macro_label": np.array([]),
+            "topology_labels": np.array([]),
+            "particle_labels": np.array([]),
+            "physics_micro_labels": np.array([]),
+            "physics_meso_labels": np.array([]),
+            "physics_macro_labels": np.array([]),
+            "unique_topology_labels": np.array([]),
+            "unique_particle_labels": np.array([]),
+            "unique_physics_micro_labels": np.array([]),
+            "unique_physics_meso_labels": np.array([]),
+            "unique_physics_macro_labels": np.array([]),
+        }
 
-        self.unique_topology.append(-1)
-        self.unique_particle.append(-1)
-        self.unique_physics.append(-1)
+    def add_event(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        t_drift: float,
+        ts_pps: float,
+        Q: float,
+        E: float,
+        segment_ids: list = [],
+        segment_fractions: list = [],
+    ):
+        # Create a dictionary with the event data
+        # segment_ids = np.array(segment_ids)
+        # segment_fractions = np.array(segment_fractions)
+        mask = segment_ids != 0
+        segment_ids = np.array(
+            [segment_ids[ii][m].astype(int) for ii, m in enumerate(mask)], dtype=object
+        )
+        segment_fractions = np.array(
+            [segment_fractions[ii][m] for ii, m in enumerate(mask)], dtype=object
+        )
+        empty_labels = np.array(
+            [np.full_like(subarray, -1) for subarray in segment_ids], dtype=object
+        )
+        event_data = {
+            "x": x,
+            "y": y,
+            "z": z,
+            "t_drift": t_drift,
+            "ts_pps": ts_pps,
+            "Q": Q,
+            "E": E,
+            "topology_label": np.full(x.shape, -1),
+            "particle_label": np.full(x.shape, -1),
+            "physics_micro_label": np.full(x.shape, -1),
+            "physics_meso_label": np.full(x.shape, -1),
+            "physics_macro_label": np.full(x.shape, -1),
+            "unique_topology_label": np.full(x.shape, -1),
+            "unique_particle_label": np.full(x.shape, -1),
+            "unique_physics_micro_label": np.full(x.shape, -1),
+            "unique_physics_meso_label": np.full(x.shape, -1),
+            "unique_physics_macro_label": np.full(x.shape, -1),
+            "segment_ids": segment_ids,
+            "segment_fractions": segment_fractions,
+            "topology_labels": empty_labels,
+            "particle_labels": empty_labels,
+            "physics_micro_labels": empty_labels,
+            "physics_meso_labels": empty_labels,
+            "physics_macro_labels": empty_labels,
+            "unique_topology_labels": empty_labels,
+            "unique_particle_labels": empty_labels,
+            "unique_physics_micro_labels": empty_labels,
+            "unique_physics_meso_labels": empty_labels,
+            "unique_physics_macro_labels": empty_labels,
+        }
+        for key, item in event_data.items():
+            self.data[key] = item
 
-        self.source_labels.append([-1 for ii in range(len(segment_ids))])
-        self.topology_labels.append([-1 for ii in range(len(segment_ids))])
-        self.particle_labels.append([-1 for ii in range(len(segment_ids))])
-        self.physics_labels.append([-1 for ii in range(len(segment_ids))])
+    def add_point(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        t_drift: float,
+        ts_pps: float,
+        Q: float,
+        E: float,
+        segment_ids: list = [],
+        segment_fractions: list = [],
+    ):
+        for key, value in {
+            "x": x,
+            "y": y,
+            "z": z,
+            "t_drift": t_drift,
+            "ts_pps": ts_pps,
+            "Q": Q,
+            "E": E,
+            "topology_label": -1,
+            "particle_label": -1,
+            "physics_micro_label": -1,
+            "physics_meso_label": -1,
+            "physics_macro_label": -1,
+            "unique_topology_label": -1,
+            "unique_particle_label": -1,
+            "unique_physics_micro_label": -1,
+            "unique_physics_meso_label": -1,
+            "unique_physics_macro_label": -1,
+        }.items():
+            self.data[key] = np.append(self.data[key], value)
 
-        self.unique_topologies.append([-1 for ii in range(len(segment_ids))])
-        self.unique_particles.append([-1 for ii in range(len(segment_ids))])
-        self.unique_physicses.append([-1 for ii in range(len(segment_ids))])
+        for key, value in {
+            "segment_ids": segment_ids,
+            "segment_fractions": segment_fractions,
+        }.items():
+            if self.data[key].size == 0:
+                self.data[key] = np.array(value)
+            else:
+                self.data[key] = np.vstack((self.data[key], value))
 
+        minus_one_array = np.full(
+            (1, len(segment_ids)), -1
+        )  # max number of segments per hit is 200, reality max 10
 
-    
+        for key in [
+            "topology_labels",
+            "particle_labels",
+            "physics_micro_labels",
+            "physics_meso_labels",
+            "physics_macro_labels",
+            "unique_topology_labels",
+            "unique_particle_labels",
+            "unique_physics_micro_labels",
+            "unique_physics_meso_labels",
+            "unique_physics_macro_labels",
+        ]:
+            if self.data[key].size == 0:
+                self.data[key] = minus_one_array
+            else:
+                self.data[key] = np.vstack((self.data[key], minus_one_array))
+
+    def show_point(self):
+        for key, value in self.data.items():
+            print(f"{key}: {value.shape}")
