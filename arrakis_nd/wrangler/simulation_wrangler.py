@@ -123,6 +123,7 @@ class SimulationWrangler:
 
     def print_particle_data(self, particle):
         self.logger.info("## MCParticle #######################################")
+        self.logger.info(f"## EventID:            [{'.' * 25}{self.det_point_cloud.data['event']}] ##")
         self.logger.info(f"## TrackID:            [{'.' * 25}{particle}] ##")
         self.logger.info(
             f"## PDG:                [{'.' * 25}{self.trackid_pdgcode[particle]}] ##"
@@ -135,6 +136,12 @@ class SimulationWrangler:
         )
         self.logger.info(
             f"## SubProcess:         [{'.' * 25}{self.trackid_subprocess[particle]}] ##"
+        )
+        self.logger.info(
+            f"## EndProcess:         [{'.' * 25}{self.trackid_endprocess[particle]}] ##"
+        )
+        self.logger.info(
+            f"## EndSubProcess:      [{'.' * 25}{self.trackid_endsubprocess[particle]}] ##"
         )
         self.logger.info(
             f"## Parent TrackID:     [{'.' * 25}{self.trackid_parentid[particle]}] ##"
@@ -166,6 +173,23 @@ class SimulationWrangler:
                 + f"[{'.' * 10}{progeny_track_id}] [{'.' * 10}{self.trackid_pdgcode[progeny_track_id]}] ##"
             )
         self.logger.info("#####################################################")
+
+    def copy_hit_labels(
+        self,
+        hit1,
+        hit2,
+    ):
+        for label in [
+            "topology_label",
+            "physics_micro_label",
+            "physics_meso_label",
+            "physics_macro_label",
+            "unique_topology_label",
+            "unique_physics_micro_label",
+            "unique_physics_meso_label",
+            "unique_physics_macro_label"
+        ]:
+            self.det_point_cloud.data[label][hit1] = self.det_point_cloud.data[label][hit2]
 
     def set_hit_labels(
         self,
@@ -222,7 +246,6 @@ class SimulationWrangler:
             self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
             self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
             self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
-            # TODO: What's going on with this?
             self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
             self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
             self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
@@ -744,6 +767,10 @@ class SimulationWrangler:
     def get_daughters_trackid(self, trackids):
         daughters = [self.trackid_daughters[track_id] for track_id in trackids]
         return daughters
+    
+    def get_descendants_trackid(self, trackids):
+        descendants = [self.trackid_descendants[track_id] for track_id in trackids]
+        return descendants
 
     def get_tstart_trackid(self, trackids):
         tstart = [self.trackid_tstart[track_id] for track_id in trackids]
@@ -855,3 +882,30 @@ class SimulationWrangler:
     def get_index_trackid(self, hit, segment_id):
         index = np.where(self.det_point_cloud.data["segment_ids"][hit] == segment_id)
         return index
+
+    def get_hit_distance(self, hit1, hit2):
+        x1 = self.det_point_cloud.data['x'][hit1]
+        x2 = self.det_point_cloud.data['x'][hit2]
+
+        y1 = self.det_point_cloud.data['y'][hit1]
+        y2 = self.det_point_cloud.data['y'][hit2]
+
+        z1 = self.det_point_cloud.data['z'][hit1]
+        z2 = self.det_point_cloud.data['z'][hit2]
+
+        dist = np.sqrt(
+            (x1 - x2) * (x1 - x2) +
+            (y1 - y2) * (y1 - y2) +
+            (z1 - z2) * (z1 - z2)
+        )
+        return dist
+
+    def get_closest_hit(self, hit, hits):
+        closest_hit = -1
+        closest_hit_distance = 10e10
+        for h in hits:
+            hit_distance = self.get_hit_distance(hit, h)
+            if hit_distance < closest_hit_distance:
+                closest_hit = h
+                closest_hit_distance = hit_distance
+        return closest_hit

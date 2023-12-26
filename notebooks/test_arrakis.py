@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-arr = np.load("test.npz.arrakis_nd.npz", allow_pickle=True)
-event = 5
+arr = np.load("/home/ncarrara/workspace/MiniRun4_1E19_RHC.flow.00002.FLOW.arrakis_nd.npz", allow_pickle=True)
+event = 1
 det_features = arr["det_features"][event]
 mc_features = arr["mc_features"][event]
 classes = arr["classes"][event]
@@ -28,10 +28,12 @@ unique_physics_micro_labels = clusters[:, 2]
 unique_physics_meso_labels = clusters[:, 3]
 unique_physics_macro_labels = clusters[:, 4]
 
-labels = arr["meta"].tolist()["topology_labels"]
-
 fig = plt.figure(figsize=(10, 10))
 ax = fig.add_subplot(111, projection="3d")
-ax.scatter(x, y, z, c=physics_micro_labels, s=q)
+ax.scatter(
+    x, y, z, 
+    c=topology_labels, cmap='tab20',
+    s=q
+)
 plt.legend()
 plt.show()

@@ -1,0 +1,16 @@
+# Test config for ArrakisND
+arrakis_nd:
+  process_type:      "npz"  # npz or flow
+  simulation_folder: "/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW/"
+  simulation_files: [
+    "MiniRun4_1E19_RHC.flow.00000.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00001.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00002.FLOW.h5"
+  ]
+  output_folder:  "/local_data/"
+  verbose:  true
+  gpu:      true
+  gpu_device: 0
+  debug:  true
+  # wrangler parameters
+  shower_threshold: 20

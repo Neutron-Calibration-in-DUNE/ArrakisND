@@ -60,10 +60,13 @@ class PhysicsMicroLabel(Enum):
     MIPIonization = 1
     HIPIonization = 2
     ElectronIonization = 3
-    GammaCompton = 4
-    GammaConversion = 5
-    NuclearRecoil = 6
-    ElectronRecoil = 7
+    Bremmstrahlung = 4
+    Annihilation = 5
+    PhotoElectric = 6
+    GammaCompton = 7
+    GammaConversion = 8
+    HadronElastic = 9
+    HadronInelastic = 10
 
 
 class PhysicsMesoLabel(Enum):
@@ -80,18 +83,21 @@ class PhysicsMesoLabel(Enum):
     ElectronShower = 5
     PositronShower = 6
     PhotonShower = 7
-    NeutronCaptureGamma474 = 8
-    NeutronCaptureGamma336 = 9
-    NeutronCaptureGamma256 = 10
-    NeutronCaptureGamma118 = 11
-    NeutronCaptureGamma083 = 12
-    NeutronCaptureGamma051 = 13
-    NeutronCaptureGamma016 = 14
-    NeutronCaptureGammaOther = 15
-    Pi0Decay = 16
-    AlphaDecay = 17
-    BetaDecay = 18
-    GammaDecay = 19
+    LowEnergyIonization = 8
+    NeutronCaptureGamma474 = 9
+    NeutronCaptureGamma336 = 10
+    NeutronCaptureGamma256 = 11
+    NeutronCaptureGamma118 = 12
+    NeutronCaptureGamma083 = 13
+    NeutronCaptureGamma051 = 14
+    NeutronCaptureGamma016 = 15
+    NeutronCaptureGammaOther = 16
+    Pi0Decay = 17
+    AlphaDecay = 18
+    BetaDecay = 19
+    GammaDecay = 20
+    NuclearRecoil = 21
+    ElectronRecoil = 22
 
 
 class PhysicsMacroLabel(Enum):
@@ -176,10 +182,13 @@ classification_labels = {
         1: "mip_ionization",
         2: "hip_ionization",
         3: "electron_ionization",
-        4: "gamma_compton",
-        5: "gamma_conversion",
-        6: "nuclear_recoil",
-        7: "electron_recoil",
+        4: "bremmstrahlung",
+        5: "annihilation",
+        6: "photo_electric",
+        7: "gamma_compton",
+        8: "gamma_conversion",
+        9: "hadron_elastic",
+        10: "hadron_inelastic",
     },
     "physics_meso": {
         -1: "undefined",
@@ -191,18 +200,21 @@ classification_labels = {
         5: "electron_shower",
         6: "positron_shower",
         7: "photon_shower",
-        8: "neutron_capture_gamma_474",
-        9: "neutron_capture_gamma_336",
-        10: "neutron_capture_gamma_256",
-        11: "neutron_capture_gamma_118",
-        12: "neutron_capture_gamma_083",
-        13: "neutron_capture_gamma_051",
-        14: "neutron_capture_gamma_016",
-        15: "neutron_capture_gamma_other",
-        16: "pi0_decay",
-        17: "alpha_decay",
-        18: "beta_decay",
-        19: "gamma_decay",
+        8: "low_energy_ionization",
+        9: "neutron_capture_gamma_474",
+        10: "neutron_capture_gamma_336",
+        11: "neutron_capture_gamma_256",
+        12: "neutron_capture_gamma_118",
+        13: "neutron_capture_gamma_083",
+        14: "neutron_capture_gamma_051",
+        15: "neutron_capture_gamma_016",
+        16: "neutron_capture_gamma_other",
+        17: "pi0_decay",
+        18: "alpha_decay",
+        19: "beta_decay",
+        20: "gamma_decay",
+        21: "nuclear_recoil",
+        22: "electron_recoil"
     },
     "physics_macro": {
         -1: "undefined",
