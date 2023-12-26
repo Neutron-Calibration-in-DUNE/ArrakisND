@@ -7,6 +7,8 @@ arrakis_nd:
     "MiniRun4_1E19_RHC.flow.00001.FLOW.h5",
     "MiniRun4_1E19_RHC.flow.00002.FLOW.h5"
   ]
+  skip_files:   []
+  skip_events:  [1, 2001]
   output_folder:  "/local_data/"
   verbose:  true
   gpu:      true
@@ -14,3 +16,4 @@ arrakis_nd:
   debug:  true
   # wrangler parameters
   shower_threshold: 20
+  ionization_influence_distance:  4

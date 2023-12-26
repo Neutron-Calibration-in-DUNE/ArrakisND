@@ -467,6 +467,7 @@ class SimulationWrangler:
             "who_created": getpass.getuser(),
             "when_created": datetime.now().strftime("%m-%d-%Y-%H:%M:%S"),
             "where_created": socket.gethostname(),
+            "input_file":   simulation_file,
             "det_features": {"x": 0, "y": 1, "z": 2, "Q": 3},
             "mc_features": {"t_drift": 0, "ts_pps": 1, "E": 2},
             "classes": {
@@ -495,6 +496,8 @@ class SimulationWrangler:
                 key: value
                 for key, value in classification_labels["physics_macro"].items()
             },
+            "events":   [int(key) for key in self.det_point_clouds.keys()]
+
         }
         det_features = np.array(
             [

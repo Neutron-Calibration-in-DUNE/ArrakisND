@@ -144,6 +144,11 @@ class Arrakis(H5FlowStage):
                 self.logger.error(
                     f'specified process_type {self.config["process_type"]} not allowed!'
                 )
+        if "skip_events" not in self.config:
+            self.skip_events = []
+        else:
+            self.skip_events = self.config["skip_events"]
+            self.logger.info(f'skipping events {self.skip_events}')
 
     def parse_dataset_folder(self):
         # default to what's in the configuration file. May decide to deprecate in the future
@@ -183,29 +188,37 @@ class Arrakis(H5FlowStage):
     def parse_dataset_files(self):
         if "simulation_files" not in self.config:
             self.logger.error("no simulation files specified in configuration file!")
+        if "skip_files" not in self.config:
+            self.config["skip_files"] = []
+        self.meta["skip_files"] = self.config["skip_files"]
         if isinstance(self.config["simulation_files"], list):
             self.simulation_files = [
-                self.simulation_folder + input_file
-                for input_file in self.config["simulation_files"]
+                input_file for input_file in self.config["simulation_files"]
+                if input_file not in self.meta["skip_files"]
             ]
         elif isinstance(self.config["simulation_files"], str):
             if self.config["simulation_files"] == "all":
                 self.logger.info(
                     f"searching {self.simulation_folder} recursively for all .npz files."
                 )
-                self.simulation_files = glob.glob(
-                    self.simulation_folder + "**/*.npz", recursive=True
-                )
+                self.simulation_files = [
+                    input_file for input_file in glob.glob(
+                        "**/*.npz", recursive=True
+                    )
+                    if input_file not in self.meta["skip_files"]
+                ]
             else:
                 try:
                     self.logger.info(
                         f'searching {self.simulation_folder} recursively for all {self.config["simulation_files"]} files.'
                     )
-                    self.simulation_files = glob.glob(
-                        self.simulation_folder
-                        + f'**/{self.config["simulation_files"]}',
-                        recursive=True,
-                    )
+                    self.simulation_files = [
+                        input_file for input_file in glob.glob(
+                            f'**/{self.config["simulation_files"]}',
+                            recursive=True,
+                        )
+                        if input_file not in self.meta["skip_files"]
+                    ]
                 except Exception as exception:
                     self.logger.error(
                         f'specified "simulation_files" parameter: {self.config["simulation_files"]} incompatible!'
@@ -215,7 +228,12 @@ class Arrakis(H5FlowStage):
             self.logger.error(
                 f'specified "simulation_files" parameter: {self.config["simulation_files"]} incompatible!'
             )
-        self.simulation_files = self.config["simulation_files"]
+        if "number_of_files" in self.config:
+            if self.config["number_of_files"] < len(self.simulation_files):
+                self.logger.info(
+                    f'only using first {self.config["number_of_files"]} from total number {len(self.simulation_files)}'
+                )
+                self.simulation_files = self.simulation_files[:self.config["number_of_files"]]
         for ii, simulation_file in enumerate(self.simulation_files):
             if not os.path.isfile(self.simulation_folder + "/" + simulation_file):
                 self.logger.error(
@@ -288,6 +306,8 @@ class Arrakis(H5FlowStage):
                 colour="green",
             )
             for jj, event_id in event_loop:
+                if event_id in self.skip_events:
+                    continue
                 event_trajectories = trajectories[trajectories["event_id"] == event_id]
                 event_segments = segments[segments["event_id"] == event_id]
                 event_stacks = stacks[stacks == event_id]
