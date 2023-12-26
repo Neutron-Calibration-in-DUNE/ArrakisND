@@ -2,8 +2,8 @@
 
 [![Pytest](https://github.com/Neutron-Calibration-in-DUNE/ArrakisND/actions/workflows/test_package.yml/badge.svg?branch=master)](https://github.com/Neutron-Calibration-in-DUNE/ArrakisND/actions/workflows/test.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/neutron-calibration-in-dune/arrakisnd/badge)](https://www.codefactor.io/repository/github/neutron-calibration-in-dune/arrakisnd)
-[![Flake8 Status](./reports/flake8/flake8-badge.svg?dummy=8484744)](./reports/flake8/index.html)
-[![Coverage Status](./reports/coverage/coverage-badge.svg?dummy=8484744)](./reports/coverage/index.html)
+[![Flake8 Status](./.reports/flake8/flake8-badge.svg?dummy=8484744)](./.reports/flake8/index.html)
+[![Coverage Status](./.reports/coverage/coverage-badge.svg?dummy=8484744)](./.reports/coverage/index.html)
 
 Arrakis module for the near detector data. This module can run in two modes, stand-alone or as part of an H5Flow. Input files should be flow files from nd-larsim or data runs, which are then converted into training data sets for Blip. 
 
