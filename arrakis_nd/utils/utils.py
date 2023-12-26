@@ -3,6 +3,7 @@ Utilities for ArrakisND
 """
 import numpy as np
 
+
 class ResetableIterator:
     def __init__(self):
         self._value = 0
@@ -21,10 +22,7 @@ class ResetableIterator:
         self._value = 0
 
 
-def remove_sublist(
-    original_list,
-    remove_list
-):
+def remove_sublist(original_list, remove_list):
     return list(filter(lambda x: x not in remove_list, original_list))
 
 

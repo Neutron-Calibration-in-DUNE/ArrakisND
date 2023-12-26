@@ -26,5 +26,5 @@ process_functions = [
     "logic_process_rn222",
     "logic_process_cosmics",
     "logic_process_all",
-    "logic_check_labels"
+    "logic_check_labels",
 ]

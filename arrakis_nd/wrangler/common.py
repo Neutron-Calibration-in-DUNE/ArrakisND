@@ -2,7 +2,4 @@
 ArrakisND data
 """
 
-wrangler_modes = [
-    "map",
-    "numpy"
-]
+wrangler_modes = ["map", "numpy"]

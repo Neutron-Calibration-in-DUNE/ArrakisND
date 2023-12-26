@@ -14,18 +14,21 @@ def run():
     Arrkis main program.
     """
     parser = argparse.ArgumentParser(
-        prog='Arrakis Module Runner',
-        description='This program runs the Arrakis module ' +
-                    'from a config file.',
-        epilog='...'
+        prog="Arrakis Module Runner",
+        description="This program runs the Arrakis module " + "from a config file.",
+        epilog="...",
     )
     parser.add_argument(
-        'config_file', metavar='<str>.yml', type=str,
-        help='config file specification for a BLIP module.'
+        "config_file",
+        metavar="<str>.yml",
+        type=str,
+        help="config file specification for a BLIP module.",
     )
     parser.add_argument(
-        '-n', dest='name', default='arrakis',
-        help='name for this run (default "arrakis").'
+        "-n",
+        dest="name",
+        default="arrakis",
+        help='name for this run (default "arrakis").',
     )
     args = parser.parse_args()
     # Setup config file.
@@ -33,19 +36,19 @@ def run():
     logger = Logger(name, output="both", file_mode="w")
     logger.info("configuring arrakis...")
     config = ConfigParser(args.config_file).data
-    if 'arrakis_nd' not in config.keys():
-        logger.error('arrakis_nd section not in config!')
-    arrakis_nd_config = config['arrakis_nd']
+    if "arrakis_nd" not in config.keys():
+        logger.error("arrakis_nd section not in config!")
+    arrakis_nd_config = config["arrakis_nd"]
 
     system_info = logger.get_system_info()
     for key, value in system_info.items():
         logger.info(f"system_info - {key}: {value}")
-    meta = {
-        'config_file':  args.config_file
-    }
+    meta = {"config_file": args.config_file}
     if "verbose" in arrakis_nd_config:
         if not isinstance(arrakis_nd_config["verbose"], bool):
-            logger.error(f'"arrakis_nd:verbose" must be of type bool, but got {type(arrakis_nd_config["verbose"])}!')
+            logger.error(
+                f'"arrakis_nd:verbose" must be of type bool, but got {type(arrakis_nd_config["verbose"])}!'
+            )
         meta["verbose"] = arrakis_nd_config["verbose"]
     else:
         meta["verbose"] = False
@@ -70,7 +73,9 @@ def run():
         for ii in range(torch.cuda.device_count()):
             device_properties = torch.cuda.get_device_properties(ii)
             cuda_stats = f"name: {device_properties.name}, "
-            cuda_stats += f"compute: {device_properties.major}.{device_properties.minor}, "
+            cuda_stats += (
+                f"compute: {device_properties.major}.{device_properties.minor}, "
+            )
             cuda_stats += f"memory: {device_properties.total_memory}"
             logger.info(f" -- device: {ii} - " + cuda_stats)
 
@@ -78,27 +83,25 @@ def run():
     if gpu:
         if torch.cuda.is_available():
             if gpu_device >= torch.cuda.device_count() or gpu_device < 0:
-                logger.warn(f"desired gpu_device '{gpu_device}' not available, using device '0'")
+                logger.warn(
+                    f"desired gpu_device '{gpu_device}' not available, using device '0'"
+                )
                 gpu_device = 0
-            meta['device'] = torch.device(f"cuda:{gpu_device}")
+            meta["device"] = torch.device(f"cuda:{gpu_device}")
             logger.info(
-                f"CUDA is available, using device {gpu_device}" +
-                f": {torch.cuda.get_device_name(gpu_device)}"
+                f"CUDA is available, using device {gpu_device}"
+                + f": {torch.cuda.get_device_name(gpu_device)}"
             )
         else:
             gpu is False
             logger.warn("CUDA not available! Using the cpu")
-            meta['device'] = torch.device("cpu")
+            meta["device"] = torch.device("cpu")
     else:
         logger.info("using cpu as device")
-        meta['device'] = torch.device("cpu")
-    meta['gpu'] = gpu
+        meta["device"] = torch.device("cpu")
+    meta["gpu"] = gpu
 
-    arrakis = Arrakis(
-        name,
-        arrakis_nd_config,
-        meta
-    )
+    arrakis = Arrakis(name, arrakis_nd_config, meta)
     arrakis.run_arrakis_nd()
 
 
