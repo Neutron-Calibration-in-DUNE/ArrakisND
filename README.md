@@ -55,15 +55,16 @@ ArrakisND works in the same spirit as Arrakis, which is the LArSoft version of t
 
 The second stage consists of a set of functions, each of which processes different particles and their detector output.  The labeling scheme currently consists of assigning seven different labels to each reconstructed charge/light point in the TPC.  The seven labels are shown in the following tables:
 
-| High-level features | Type | Description|
-| ------- | ---- | ----------- |
-| source | class | denotes the source of the primary interaction (e.g. beam, radiological, pns, etc.) |
-| topology | class | topological descriptor of physics (e.g. blip, track, shower) |
-| particle | class | the pdg code of the particle which caused the energy deposition |
-| physics | class | high-level descriptor of physics processes (e.g. hip, mip, capture gamma, etc.) |
-| unique_topology | cluster | unique identifier of individual topology instances |
-| unique_particle | cluster | unique identifier of individual particle instances (i.e. track id) |
-| unique_physics | cluster | unique identifier of individual physics instances |
+| High-level features | Description |
+|---------------------|-------------|
+| topology            | topological descriptor of physics (e.g. blip, track, shower) |
+| particle            | the pdg code of the particle which caused the energy deposition |
+| physics_micro       | low-level descriptor of physics processes (e.g. mip_ionization, gamma_conversion, etc.) |
+| physics_meso        | mid-level descriptor of physics processes (e.g. hip, delta_electron, capture_gamma, etc.) |
+| physics_macro       | high-level descriptor of physics processes (e.g. cc_qe, neutron_capture, radiological, etc.) |
+| unique_topology     | unique identifier of individual topology instances |
+| unique_particle     | unique identifier of individual particle instances (i.e. track id) |
+| unique_physics_*    | unique identifier of individual physics instances |
 
 For information on how each of these labels is assigned to each reconstructed point, see the documentation for [BLIP](https://github.com/Neutron-Calibration-in-DUNE/Blip) which can be found at [![Documentation Status](https://readthedocs.org/projects/blip-dune/badge/?version=latest)](https://blip-dune.readthedocs.io/en/latest/?badge=latest)
 
