@@ -288,8 +288,6 @@ class Arrakis(H5FlowStage):
                 colour="green",
             )
             for jj, event_id in event_loop:
-                if jj > 5:
-                    break
                 event_trajectories = trajectories[trajectories["event_id"] == event_id]
                 event_segments = segments[segments["event_id"] == event_id]
                 event_stacks = stacks[stacks == event_id]
