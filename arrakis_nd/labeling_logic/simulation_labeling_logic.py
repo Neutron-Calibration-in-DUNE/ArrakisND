@@ -431,7 +431,7 @@ class SimulationLabelingLogic:
             bremsstrahlung_segments,
             bremsstrahlung_descendants,
             topology,
-            PhysicsMicroLabel.Bremmstrahlung,
+            PhysicsMicroLabel.Bremsstrahlung,
             physics_meso,
             PhysicsMacroLabel.Undefined,
             unique_topology,
@@ -653,7 +653,7 @@ class SimulationLabelingLogic:
             )
             michel_descendants = self.simulation_wrangler.get_descendants_trackid(decay_daughters)
             self.process_showers_array(michel_descendants)
-            
+
             # process deltas
             elec_em_daughters = self.simulation_wrangler.filter_trackid_process(
                 elec_daughters, 2
@@ -816,7 +816,7 @@ class SimulationLabelingLogic:
             PhysicsMicroLabel.HadronElastic,
             PhysicsMesoLabel.NuclearRecoil,
             PhysicsMacroLabel.Undefined,
-            next(self.unique_physics_micro),
+            next(self.unique_topology),
             next(self.unique_physics_micro),
             next(self.unique_physics_meso),
             0,
@@ -832,7 +832,7 @@ class SimulationLabelingLogic:
             PhysicsMicroLabel.HadronInelastic,
             PhysicsMesoLabel.NuclearRecoil,
             PhysicsMacroLabel.Undefined,
-            next(self.unique_physics_micro),
+            next(self.unique_topology),
             next(self.unique_physics_micro),
             next(self.unique_physics_meso),
             0,
