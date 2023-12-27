@@ -60,7 +60,7 @@ class PhysicsMicroLabel(Enum):
     MIPIonization = 1
     HIPIonization = 2
     ElectronIonization = 3
-    Bremmstrahlung = 4
+    Bremsstrahlung = 4
     Annihilation = 5
     PhotoElectric = 6
     GammaCompton = 7
@@ -182,7 +182,7 @@ classification_labels = {
         1: "mip_ionization",
         2: "hip_ionization",
         3: "electron_ionization",
-        4: "bremmstrahlung",
+        4: "bremsstrahlung",
         5: "annihilation",
         6: "photo_electric",
         7: "gamma_compton",

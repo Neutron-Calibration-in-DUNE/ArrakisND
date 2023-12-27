@@ -20,7 +20,7 @@ process_type = {
 process_subtype = {
     "coulomb_scattering":   1,
     "em_ionization":        2,
-    "em_bremmstrahlung":    3,
+    "em_bremsstrahlung":    3,
     "em_pair_production_by_charge":   4,
     "em_nuclear_stopping":      8,
     "em_multiple_scattering":   10,

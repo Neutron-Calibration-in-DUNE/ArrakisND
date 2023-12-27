@@ -349,7 +349,7 @@ class SimulationLabelingLogic:
         ionization_descendants = self.simulation_wrangler.filter_trackid_subprocess(
             particle_descendants, 2
         )
-        bremmstrahlung_descendants = self.simulation_wrangler.filter_trackid_subprocess(
+        bremsstrahlung_descendants = self.simulation_wrangler.filter_trackid_subprocess(
             particle_descendants, 3
         )
         annihilation_descendants = self.simulation_wrangler.filter_trackid_subprocess(
@@ -369,7 +369,7 @@ class SimulationLabelingLogic:
         if particle_subprocess == 2:
             ionization_descendants.append(particle)
         elif particle_subprocess == 3:
-            bremmstrahlung_descendants.append(particle)
+            bremsstrahlung_descendants.append(particle)
         elif particle_subprocess == 5:
             annihilation_descendants.append(particle)
         elif particle_subprocess == 12:
@@ -402,17 +402,17 @@ class SimulationLabelingLogic:
             earliest_conversion = min(
                 self.simulation_wrangler.get_tstart_trackid(conversion_descendants)
             )
-            if len(bremmstrahlung_descendants) > 0:
-                earliest_bremmstrahlung = min(
+            if len(bremsstrahlung_descendants) > 0:
+                earliest_bremsstrahlung = min(
                     self.simulation_wrangler.get_tstart_trackid(
-                        bremmstrahlung_descendants
+                        bremsstrahlung_descendants
                     )
                 )
             else:
-                earliest_bremmstrahlung = self.simulation_wrangler.trackid_tstart[
+                earliest_bremsstrahlung = self.simulation_wrangler.trackid_tstart[
                     particle
                 ]
-            if earliest_conversion < earliest_bremmstrahlung:
+            if earliest_conversion <= earliest_bremsstrahlung:
                 physics_meso = PhysicsMesoLabel.PhotonShower
             else:
                 physics_meso = PhysicsMesoLabel.ElectronShower
@@ -424,12 +424,12 @@ class SimulationLabelingLogic:
 
         unique_physics_meso = next(self.unique_physics_meso)
 
-        bremmstrahlung_hits = self.simulation_wrangler.get_hits_trackid(bremmstrahlung_descendants)
-        bremmstrahlung_segments = self.simulation_wrangler.get_segments_trackid(bremmstrahlung_descendants)
+        bremsstrahlung_hits = self.simulation_wrangler.get_hits_trackid(bremsstrahlung_descendants)
+        bremsstrahlung_segments = self.simulation_wrangler.get_segments_trackid(bremsstrahlung_descendants)
         self.simulation_wrangler.set_hit_labels_list(
-            bremmstrahlung_hits,
-            bremmstrahlung_segments,
-            bremmstrahlung_descendants,
+            bremsstrahlung_hits,
+            bremsstrahlung_segments,
+            bremsstrahlung_descendants,
             topology,
             PhysicsMicroLabel.Bremmstrahlung,
             physics_meso,
@@ -653,6 +653,7 @@ class SimulationLabelingLogic:
             )
             michel_descendants = self.simulation_wrangler.get_descendants_trackid(decay_daughters)
             self.process_showers_array(michel_descendants)
+            
             # process deltas
             elec_em_daughters = self.simulation_wrangler.filter_trackid_process(
                 elec_daughters, 2
@@ -725,7 +726,6 @@ class SimulationLabelingLogic:
             pion_hits = self.simulation_wrangler.trackid_hit[pion]
             pion_segments = self.simulation_wrangler.trackid_segmentid[pion]
 
-            track_label = next(self.unique_topology)
             self.simulation_wrangler.set_hit_labels(
                 pion_hits,
                 pion_segments,
@@ -734,7 +734,7 @@ class SimulationLabelingLogic:
                 PhysicsMicroLabel.HIPIonization,
                 PhysicsMesoLabel.HIP,
                 PhysicsMacroLabel.Undefined,
-                track_label,
+                next(self.unique_topology),
                 next(self.unique_physics_micro),
                 next(self.unique_physics_meso),
                 0,

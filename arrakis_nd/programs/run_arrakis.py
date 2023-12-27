@@ -39,7 +39,7 @@ def run():
     args = parser.parse_args()
     # Setup config file.
     name = args.name
-    number_of_files = int(args.number_of_files)
+    number_of_files = args.number_of_files
 
     logger = Logger(name, output="both", file_mode="w")
     logger.info("configuring arrakis...")
@@ -50,6 +50,7 @@ def run():
     arrakis_nd_config = config["arrakis_nd"]
 
     if number_of_files is not None:
+        number_of_files = int(number_of_files)
         if isinstance(number_of_files, int):
             if number_of_files > 0:
                 arrakis_nd_config["number_of_files"] = number_of_files
