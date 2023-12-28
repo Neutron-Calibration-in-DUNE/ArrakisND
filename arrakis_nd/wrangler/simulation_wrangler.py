@@ -347,7 +347,7 @@ class SimulationWrangler:
         self.process_event_trajectories(event_trajectories)
         self.process_event_stacks(event_stacks)
         self.process_event_segments(event_segments)
-        self.process_event_hits(hits, hits_back_track)
+        self.process_event_hits(hits, hits_back_track, event_segments)
 
     def _process_event_with_timing(
         self,
@@ -384,7 +384,7 @@ class SimulationWrangler:
 
         self.meta["timers"].start("wrangler_process_event_hits")
         self.meta["memory_trackers"].start("wrangler_process_event_hits")
-        self.process_event_hits(hits, hits_back_track)
+        self.process_event_hits(hits, hits_back_track, event_segments)
         self.meta["timers"].end("wrangler_process_event_hits")
         self.meta["memory_trackers"].end("wrangler_process_event_hits")
 
@@ -403,6 +403,9 @@ class SimulationWrangler:
         )
         self.det_point_cloud.data["Q"] = np.array(self.det_point_cloud.data["Q"])
         self.det_point_cloud.data["E"] = np.array(self.det_point_cloud.data["E"])
+        self.det_point_cloud.data["n_photons"] = np.array(
+            self.det_point_cloud.data["n_photons"]
+        )
         self.det_point_cloud.data["topology_label"] = np.array(
             self.det_point_cloud.data["topology_label"]
         )
@@ -445,7 +448,7 @@ class SimulationWrangler:
             "when_created": datetime.now().strftime("%m-%d-%Y-%H:%M:%S"),
             "where_created": socket.gethostname(),
             "det_features": {"x": 0, "y": 1, "z": 2, "Q": 3},
-            "mc_features": {"t_drift": 0, "ts_pps": 1, "E": 2},
+            "mc_features": {"t_drift": 0, "ts_pps": 1, "E": 2, "n_photons": 3},
             "classes": {
                 "particle": 0,
                 "topology": 1,
@@ -494,6 +497,7 @@ class SimulationWrangler:
                         self.det_point_clouds[ii].data["t_drift"],
                         self.det_point_clouds[ii].data["ts_pps"],
                         self.det_point_clouds[ii].data["E"],
+                        self.det_point_clouds[ii].data["n_photons"],
                     )
                 ).T
                 for ii in self.det_point_clouds.keys()
@@ -631,15 +635,21 @@ class SimulationWrangler:
     def process_event_segments_numpy(self, event_segments):
         pass
 
-    def process_event_hits(self, event_hits, event_hits_back_track):
+    def process_event_hits(self, event_hits, event_hits_back_track, event_segments):
         if self.wrangler_mode == "map":
-            self.process_event_hits_map(event_hits, event_hits_back_track)
+            self.process_event_hits_map(event_hits, event_hits_back_track, event_segments)
         elif self.wrangler_mode == "numpy":
-            self.process_event_hits_numpy(event_hits, event_hits_back_track)
+            self.process_event_hits_numpy(event_hits, event_hits_back_track, event_segments)
 
-    def process_event_hits_map(self, event_hits, event_hits_back_track):
+    def process_event_hits_map(self, event_hits, event_hits_back_track, event_segments):
         segment_ids = np.array(event_hits_back_track["segment_id"])
         segment_fractions = np.array(event_hits_back_track["fraction"])
+        # Create a dictionary mapping from segment IDs to number of photons
+        segment_id_to_n_photons = {seg['segment_id']: seg['n_photons'] for seg in event_segments}
+
+        # Create a list of number of photons for each hit
+        n_photons_per_hit = [[segment_id_to_n_photons[seg_id] for seg_id in seg_ids if seg_id in segment_id_to_n_photons] for seg_ids in event_hits_back_track["segment_id"]]
+        total_photons_per_hit = [np.sum(hit) for hit in n_photons_per_hit]
         self.det_point_cloud.add_event(
             event_hits["x"],
             event_hits["y"],
@@ -648,6 +658,7 @@ class SimulationWrangler:
             event_hits["ts_pps"],
             event_hits["Q"],
             event_hits["E"],
+            total_photons_per_hit,
             segment_ids,
             segment_fractions,
         )
@@ -659,9 +670,15 @@ class SimulationWrangler:
                     self.segmentid_hit[segmentid].append(ii)
                     self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
 
-    def process_event_hits_numpy(self, event_hits, event_hits_back_track):
+    def process_event_hits_numpy(self, event_hits, event_hits_back_track, event_segments):
         segment_ids = event_hits_back_track["segment_id"]
         segment_fractions = event_hits_back_track["fraction"]
+        # Create a dictionary mapping from segment IDs to number of photons
+        segment_id_to_n_photons = {seg['segment_id']: seg['n_photons'] for seg in event_segments}
+
+        # Create a list of number of photons for each hit
+        n_photons_per_hit = [[segment_id_to_n_photons[seg_id] for seg_id in seg_ids if seg_id in segment_id_to_n_photons] for seg_ids in event_hits_back_track["segment_id"]]
+        total_photons_per_hit = [np.sum(hit) for hit in n_photons_per_hit]
         self.det_point_cloud.add_event(
             event_hits["x"],
             event_hits["y"],
@@ -670,6 +687,7 @@ class SimulationWrangler:
             event_hits["ts_pps"],
             event_hits["Q"],
             event_hits["E"],
+            total_photons_per_hit,
             segment_ids,
             segment_fractions,
         )

@@ -2,7 +2,7 @@
 Simluation Labeling Logic
 
 Developers: Nicholas Carrara        [nmcarrara@ucdavis.edu]
-            Marjolein von Nuland    [mnuland@nikhef.nl]
+            Marjolein van Nuland    [mnuland@nikhef.nl]
 
 ChangeLog:  12/17/2023 - started putting together shower logic.
 """

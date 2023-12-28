@@ -273,7 +273,7 @@ class Arrakis(H5FlowStage):
                 "t_start",
             ]
             segments = flow_file["mc_truth/segments/data"][
-                "event_id", "segment_id", "traj_id"
+                "event_id", "segment_id", "traj_id", "n_photons"
             ]
             stacks = flow_file["mc_truth/stack/data"]["event_id"]
             hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
