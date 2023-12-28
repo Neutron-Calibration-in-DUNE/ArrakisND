@@ -70,6 +70,13 @@ class SimulationWrangler:
         self.det_point_cloud = DetectorPointCloud()
         self.det_point_clouds = {}
 
+        self.vertexid_vertex = {}
+        self.vertexid_target = {}
+        self.vertexid_reaction = {}
+        self.vertexid_pdgcode = {}
+        self.vertexid_label = {}
+
+        self.trackid_vertexid = {}
         self.trackid_parentid = {}
         self.trackid_pdgcode = {}
         self.trackid_process = {}
@@ -95,6 +102,13 @@ class SimulationWrangler:
     def clear_event_maps(self):
         self.det_point_cloud.clear()
 
+        self.vertexid_vertex = {}
+        self.vertexid_target = {}
+        self.vertexid_reaction = {}
+        self.vertexid_pdgcode = {}
+        self.vertexid_label = {}
+
+        self.trackid_vertexid = {}
         self.trackid_parentid = {}
         self.trackid_pdgcode = {}
         self.trackid_process = {}
@@ -199,14 +213,14 @@ class SimulationWrangler:
         topology: TopologyLabel = TopologyLabel.Undefined,
         physics_micro: PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
         physics_meso: PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
-        physics_macro: PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
         unique_topology: int = 0,
         unique_physics_micro: int = 0,
         unique_physics_meso: int = 0,
-        unique_physics_macro: int = 0,
     ):
         for hit in hits:
             point_cloud_index = self.get_index_trackid(hit, trackid)
+            vertexid = self.trackid_vertexid[trackid]
+            physics_macro = self.vertexid_label[vertexid]
             if point_cloud_index != -1:
                 self.det_point_cloud.data["topology_labels"][hit][
                     point_cloud_index
@@ -237,7 +251,7 @@ class SimulationWrangler:
                 ] = unique_physics_meso
                 self.det_point_cloud.data["unique_physics_macro_labels"][hit][
                     point_cloud_index
-                ] = unique_physics_macro
+                ] = vertexid
 
             self.det_point_cloud.data["topology_label"][hit] = topology.value
             self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[
@@ -259,7 +273,7 @@ class SimulationWrangler:
             ] = unique_physics_meso
             self.det_point_cloud.data["unique_physics_macro_label"][
                 hit
-            ] = unique_physics_macro
+            ] = vertexid
 
     def set_hit_labels_list(
         self,
@@ -269,11 +283,9 @@ class SimulationWrangler:
         topology: TopologyLabel = TopologyLabel.Undefined,
         physics_micro: PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
         physics_meso: PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
-        physics_macro: PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
         unique_topology: int = 0,
         unique_physics_micro: int = 0,
         unique_physics_meso: int = 0,
-        unique_physics_macro: int = 0,
     ):
         for ii in range(len(hits)):
             self.set_hit_labels(
@@ -283,11 +295,9 @@ class SimulationWrangler:
                 topology,
                 physics_micro,
                 physics_meso,
-                physics_macro,
                 unique_topology,
                 unique_physics_micro,
                 unique_physics_meso,
-                unique_physics_macro,
             )
 
     def set_labels_array(
@@ -298,11 +308,9 @@ class SimulationWrangler:
         topology: TopologyLabel = TopologyLabel.Undefined,
         physics_micro: PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
         physics_meso: PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
-        physics_macro: PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
         unique_topology: int = 0,
         unique_physics_micro: int = 0,
         unique_physics_meso: int = 0,
-        unique_physics_macro: int = 0,
     ):
         for ii in range(len(hits)):
             self.set_hit_labels_list(
@@ -312,16 +320,15 @@ class SimulationWrangler:
                 topology,
                 physics_micro,
                 physics_meso,
-                physics_macro,
                 unique_topology,
                 unique_physics_micro,
                 unique_physics_meso,
-                unique_physics_macro,
             )
 
     def process_event(
         self,
         event_id,
+        event_interactions,
         event_trajectories,
         event_segments,
         event_stacks,
@@ -340,6 +347,7 @@ class SimulationWrangler:
         if self.debug:
             self._process_event_with_timing(
                 event_id,
+                event_interactions,
                 event_trajectories,
                 event_segments,
                 event_stacks,
@@ -349,6 +357,7 @@ class SimulationWrangler:
         else:
             self._process_event_without_timing(
                 event_id,
+                event_interactions,
                 event_trajectories,
                 event_segments,
                 event_stacks,
@@ -359,6 +368,7 @@ class SimulationWrangler:
     def _process_event_without_timing(
         self,
         event_id,
+        event_interactions,
         event_trajectories,
         event_segments,
         event_stacks,
@@ -367,6 +377,7 @@ class SimulationWrangler:
     ):
         self.clear_event()
         self.det_point_cloud.data["event"] = event_id
+        self.process_event_interactions(event_interactions)
         self.process_event_trajectories(event_trajectories)
         self.process_event_stacks(event_stacks)
         self.process_event_segments(event_segments)
@@ -375,6 +386,7 @@ class SimulationWrangler:
     def _process_event_with_timing(
         self,
         event_id,
+        event_interactions,
         event_trajectories,
         event_segments,
         event_stacks,
@@ -386,6 +398,12 @@ class SimulationWrangler:
 
         self.meta["timers"].start("wrangler_process_all")
         self.meta["memory_trackers"].start("wrangler_process_all")
+
+        self.meta["timers"].start("wrangler_process_event_interactions")
+        self.meta["memory_trackers"].start("wrangler_process_event_interactions")
+        self.process_event_interactions(event_interactions)
+        self.meta["timers"].end("wrangler_process_event_interactions")
+        self.meta["memory_trackers"].end("wrangler_process_event_interactions")
 
         self.meta["timers"].start("wrangler_process_event_trajectories")
         self.meta["memory_trackers"].start("wrangler_process_event_trajectories")
@@ -567,6 +585,15 @@ class SimulationWrangler:
         )
         self.clear_point_clouds()
 
+    def process_event_interactions(self, event_interactions):
+        for ii, interaction in enumerate(event_interactions):
+            vertex_id = interaction['vertex_id']
+            self.vertexid_vertex[vertex_id] = interaction['vertex']
+            self.vertexid_target[vertex_id] = interaction['target']
+            self.vertexid_reaction[vertex_id] = interaction['reaction']
+            self.vertexid_pdgcode[vertex_id] = interaction['nu_pdg']
+            self.vertexid_label[vertex_id] = PhysicsMacroLabel.Undefined
+
     def process_event_trajectories(self, event_trajectories):
         if self.wrangler_mode == "map":
             self.process_event_trajectories_map(event_trajectories)
@@ -576,6 +603,7 @@ class SimulationWrangler:
     def process_event_trajectories_map(self, event_trajectories):
         for ii, particle in enumerate(event_trajectories):
             track_id = particle["traj_id"]
+            self.trackid_vertexid[track_id] = particle["vertex_id"]
             self.trackid_parentid[track_id] = particle["parent_id"]
             self.trackid_pdgcode[track_id] = particle["pdg_id"]
             self.trackid_process[track_id] = particle["start_process"]
@@ -631,7 +659,10 @@ class SimulationWrangler:
             self.process_event_stacks_numpy(event_stacks)
 
     def process_event_stacks_map(self, event_stacks):
-        pass
+        for ii, stack in enumerate(event_stacks):
+            vertex_id = stack['vertex_id']
+            if vertex_id not in self.vertexid_pdgcode.keys():
+                self.vertexid_pdgcode[vertex_id] = stack['part_pdg']
 
     def process_event_stacks_numpy(self, event_stacks):
         pass

@@ -277,10 +277,18 @@ class Arrakis(H5FlowStage):
                     f"there was a problem processing flow file {simulation_file}!"
                     + f" exception: {exception}"
                 )
-
+            interactions = flow_file["mc_truth/interactions/data"][
+                "event_id",
+                "vertex_id",
+                "vertex",
+                "target",
+                "reaction",
+                "nu_pdg"
+            ]
             trajectories = flow_file["mc_truth/trajectories/data"][
                 "event_id",
                 "traj_id",
+                "vertex_id",
                 "parent_id",
                 "pdg_id",
                 "start_process",
@@ -291,9 +299,15 @@ class Arrakis(H5FlowStage):
                 "t_start",
             ]
             segments = flow_file["mc_truth/segments/data"][
-                "event_id", "segment_id", "traj_id"
+                "event_id",
+                "segment_id",
+                "traj_id"
             ]
-            stacks = flow_file["mc_truth/stack/data"]["event_id"]
+            stacks = flow_file["mc_truth/stack/data"][
+                "event_id",
+                "vertex_id",
+                "part_pdg"
+            ]
             hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
             hits = flow_file["charge/calib_final_hits/data"]
 
@@ -308,9 +322,10 @@ class Arrakis(H5FlowStage):
             for jj, event_id in event_loop:
                 if event_id in self.skip_events:
                     continue
+                event_interactions = interactions[interactions["event_id"] == event_id]
                 event_trajectories = trajectories[trajectories["event_id"] == event_id]
                 event_segments = segments[segments["event_id"] == event_id]
-                event_stacks = stacks[stacks == event_id]
+                event_stacks = stacks[stacks["event_id"] == event_id]
                 hits_back_track_mask = np.any(
                     np.isin(
                         hits_back_track["segment_id"], event_segments["segment_id"]
@@ -322,6 +337,7 @@ class Arrakis(H5FlowStage):
 
                 self.simulation_wrangler.process_event(
                     event_id,
+                    event_interactions,
                     event_trajectories,
                     event_segments,
                     event_stacks,
