@@ -333,6 +333,13 @@ class SimulationWrangler:
                 hits,
             )
 
+    def process_light_event(
+            self,
+            light_event_id,
+            light_event,
+    ):
+        pass
+
     def _process_event_without_timing(
         self,
         event_id,
@@ -439,6 +446,9 @@ class SimulationWrangler:
         self.det_point_clouds[self.det_point_cloud.data["event"]] = copy.deepcopy(
             self.det_point_cloud
         )
+
+    def save_light_event(self):
+        pass
 
     def save_events(self, simulation_file):
         output_file = simulation_file.replace(".h5", "")

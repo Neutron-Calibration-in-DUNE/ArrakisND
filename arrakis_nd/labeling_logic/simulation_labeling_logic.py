@@ -84,6 +84,9 @@ class SimulationLabelingLogic:
         else:
             self._process_event_without_timing()
 
+    def process_light_event(self):
+        pass
+
     def _process_event_without_timing(self):
         self.unique_topology.reset
         self.unique_physics_micro.reset
