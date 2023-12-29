@@ -8,7 +8,7 @@ import numpy as np
 import copy
 
 from arrakis_nd.utils.logger import Logger
-from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud
+from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud, OpticalPointCloud
 from arrakis_nd.dataset.common import (
     TopologyLabel,
     PhysicsMicroLabel,
@@ -338,7 +338,18 @@ class SimulationWrangler:
             light_event_id,
             light_event,
     ):
-        pass
+        self.light_point_cloud = OpticalPointCloud()
+        self.light_point_cloud.data["event"] = light_event_id
+        for ii in range(len(light_event)):
+            self.light_point_cloud.add_event(
+                light_event["tpc"][ii],
+                light_event["det"][ii],
+                light_event["sample_idx"][ii],
+                light_event["max"][ii],
+                light_event["fwhm_spline"][ii],
+                light_event["sum"][ii],
+                [], # TODO: segment_ids from truth
+            )
 
     def _process_event_without_timing(
         self,

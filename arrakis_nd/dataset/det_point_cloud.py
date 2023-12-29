@@ -225,6 +225,7 @@ class OpticalPointCloud:
 
     def add_event(
         self,
+        event_id: int,
         tpc: list = [],
         channel: list = [],
         tick: list = [],
@@ -239,6 +240,7 @@ class OpticalPointCloud:
         registered on any channel.
         """
         for key, value in {
+            "event": event_id,
             "tpc": tpc,
             "channel": channel,
             "tick": tick,

@@ -318,10 +318,10 @@ class Arrakis(H5FlowStage):
                 )
                 # event_loop.set_postfix_str(f"num_process={:.2e}")
 
-            for jj, light_event in enumerate(light['id']):
-                light_event_mask = light['id'] == light_event
+            for jj, light_event_id in enumerate(light['id']):
+                light_event_mask = light['id'] == light_event_id
                 self.simulation_wrangler.process_light_event(
-                    light_event,
+                    light_event_id,
                     light[light_event_mask]
                 )
                 self.simulation_labeling_logic.process_light_event()
