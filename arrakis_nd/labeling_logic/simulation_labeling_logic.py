@@ -677,7 +677,7 @@ class SimulationLabelingLogic:
         Primary electrons can come from ... cc_nue? nc? what else?
         For now, only sending to showers.  Sometimes electrons will
         have a process that is equal to zero, which means it's a primary.
-        In order to label these correctly, we change the subprocess 
+        In order to label these correctly, we change the subprocess
         to emionization.
         """
         electrons = self.simulation_wrangler.get_primaries_pdg_code(11)
@@ -834,7 +834,7 @@ class SimulationLabelingLogic:
             pion_daughters = self.simulation_wrangler.trackid_daughters[pion]
             pion_hits = self.simulation_wrangler.trackid_hit[pion]
             pion_segments = self.simulation_wrangler.trackid_segmentid[pion]
-
+            cluster_label = next(self.unique_topology)
             self.simulation_wrangler.set_hit_labels(
                 pion_hits,
                 pion_segments,
@@ -842,11 +842,40 @@ class SimulationLabelingLogic:
                 TopologyLabel.Track,
                 PhysicsMicroLabel.HIPIonization,
                 PhysicsMesoLabel.HIP,
-                next(self.unique_topology),
+                cluster_label,
                 next(self.unique_physics_micro),
                 next(self.unique_physics_meso),
             )
-            self.process_showers_list(pion_daughters, next(self.unique_topology))
+            elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(
+                pion_daughters, 11
+            )
+            elec_em_daughters = self.simulation_wrangler.filter_trackid_process(
+                elec_daughters, 2
+            )
+            delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(
+                elec_em_daughters, 2
+            )
+            delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
+            delta_segments = self.simulation_wrangler.get_segments_trackid(
+                delta_daughters
+            )
+            self.simulation_wrangler.set_hit_labels_list(
+                delta_hits,
+                delta_segments,
+                delta_daughters,
+                TopologyLabel.Track,
+                PhysicsMicroLabel.ElectronIonization,
+                PhysicsMesoLabel.DeltaElectron,
+                cluster_label,
+                next(self.unique_physics_micro),
+                next(self.unique_physics_meso),
+            )
+            delta_descendants = self.simulation_wrangler.get_descendants_trackid(delta_daughters)
+            self.process_showers_array(delta_descendants)
+            other_daughters = remove_sublist(
+                pion_daughters, delta_daughters
+            )
+            self.process_showers_list(other_daughters, next(self.unique_topology))
 
     def process_kaon0s(self):
         ka0s = self.simulation_wrangler.get_trackid_pdg_code(311)
@@ -893,7 +922,36 @@ class SimulationLabelingLogic:
                 next(self.unique_physics_meso),
             )
             proton_daughters = self.simulation_wrangler.trackid_daughters[proton]
-            self.process_showers_list(proton_daughters, next(self.unique_topology))
+            elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(
+                proton_daughters, 11
+            )
+            elec_em_daughters = self.simulation_wrangler.filter_trackid_process(
+                elec_daughters, 2
+            )
+            delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(
+                elec_em_daughters, 2
+            )
+            delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
+            delta_segments = self.simulation_wrangler.get_segments_trackid(
+                delta_daughters
+            )
+            self.simulation_wrangler.set_hit_labels_list(
+                delta_hits,
+                delta_segments,
+                delta_daughters,
+                TopologyLabel.Track,
+                PhysicsMicroLabel.ElectronIonization,
+                PhysicsMesoLabel.DeltaElectron,
+                cluster_label,
+                next(self.unique_physics_micro),
+                next(self.unique_physics_meso),
+            )
+            delta_descendants = self.simulation_wrangler.get_descendants_trackid(delta_daughters)
+            self.process_showers_array(delta_descendants)
+            other_daughters = remove_sublist(
+                proton_daughters, delta_daughters
+            )
+            self.process_showers_list(other_daughters, next(self.unique_topology))
 
     def process_neutrons(self):
         """
@@ -937,7 +995,7 @@ class SimulationLabelingLogic:
             next(self.unique_physics_micro),
             next(self.unique_physics_meso),
         )
-        
+
         hadron_at_rest_neutrons_hits = self.simulation_wrangler.get_hits_trackid(hadron_at_rest_neutrons)
         hadron_at_rest_neutrons_segments = self.simulation_wrangler.get_segments_trackid(hadron_at_rest_neutrons)
         self.simulation_wrangler.set_hit_labels_list(
@@ -1018,13 +1076,6 @@ class SimulationLabelingLogic:
         ar38 = self.simulation_wrangler.get_trackid_pdg_code(1000180380)
         ar37 = self.simulation_wrangler.get_trackid_pdg_code(1000180370)
         ar36 = self.simulation_wrangler.get_trackid_pdg_code(1000180360)
-
-        # ar41_daughters = self.simulation_wrangler.get_daughters_trackid(ar41)
-        # ar40_daughters = self.simulation_wrangler.get_daughters_trackid(ar40)
-        # ar39_daughters = self.simulation_wrangler.get_daughters_trackid(ar39)
-        # ar38_daughters = self.simulation_wrangler.get_daughters_trackid(ar38)
-        # ar37_daughters = self.simulation_wrangler.get_daughters_trackid(ar37)
-        # ar36_daughters = self.simulation_wrangler.get_daughters_trackid(ar36)
 
         s33 = self.simulation_wrangler.get_trackid_pdg_code(1000160330)
         s35 = self.simulation_wrangler.get_trackid_pdg_code(1000160350)

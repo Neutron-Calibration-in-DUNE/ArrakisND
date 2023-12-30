@@ -5,7 +5,19 @@ arrakis_nd:
   simulation_files: [
     "MiniRun4_1E19_RHC.flow.00000.FLOW.h5",
     "MiniRun4_1E19_RHC.flow.00001.FLOW.h5",
-    "MiniRun4_1E19_RHC.flow.00002.FLOW.h5"
+    "MiniRun4_1E19_RHC.flow.00002.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00003.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00004.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00005.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00006.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00007.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00008.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00009.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00010.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00011.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00012.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00013.FLOW.h5",
+    "MiniRun4_1E19_RHC.flow.00014.FLOW.h5"
   ]
   skip_files:   []
   skip_events:  [1, 2001]
