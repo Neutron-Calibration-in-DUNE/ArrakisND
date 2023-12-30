@@ -8,7 +8,8 @@ import numpy as np
 import copy
 
 from arrakis_nd.utils.logger import Logger
-from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud, OpticalPointCloud
+from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud
+from arrakis_nd.dataset.light_point_cloud import LightPointCloud
 from arrakis_nd.dataset.common import (
     TopologyLabel,
     PhysicsMicroLabel,
@@ -338,7 +339,7 @@ class SimulationWrangler:
             light_event_id,
             light_event,
     ):
-        self.light_point_cloud = OpticalPointCloud()
+        self.light_point_cloud = LightPointCloud()
         self.light_point_cloud.data["event"] = light_event_id
         for ii in range(len(light_event)):
             self.light_point_cloud.add_event(
