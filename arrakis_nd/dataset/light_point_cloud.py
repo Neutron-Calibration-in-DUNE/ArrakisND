@@ -2,6 +2,7 @@
 """
 import numpy as np
 
+
 class LightPointCloud:
     def __init__(
         self,
@@ -11,16 +12,16 @@ class LightPointCloud:
     def clear(self):
         self.data = {
             "event": -1,
-            "tpc": np.array([]), # there are 8 tpc's
-            "channel": np.array([]), # 64? channels per tpc
-            "tick": np.array([]), # 1000 ticks per channel, 1 tick is 16 ns
-            "max_peak": np.array([]), # the height of the peak in ADC counts
-            "fwhm_peak": np.array([]), # the full width at half maximum of the peak in ticks
-            "integral_peak": np.array([]), # the integral of the peak in ADC counts
-            "n_photons": np.array([]), # the number of photons in the peak (truth)
-            "segment_ids": np.array([]), # the segment ids that created the peak (truth)
+            "tpc": np.array([]),        # there are 8 tpc's
+            "channel": np.array([]),    # 64? channels per tpc
+            "tick": np.array([]),       # 1000 ticks per channel, 1 tick is 16 ns
+            "max_peak": np.array([]),   # the height of the peak in ADC counts
+            "fwhm_peak": np.array([]),  # the full width at half maximum of the peak in ticks
+            "integral_peak": np.array([]),  # the integral of the peak in ADC counts
+            "n_photons": np.array([]),      # the number of photons in the peak (truth)
+            "segment_ids": np.array([]),    # the segment ids that created the peak (truth)
         }
-    
+
     def add_point(
         self,
         tpc: float,
@@ -33,7 +34,7 @@ class LightPointCloud:
         segment_ids: list = [],
     ):
         """
-        Add a single hit to the point cloud. So, a single peak, caused by possibly 
+        Add a single hit to the point cloud. So, a single peak, caused by possibly
         multiple segments, registered by a single channel.
         """
         # Create a dictionary with the event data
@@ -78,7 +79,6 @@ class LightPointCloud:
             "segment_id": segment_id,
         }.items():
             self.data[key] = np.array(value)
-
 
     def show_point(self):
         for key, value in self.data.items():
