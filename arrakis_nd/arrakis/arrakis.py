@@ -336,6 +336,7 @@ class Arrakis(H5FlowStage):
                 )
                 event_back_track_hits = hits_back_track[hits_back_track_mask]
                 event_hits = hits[hits_back_track_mask]
+                event_light = light[light["id"] == event_id]
 
                 self.simulation_wrangler.process_event(
                     event_id,
@@ -345,6 +346,7 @@ class Arrakis(H5FlowStage):
                     event_stacks,
                     event_back_track_hits,
                     event_hits,
+                    event_light,
                 )
                 self.simulation_labeling_logic.process_event()
                 if len(self.simulation_wrangler.det_point_cloud.data["x"]) == 0:
@@ -353,16 +355,6 @@ class Arrakis(H5FlowStage):
                 event_loop.set_description(
                     f"File [{ii+1}/{len(self.simulation_files)}][{simulation_file}]"
                 )
-                # event_loop.set_postfix_str(f"num_process={:.2e}")
-
-            for jj, light_event_id in enumerate(light['id']):
-                light_event_mask = light['id'] == light_event_id
-                self.simulation_wrangler.process_light_event(
-                    light_event_id,
-                    light[light_event_mask]
-                )
-                self.simulation_labeling_logic.process_light_event()
-                self.simulation_wrangler.save_light_event()
             self.simulation_wrangler.save_events(
                 self.output_folder + "/" + simulation_file
             )                                       # modify so it will save light info too?

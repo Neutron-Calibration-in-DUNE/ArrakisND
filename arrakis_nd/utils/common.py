@@ -9,6 +9,7 @@ process_functions = [
     "wrangler_process_event_stacks",
     "wrangler_process_event_segments",
     "wrangler_process_event_hits",
+    "wrangler_process_event_light",
     "logic_process_mc_truth",
     "logic_process_electrons",
     "logic_process_positrons",

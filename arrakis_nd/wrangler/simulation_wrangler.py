@@ -70,6 +70,9 @@ class SimulationWrangler:
     def parse_point_cloud(self):
         self.det_point_cloud = DetectorPointCloud()
         self.det_point_clouds = {}
+        
+        self.light_point_cloud = LightPointCloud()
+        self.light_point_clouds = {}
 
         self.vertexid_vertex = {}
         self.vertexid_target = {}
@@ -102,6 +105,7 @@ class SimulationWrangler:
 
     def clear_event_maps(self):
         self.det_point_cloud.clear()
+        self.light_point_cloud.clear()
 
         self.vertexid_vertex = {}
         self.vertexid_target = {}
@@ -135,6 +139,7 @@ class SimulationWrangler:
 
     def clear_point_clouds(self):
         self.det_point_clouds = {}
+        self.light_point_clouds = {}
 
     def print_particle_data(self, particle):
         self.logger.info("## MCParticle #######################################")
@@ -333,8 +338,9 @@ class SimulationWrangler:
         event_trajectories,
         event_segments,
         event_stacks,
-        hits_back_track,
-        hits,
+        event_hits_back_track,
+        event_hits,
+        event_light,
     ):
         """
         Go through each of the individual logic functions
@@ -352,8 +358,9 @@ class SimulationWrangler:
                 event_trajectories,
                 event_segments,
                 event_stacks,
-                hits_back_track,
-                hits,
+                event_hits_back_track,
+                event_hits,
+                event_light,
             )
         else:
             self._process_event_without_timing(
@@ -362,26 +369,9 @@ class SimulationWrangler:
                 event_trajectories,
                 event_segments,
                 event_stacks,
-                hits_back_track,
-                hits,
-            )
-
-    def process_light_event(
-            self,
-            light_event_id,
-            light_event,
-    ):
-        self.light_point_cloud = LightPointCloud()
-        self.light_point_cloud.data["event"] = light_event_id
-        for ii in range(len(light_event)):
-            self.light_point_cloud.add_event(
-                light_event["tpc"][ii],
-                light_event["det"][ii],
-                light_event["sample_idx"][ii],
-                light_event["max"][ii],
-                light_event["fwhm_spline"][ii],
-                light_event["sum"][ii],
-                [],                     # TODO: segment_ids from truth
+                event_hits_back_track,
+                event_hits,
+                event_light,
             )
 
     def _process_event_without_timing(
@@ -391,16 +381,19 @@ class SimulationWrangler:
         event_trajectories,
         event_segments,
         event_stacks,
-        hits_back_track,
-        hits,
+        event_hits_back_track,
+        event_hits,
+        event_light,
     ):
         self.clear_event()
         self.det_point_cloud.data["event"] = event_id
+        self.light_point_cloud.data["event"] = event_id
         self.process_event_interactions(event_interactions)
         self.process_event_trajectories(event_trajectories)
         self.process_event_stacks(event_stacks)
         self.process_event_segments(event_segments)
-        self.process_event_hits(hits, hits_back_track, event_segments)
+        self.process_event_hits(event_hits, event_hits_back_track, event_segments)
+        self.process_event_light(event_light)
 
     def _process_event_with_timing(
         self,
@@ -409,11 +402,13 @@ class SimulationWrangler:
         event_trajectories,
         event_segments,
         event_stacks,
-        hits_back_track,
-        hits,
+        event_hits_back_track,
+        event_hits,
+        event_light,
     ):
         self.clear_event()
         self.det_point_cloud.data["event"] = event_id
+        self.light_point_cloud.data["event"] = event_id
 
         self.meta["timers"].start("wrangler_process_all")
         self.meta["memory_trackers"].start("wrangler_process_all")
@@ -444,9 +439,15 @@ class SimulationWrangler:
 
         self.meta["timers"].start("wrangler_process_event_hits")
         self.meta["memory_trackers"].start("wrangler_process_event_hits")
-        self.process_event_hits(hits, hits_back_track, event_segments)
+        self.process_event_hits(event_hits, event_hits_back_track, event_segments)
         self.meta["timers"].end("wrangler_process_event_hits")
         self.meta["memory_trackers"].end("wrangler_process_event_hits")
+
+        self.meta["timers"].start("wrangler_process_event_light")
+        self.meta["memory_trackers"].start("wrangler_process_event_light")
+        self.process_event_light(event_light)
+        self.meta["timers"].end("wrangler_process_event_light")
+        self.meta["memory_trackers"].end("wrangler_process_event_light")
 
         self.meta["timers"].end("wrangler_process_all")
         self.meta["memory_trackers"].end("wrangler_process_all")
@@ -499,9 +500,6 @@ class SimulationWrangler:
         self.det_point_clouds[self.det_point_cloud.data["event"]] = copy.deepcopy(
             self.det_point_cloud
         )
-
-    def save_light_event(self):
-        pass
 
     def save_events(self, simulation_file):
         output_file = simulation_file.replace(".h5", "")
@@ -752,7 +750,12 @@ class SimulationWrangler:
                     self.segmentid_hit[segmentid].append(ii)
                     self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
 
-    def process_event_hits_numpy(self, event_hits, event_hits_back_track, event_segments):
+    def process_event_hits_numpy(
+        self,
+        event_hits,
+        event_hits_back_track,
+        event_segments
+    ):
         segment_ids = event_hits_back_track["segment_id"]
         segment_fractions = event_hits_back_track["fraction"]
         # Create a dictionary mapping from segment IDs to number of photons
@@ -781,6 +784,20 @@ class SimulationWrangler:
                 if segmentid in self.segmentid_hit.keys():
                     self.segmentid_hit[segmentid].append(ii)
                     self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
+
+    def process_event_light(
+            self,
+            event_light,
+    ):
+        self.light_point_cloud.add_event(
+            event_light["tpc"],
+            event_light["det"],
+            event_light["sample_idx"],
+            event_light["max"],
+            event_light["fwhm_spline"],
+            event_light["sum"],
+            [],                         # TODO: segment_ids from truth
+        )
 
     def get_total_hit_energy_map(self, hits):
         """Get total energy from a list of hits
