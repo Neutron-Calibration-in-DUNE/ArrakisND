@@ -6,8 +6,6 @@ Developers: Nicholas Carrara        [nmcarrara@ucdavis.edu]
 
 ChangeLog:  12/17/2023 - started putting together shower logic.
 """
-import numpy as np
-
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.dataset.common import (
     TopologyLabel,
@@ -1070,119 +1068,30 @@ class SimulationLabelingLogic:
             self.process_showers_list(other_gammas, next(self.unique_topology))
 
     def process_nuclear_recoils(self):
-        ar41 = self.simulation_wrangler.get_trackid_pdg_code(1000180410)
-        ar40 = self.simulation_wrangler.get_trackid_pdg_code(1000180400)
-        ar39 = self.simulation_wrangler.get_trackid_pdg_code(1000180390)
-        ar38 = self.simulation_wrangler.get_trackid_pdg_code(1000180380)
-        ar37 = self.simulation_wrangler.get_trackid_pdg_code(1000180370)
-        ar36 = self.simulation_wrangler.get_trackid_pdg_code(1000180360)
+        sulfur = self.simulation_wrangler.get_trackid_pdg_code(1000160330)
+        sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160340)
+        sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160350)
+        sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160360)
 
-        s33 = self.simulation_wrangler.get_trackid_pdg_code(1000160330)
-        s35 = self.simulation_wrangler.get_trackid_pdg_code(1000160350)
-        s36 = self.simulation_wrangler.get_trackid_pdg_code(1000160360)
+        chlorine = self.simulation_wrangler.get_trackid_pdg_code(1000170360)
+        chlorine += self.simulation_wrangler.get_trackid_pdg_code(1000170370)
+        chlorine += self.simulation_wrangler.get_trackid_pdg_code(1000170380)
+        chlorine += self.simulation_wrangler.get_trackid_pdg_code(1000170390)
+        chlorine += self.simulation_wrangler.get_trackid_pdg_code(1000170400)
 
-        cl36 = self.simulation_wrangler.get_trackid_pdg_code(1000170360)
-        cl37 = self.simulation_wrangler.get_trackid_pdg_code(1000170370)
-        cl38 = self.simulation_wrangler.get_trackid_pdg_code(1000170380)
-        cl39 = self.simulation_wrangler.get_trackid_pdg_code(1000170390)
-        cl40 = self.simulation_wrangler.get_trackid_pdg_code(1000170400)
+        argon = self.simulation_wrangler.get_trackid_pdg_code(1000180360)
+        argon += self.simulation_wrangler.get_trackid_pdg_code(1000180370)
+        argon += self.simulation_wrangler.get_trackid_pdg_code(1000180380)
+        argon += self.simulation_wrangler.get_trackid_pdg_code(1000180390)
+        argon += self.simulation_wrangler.get_trackid_pdg_code(1000180400)
+        argon += self.simulation_wrangler.get_trackid_pdg_code(1000180410)
 
-        for ar in ar41:
-            ar41_hits = self.simulation_wrangler.get_hits_trackid(ar)
-            ar41_segments = self.simulation_wrangler.get_segments_trackid(ar)
+        for s in sulfur:
+            sulfur_hits = self.simulation_wrangler.get_hits_trackid(s)
+            sulfur_segments = self.simulation_wrangler.get_segments_trackid(s)
             self.simulation_wrangler.set_hit_labels(
-                ar41_hits,
-                ar41_segments,
-                ar,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for ar in ar40:
-            ar40_hits = self.simulation_wrangler.get_hits_trackid(ar)
-            ar40_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.simulation_wrangler.set_hit_labels(
-                ar40_hits,
-                ar40_segments,
-                ar,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for ar in ar39:
-            ar39_hits = self.simulation_wrangler.get_hits_trackid(ar)
-            ar39_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.simulation_wrangler.set_hit_labels(
-                ar39_hits,
-                ar39_segments,
-                ar,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for ar in ar38:
-            ar38_hits = self.simulation_wrangler.get_hits_trackid(ar)
-            ar38_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.simulation_wrangler.set_hit_labels(
-                ar38_hits,
-                ar38_segments,
-                ar,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for ar in ar37:
-            ar37_hits = self.simulation_wrangler.get_hits_trackid(ar)
-            ar37_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.simulation_wrangler.set_hit_labels(
-                ar37_hits,
-                ar37_segments,
-                ar,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for ar in ar36:
-            ar36_hits = self.simulation_wrangler.get_hits_trackid(ar)
-            ar36_segments = self.simulation_wrangler.get_segments_trackid(ar)
-            self.simulation_wrangler.set_hit_labels(
-                ar36_hits,
-                ar36_segments,
-                ar,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for s in s33:
-            s33_hits = self.simulation_wrangler.get_hits_trackid(s)
-            s33_segments = self.simulation_wrangler.get_segments_trackid(s)
-            self.simulation_wrangler.set_hit_labels(
-                s33_hits,
-                s33_segments,
+                sulfur_hits,
+                sulfur_segments,
                 s,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
@@ -1192,42 +1101,12 @@ class SimulationLabelingLogic:
                 next(self.unique_physics_meso),
             )
 
-        for s in s35:
-            s35_hits = self.simulation_wrangler.get_hits_trackid(s)
-            s35_segments = self.simulation_wrangler.get_segments_trackid(s)
+        for cl in chlorine:
+            chlorine_hits = self.simulation_wrangler.get_hits_trackid(cl)
+            chlorine_segments = self.simulation_wrangler.get_segments_trackid(cl)
             self.simulation_wrangler.set_hit_labels(
-                s35_hits,
-                s35_segments,
-                s,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for s in s36:
-            s36_hits = self.simulation_wrangler.get_hits_trackid(s)
-            s36_segments = self.simulation_wrangler.get_segments_trackid(s)
-            self.simulation_wrangler.set_hit_labels(
-                s36_hits,
-                s36_segments,
-                s,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for cl in cl36:
-            cl36_hits = self.simulation_wrangler.get_hits_trackid(cl)
-            cl36_segments = self.simulation_wrangler.get_segments_trackid(cl)
-            self.simulation_wrangler.set_hit_labels(
-                cl36_hits,
-                cl36_segments,
+                chlorine_hits,
+                chlorine_segments,
                 cl,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
@@ -1237,58 +1116,13 @@ class SimulationLabelingLogic:
                 next(self.unique_physics_meso),
             )
 
-        for cl in cl37:
-            cl37_hits = self.simulation_wrangler.get_hits_trackid(cl)
-            cl37_segments = self.simulation_wrangler.get_segments_trackid(cl)
+        for ar in argon:
+            argon_hits = self.simulation_wrangler.get_hits_trackid(ar)
+            argon_segments = self.simulation_wrangler.get_segments_trackid(ar)
             self.simulation_wrangler.set_hit_labels(
-                cl37_hits,
-                cl37_segments,
-                cl,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for cl in cl38:
-            cl38_hits = self.simulation_wrangler.get_hits_trackid(cl)
-            cl38_segments = self.simulation_wrangler.get_segments_trackid(cl)
-            self.simulation_wrangler.set_hit_labels(
-                cl38_hits,
-                cl38_segments,
-                cl,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for cl in cl39:
-            cl39_hits = self.simulation_wrangler.get_hits_trackid(cl)
-            cl39_segments = self.simulation_wrangler.get_segments_trackid(cl)
-            self.simulation_wrangler.set_hit_labels(
-                cl39_hits,
-                cl39_segments,
-                cl,
-                TopologyLabel.Blip,
-                PhysicsMicroLabel.HadronElastic,
-                PhysicsMesoLabel.NuclearRecoil,
-                next(self.unique_topology),
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
-
-        for cl in cl40:
-            cl40_hits = self.simulation_wrangler.get_hits_trackid(cl)
-            cl40_segments = self.simulation_wrangler.get_segments_trackid(cl)
-            self.simulation_wrangler.set_hit_labels(
-                cl40_hits,
-                cl40_segments,
-                cl,
+                argon_hits,
+                argon_segments,
+                ar,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
                 PhysicsMesoLabel.NuclearRecoil,
@@ -1300,14 +1134,6 @@ class SimulationLabelingLogic:
     def process_electron_recoils(self):
         deuterons = self.simulation_wrangler.get_trackid_pdg_code(1000010020)
         tritons = self.simulation_wrangler.get_trackid_pdg_code(1000010030)
-        # alphas = self.simulation_wrangler.get_trackid_pdg_code(1000020040)
-
-        # inelastic_alphas = self.simulation_wrangler.filter_trackid_process(alphas, PhysicsLabel.NuclearRecoil)
-        # TODO: fix this
-
-        # deuteron_daughters = self.simulation_wrangler.get_daughters_trackid(deuterons)
-        # triton_daughters = self.simulation_wrangler.get_daughters_trackid(tritons)
-        # inelastic_alpha_daughters = self.simulation_wrangler.get_daughters_trackid(inelastic_alphas)
 
         for deuteron in deuterons:
             deuteron_hits = self.simulation_wrangler.get_hits_trackid(deuteron)
@@ -1340,22 +1166,6 @@ class SimulationLabelingLogic:
                 next(self.unique_physics_micro),
                 next(self.unique_physics_meso),
             )
-
-        # for inelastic_alpha in inelastic_alphas:
-        #     inelastic_alpha_hits = self.simulation_wrangler.get_hits_trackid(inelastic_alpha)
-        #     inelastic_alpha_segments = self.simulation_wrangler.get_segments_trackid(inelastic_alpha)
-
-        #     self.simulation_wrangler.set_hit_labels(
-        #         inelastic_alpha_hits,
-        #         inelastic_alpha_segments,
-        #         inelastic_alpha,
-        #         TopologyLabel.Blip,
-        #         PhysicsMicroLabel.HadronElastic,
-        #         PhysicsMesoLabel.ElectronRecoil,
-        #                 #         next(self.unique_topology),
-        #         next(self.unique_physics_micro),
-        #         next(self.unique_physics_meso),
-        #     )
 
     def process_ar39(self):
         """

@@ -112,29 +112,29 @@ class PhysicsMacroLabel(Enum):
     CCNuMu = 2
     NC = 3
 
-    Cosmics = 5
+    Cosmics = 4
 
     # Radiological interactions
-    Ar39 = 6
-    Ar42 = 7
-    K42 = 8
-    Kr85 = 9
-    Rn222 = 10
-    Po218a = 11
-    Po218b = 12
-    At218a = 13
-    At218b = 14
-    Rn218 = 15
-    Pb214 = 16
-    Bi214a = 17
-    Bi214b = 18
-    Po214 = 19
-    Tl210 = 20
-    Pb210a = 21
-    Pb210b = 22
-    Bi210a = 23
-    Bi210b = 24
-    Po210 = 25
+    Ar39 = 5
+    Ar42 = 6
+    K42 = 7
+    Kr85 = 8
+    Rn222 = 9
+    Po218a = 10
+    Po218b = 11
+    At218a = 12
+    At218b = 13
+    Rn218 = 14
+    Pb214 = 15
+    Bi214a = 16
+    Bi214b = 17
+    Po214 = 18
+    Tl210 = 19
+    Pb210a = 20
+    Pb210b = 21
+    Bi210a = 22
+    Bi210b = 23
+    Po210 = 24
 
 
 classification_labels = {
@@ -167,6 +167,21 @@ classification_labels = {
         1000010020: "deuteron",
         1000010030: "triton",
         1000020040: "alpha",
+        10000160330: "sulfur_33",
+        10000160340: "sulfur_34",
+        10000160350: "sulfur_35",
+        10000160360: "sulfur_36",
+        10000170360: "chlorine_36",
+        10000170370: "chlorine_37",
+        10000170380: "chlorine_38",
+        10000170390: "chlorine_39",
+        10000170400: "chlorine_40",
+        10000180360: "argon_36",
+        10000180370: "argon_37",
+        10000180380: "argon_38",
+        10000180390: "argon_39",
+        10000180400: "argon_40",
+        10000180410: "argon_41",
     },
     "topology": {
         -1: "undefined",
@@ -221,14 +236,27 @@ classification_labels = {
         1: "cc_nu_e",
         2: "cc_nu_mu",
         3: "nc",
-        4: "neutron_capture",
-        5: "cosmics",
-        6: "ar39",
-        7: "ar42",
-        8: "k42",
-        9: "kr895",
-        10: "rn222",
-        26: "bi_po",
+        4: "cosmics",
+        5: "ar39",
+        6: "ar42",
+        7: "k42",
+        8: "kr85",
+        9: "rn222",
+        10: "po218a",
+        11: "po218b",
+        12: "at218a",
+        13: "at218b",
+        14: "rn218",
+        15: "pb214",
+        16: "bi214a",
+        17: "bi214b",
+        18: "po214",
+        19: "tl210",
+        20: "pb210a",
+        21: "pb210b",
+        22: "bi210a",
+        23: "bi210b",
+        24: "po210",
     },
     "hit": {
         0: "induction",
