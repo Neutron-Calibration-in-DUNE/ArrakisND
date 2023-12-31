@@ -70,7 +70,7 @@ class SimulationWrangler:
     def parse_point_cloud(self):
         self.det_point_cloud = DetectorPointCloud()
         self.det_point_clouds = {}
-        
+
         self.light_point_cloud = LightPointCloud()
         self.light_point_clouds = {}
 
