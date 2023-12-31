@@ -301,7 +301,8 @@ class Arrakis(H5FlowStage):
             segments = flow_file["mc_truth/segments/data"][
                 "event_id",
                 "segment_id",
-                "traj_id"
+                "traj_id",
+                "n_photons"
             ]
             stacks = flow_file["mc_truth/stack/data"][
                 "event_id",
@@ -310,6 +311,7 @@ class Arrakis(H5FlowStage):
             ]
             hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
             hits = flow_file["charge/calib_final_hits/data"]
+            light = flow_file["light/sipm_hits/data"]
 
             event_ids = np.unique(flow_file["mc_truth/segments/data"]["event_id"])
             event_loop = tqdm(
@@ -352,10 +354,19 @@ class Arrakis(H5FlowStage):
                     f"File [{ii+1}/{len(self.simulation_files)}][{simulation_file}]"
                 )
                 # event_loop.set_postfix_str(f"num_process={:.2e}")
+
+            for jj, light_event_id in enumerate(light['id']):
+                light_event_mask = light['id'] == light_event_id
+                self.simulation_wrangler.process_light_event(
+                    light_event_id,
+                    light[light_event_mask]
+                )
+                self.simulation_labeling_logic.process_light_event()
+                self.simulation_wrangler.save_light_event()
             self.simulation_wrangler.save_events(
                 self.output_folder + "/" + simulation_file
-            )
-            self.simulation_wrangler.clear_event()
+            )                                       # modify so it will save light info too?
+            self.simulation_wrangler.clear_event()  # modify so it will clear light info too?
             flow_file.finish()
             flow_file.close_file()
         if self.simulation_labeling_logic.debug:

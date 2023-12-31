@@ -19,6 +19,7 @@ class DetectorPointCloud:
             "ts_pps": np.array([]),
             "Q": np.array([]),
             "E": np.array([]),
+            "n_photons": np.array([]),
             "segment_ids": np.array([]),
             "segment_fractions": np.array([]),
             "topology_label": np.array([]),
@@ -52,6 +53,7 @@ class DetectorPointCloud:
         ts_pps: float,
         Q: float,
         E: float,
+        n_photons: float,
         segment_ids: list = [],
         segment_fractions: list = [],
     ):
@@ -76,6 +78,7 @@ class DetectorPointCloud:
             "ts_pps": ts_pps,
             "Q": Q,
             "E": E,
+            "n_photons": n_photons,
             "topology_label": np.full(x.shape, -1),
             "particle_label": np.full(x.shape, -1),
             "physics_micro_label": np.full(x.shape, -1),
@@ -111,6 +114,7 @@ class DetectorPointCloud:
         ts_pps: float,
         Q: float,
         E: float,
+        n_photons: list = [],
         segment_ids: list = [],
         segment_fractions: list = [],
     ):
@@ -138,6 +142,7 @@ class DetectorPointCloud:
         for key, value in {
             "segment_ids": segment_ids,
             "segment_fractions": segment_fractions,
+            "n_photons": n_photons,
         }.items():
             if self.data[key].size == 0:
                 self.data[key] = np.array(value)
@@ -168,3 +173,4 @@ class DetectorPointCloud:
     def show_point(self):
         for key, value in self.data.items():
             print(f"{key}: {value.shape}")
+
