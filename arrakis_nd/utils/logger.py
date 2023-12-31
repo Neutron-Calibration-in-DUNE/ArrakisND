@@ -62,7 +62,7 @@ class Logger:
         if "LOCAL_SCRATCH" in os.environ.keys():
             self.local_log_dir = os.environ["LOCAL_SCRATCH"] + "/.logs"
         else:
-            self.local_log_dir = ".logs"
+            self.local_log_dir = "/local_scratch/.logs"
         if not os.path.isdir(self.local_log_dir):
             os.mkdir(self.local_log_dir)
 

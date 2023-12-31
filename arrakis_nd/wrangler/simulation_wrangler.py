@@ -71,6 +71,13 @@ class SimulationWrangler:
         self.det_point_cloud = DetectorPointCloud()
         self.det_point_clouds = {}
 
+        self.vertexid_vertex = {}
+        self.vertexid_target = {}
+        self.vertexid_reaction = {}
+        self.vertexid_pdgcode = {}
+        self.vertexid_label = {}
+
+        self.trackid_vertexid = {}
         self.trackid_parentid = {}
         self.trackid_pdgcode = {}
         self.trackid_process = {}
@@ -96,6 +103,13 @@ class SimulationWrangler:
     def clear_event_maps(self):
         self.det_point_cloud.clear()
 
+        self.vertexid_vertex = {}
+        self.vertexid_target = {}
+        self.vertexid_reaction = {}
+        self.vertexid_pdgcode = {}
+        self.vertexid_label = {}
+
+        self.trackid_vertexid = {}
         self.trackid_parentid = {}
         self.trackid_pdgcode = {}
         self.trackid_process = {}
@@ -124,6 +138,7 @@ class SimulationWrangler:
 
     def print_particle_data(self, particle):
         self.logger.info("## MCParticle #######################################")
+        self.logger.info(f"## EventID:            [{'.' * 25}{self.det_point_cloud.data['event']}] ##")
         self.logger.info(f"## TrackID:            [{'.' * 25}{particle}] ##")
         self.logger.info(
             f"## PDG:                [{'.' * 25}{self.trackid_pdgcode[particle]}] ##"
@@ -136,6 +151,12 @@ class SimulationWrangler:
         )
         self.logger.info(
             f"## SubProcess:         [{'.' * 25}{self.trackid_subprocess[particle]}] ##"
+        )
+        self.logger.info(
+            f"## EndProcess:         [{'.' * 25}{self.trackid_endprocess[particle]}] ##"
+        )
+        self.logger.info(
+            f"## EndSubProcess:      [{'.' * 25}{self.trackid_endsubprocess[particle]}] ##"
         )
         self.logger.info(
             f"## Parent TrackID:     [{'.' * 25}{self.trackid_parentid[particle]}] ##"
@@ -168,6 +189,23 @@ class SimulationWrangler:
             )
         self.logger.info("#####################################################")
 
+    def copy_hit_labels(
+        self,
+        hit1,
+        hit2,
+    ):
+        for label in [
+            "topology_label",
+            "physics_micro_label",
+            "physics_meso_label",
+            "physics_macro_label",
+            "unique_topology_label",
+            "unique_physics_micro_label",
+            "unique_physics_meso_label",
+            "unique_physics_macro_label"
+        ]:
+            self.det_point_cloud.data[label][hit1] = self.det_point_cloud.data[label][hit2]
+
     def set_hit_labels(
         self,
         hits: list = [],
@@ -176,14 +214,14 @@ class SimulationWrangler:
         topology: TopologyLabel = TopologyLabel.Undefined,
         physics_micro: PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
         physics_meso: PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
-        physics_macro: PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
         unique_topology: int = 0,
         unique_physics_micro: int = 0,
         unique_physics_meso: int = 0,
-        unique_physics_macro: int = 0,
     ):
         for hit in hits:
             point_cloud_index = self.get_index_trackid(hit, trackid)
+            vertexid = self.trackid_vertexid[trackid]
+            physics_macro = self.vertexid_label[vertexid]
             if point_cloud_index != -1:
                 self.det_point_cloud.data["topology_labels"][hit][
                     point_cloud_index
@@ -214,7 +252,7 @@ class SimulationWrangler:
                 ] = unique_physics_meso
                 self.det_point_cloud.data["unique_physics_macro_labels"][hit][
                     point_cloud_index
-                ] = unique_physics_macro
+                ] = vertexid
 
             self.det_point_cloud.data["topology_label"][hit] = topology.value
             self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[
@@ -223,7 +261,6 @@ class SimulationWrangler:
             self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
             self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
             self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
-            # TODO: What's going on with this?
             self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
             self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
             self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
@@ -237,7 +274,7 @@ class SimulationWrangler:
             ] = unique_physics_meso
             self.det_point_cloud.data["unique_physics_macro_label"][
                 hit
-            ] = unique_physics_macro
+            ] = vertexid
 
     def set_hit_labels_list(
         self,
@@ -247,11 +284,9 @@ class SimulationWrangler:
         topology: TopologyLabel = TopologyLabel.Undefined,
         physics_micro: PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
         physics_meso: PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
-        physics_macro: PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
         unique_topology: int = 0,
         unique_physics_micro: int = 0,
         unique_physics_meso: int = 0,
-        unique_physics_macro: int = 0,
     ):
         for ii in range(len(hits)):
             self.set_hit_labels(
@@ -261,11 +296,9 @@ class SimulationWrangler:
                 topology,
                 physics_micro,
                 physics_meso,
-                physics_macro,
                 unique_topology,
                 unique_physics_micro,
                 unique_physics_meso,
-                unique_physics_macro,
             )
 
     def set_labels_array(
@@ -276,11 +309,9 @@ class SimulationWrangler:
         topology: TopologyLabel = TopologyLabel.Undefined,
         physics_micro: PhysicsMicroLabel = PhysicsMicroLabel.Undefined,
         physics_meso: PhysicsMesoLabel = PhysicsMesoLabel.Undefined,
-        physics_macro: PhysicsMacroLabel = PhysicsMacroLabel.Undefined,
         unique_topology: int = 0,
         unique_physics_micro: int = 0,
         unique_physics_meso: int = 0,
-        unique_physics_macro: int = 0,
     ):
         for ii in range(len(hits)):
             self.set_hit_labels_list(
@@ -290,16 +321,15 @@ class SimulationWrangler:
                 topology,
                 physics_micro,
                 physics_meso,
-                physics_macro,
                 unique_topology,
                 unique_physics_micro,
                 unique_physics_meso,
-                unique_physics_macro,
             )
 
     def process_event(
         self,
         event_id,
+        event_interactions,
         event_trajectories,
         event_segments,
         event_stacks,
@@ -318,6 +348,7 @@ class SimulationWrangler:
         if self.debug:
             self._process_event_with_timing(
                 event_id,
+                event_interactions,
                 event_trajectories,
                 event_segments,
                 event_stacks,
@@ -327,6 +358,7 @@ class SimulationWrangler:
         else:
             self._process_event_without_timing(
                 event_id,
+                event_interactions,
                 event_trajectories,
                 event_segments,
                 event_stacks,
@@ -349,12 +381,13 @@ class SimulationWrangler:
                 light_event["max"][ii],
                 light_event["fwhm_spline"][ii],
                 light_event["sum"][ii],
-                [], # TODO: segment_ids from truth
+                [],                     # TODO: segment_ids from truth
             )
 
     def _process_event_without_timing(
         self,
         event_id,
+        event_interactions,
         event_trajectories,
         event_segments,
         event_stacks,
@@ -363,6 +396,7 @@ class SimulationWrangler:
     ):
         self.clear_event()
         self.det_point_cloud.data["event"] = event_id
+        self.process_event_interactions(event_interactions)
         self.process_event_trajectories(event_trajectories)
         self.process_event_stacks(event_stacks)
         self.process_event_segments(event_segments)
@@ -371,6 +405,7 @@ class SimulationWrangler:
     def _process_event_with_timing(
         self,
         event_id,
+        event_interactions,
         event_trajectories,
         event_segments,
         event_stacks,
@@ -382,6 +417,12 @@ class SimulationWrangler:
 
         self.meta["timers"].start("wrangler_process_all")
         self.meta["memory_trackers"].start("wrangler_process_all")
+
+        self.meta["timers"].start("wrangler_process_event_interactions")
+        self.meta["memory_trackers"].start("wrangler_process_event_interactions")
+        self.process_event_interactions(event_interactions)
+        self.meta["timers"].end("wrangler_process_event_interactions")
+        self.meta["memory_trackers"].end("wrangler_process_event_interactions")
 
         self.meta["timers"].start("wrangler_process_event_trajectories")
         self.meta["memory_trackers"].start("wrangler_process_event_trajectories")
@@ -469,6 +510,7 @@ class SimulationWrangler:
             "who_created": getpass.getuser(),
             "when_created": datetime.now().strftime("%m-%d-%Y-%H:%M:%S"),
             "where_created": socket.gethostname(),
+            "input_file":   simulation_file,
             "det_features": {"x": 0, "y": 1, "z": 2, "Q": 3},
             "mc_features": {"t_drift": 0, "ts_pps": 1, "E": 2, "n_photons": 3},
             "classes": {
@@ -497,6 +539,8 @@ class SimulationWrangler:
                 key: value
                 for key, value in classification_labels["physics_macro"].items()
             },
+            "events":   [int(key) for key in self.det_point_clouds.keys()]
+
         }
         det_features = np.array(
             [
@@ -567,6 +611,15 @@ class SimulationWrangler:
         )
         self.clear_point_clouds()
 
+    def process_event_interactions(self, event_interactions):
+        for ii, interaction in enumerate(event_interactions):
+            vertex_id = interaction['vertex_id']
+            self.vertexid_vertex[vertex_id] = interaction['vertex']
+            self.vertexid_target[vertex_id] = interaction['target']
+            self.vertexid_reaction[vertex_id] = interaction['reaction']
+            self.vertexid_pdgcode[vertex_id] = interaction['nu_pdg']
+            self.vertexid_label[vertex_id] = PhysicsMacroLabel.Undefined
+
     def process_event_trajectories(self, event_trajectories):
         if self.wrangler_mode == "map":
             self.process_event_trajectories_map(event_trajectories)
@@ -576,6 +629,7 @@ class SimulationWrangler:
     def process_event_trajectories_map(self, event_trajectories):
         for ii, particle in enumerate(event_trajectories):
             track_id = particle["traj_id"]
+            self.trackid_vertexid[track_id] = particle["vertex_id"]
             self.trackid_parentid[track_id] = particle["parent_id"]
             self.trackid_pdgcode[track_id] = particle["pdg_id"]
             self.trackid_process[track_id] = particle["start_process"]
@@ -631,7 +685,10 @@ class SimulationWrangler:
             self.process_event_stacks_numpy(event_stacks)
 
     def process_event_stacks_map(self, event_stacks):
-        pass
+        for ii, stack in enumerate(event_stacks):
+            vertex_id = stack['vertex_id']
+            if vertex_id not in self.vertexid_pdgcode.keys():
+                self.vertexid_pdgcode[vertex_id] = stack['part_pdg']
 
     def process_event_stacks_numpy(self, event_stacks):
         pass
@@ -670,7 +727,10 @@ class SimulationWrangler:
         segment_id_to_n_photons = {seg['segment_id']: seg['n_photons'] for seg in event_segments}
 
         # Create a list of number of photons for each hit
-        n_photons_per_hit = [[segment_id_to_n_photons[seg_id] for seg_id in seg_ids if seg_id in segment_id_to_n_photons] for seg_ids in event_hits_back_track["segment_id"]]
+        n_photons_per_hit = [
+            [segment_id_to_n_photons[seg_id] for seg_id in seg_ids if seg_id in segment_id_to_n_photons]
+            for seg_ids in event_hits_back_track["segment_id"]
+        ]
         total_photons_per_hit = [np.sum(hit) for hit in n_photons_per_hit]
         self.det_point_cloud.add_event(
             event_hits["x"],
@@ -699,7 +759,10 @@ class SimulationWrangler:
         segment_id_to_n_photons = {seg['segment_id']: seg['n_photons'] for seg in event_segments}
 
         # Create a list of number of photons for each hit
-        n_photons_per_hit = [[segment_id_to_n_photons[seg_id] for seg_id in seg_ids if seg_id in segment_id_to_n_photons] for seg_ids in event_hits_back_track["segment_id"]]
+        n_photons_per_hit = [
+            [segment_id_to_n_photons[seg_id] for seg_id in seg_ids if seg_id in segment_id_to_n_photons]
+            for seg_ids in event_hits_back_track["segment_id"]
+        ]
         total_photons_per_hit = [np.sum(hit) for hit in n_photons_per_hit]
         self.det_point_cloud.add_event(
             event_hits["x"],
@@ -784,6 +847,10 @@ class SimulationWrangler:
     def get_daughters_trackid(self, trackids):
         daughters = [self.trackid_daughters[track_id] for track_id in trackids]
         return daughters
+
+    def get_descendants_trackid(self, trackids):
+        descendants = [self.trackid_descendants[track_id] for track_id in trackids]
+        return descendants
 
     def get_tstart_trackid(self, trackids):
         tstart = [self.trackid_tstart[track_id] for track_id in trackids]
@@ -895,3 +962,30 @@ class SimulationWrangler:
     def get_index_trackid(self, hit, segment_id):
         index = np.where(self.det_point_cloud.data["segment_ids"][hit] == segment_id)
         return index
+
+    def get_hit_distance(self, hit1, hit2):
+        x1 = self.det_point_cloud.data['x'][hit1]
+        x2 = self.det_point_cloud.data['x'][hit2]
+
+        y1 = self.det_point_cloud.data['y'][hit1]
+        y2 = self.det_point_cloud.data['y'][hit2]
+
+        z1 = self.det_point_cloud.data['z'][hit1]
+        z2 = self.det_point_cloud.data['z'][hit2]
+
+        dist = np.sqrt(
+            (x1 - x2) * (x1 - x2) +
+            (y1 - y2) * (y1 - y2) +
+            (z1 - z2) * (z1 - z2)
+        )
+        return dist
+
+    def get_closest_hit(self, hit, hits):
+        closest_hit = -1
+        closest_hit_distance = 10e10
+        for h in hits:
+            hit_distance = self.get_hit_distance(hit, h)
+            if hit_distance < closest_hit_distance:
+                closest_hit = h
+                closest_hit_distance = hit_distance
+        return closest_hit

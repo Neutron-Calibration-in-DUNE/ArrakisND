@@ -4,10 +4,12 @@
 
 process_functions = [
     "wrangler_process_all",
+    "wrangler_process_event_interactions",
     "wrangler_process_event_trajectories",
     "wrangler_process_event_stacks",
     "wrangler_process_event_segments",
     "wrangler_process_event_hits",
+    "logic_process_mc_truth",
     "logic_process_electrons",
     "logic_process_positrons",
     "logic_process_gammas",
@@ -25,6 +27,7 @@ process_functions = [
     "logic_process_kr85",
     "logic_process_rn222",
     "logic_process_cosmics",
+    "logic_clean_up_labels",
     "logic_process_all",
     "logic_check_labels",
 ]

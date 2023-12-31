@@ -25,24 +25,40 @@ def run():
         help="config file specification for a BLIP module.",
     )
     parser.add_argument(
-        "-n",
+        "-name",
         dest="name",
         default="arrakis",
         help='name for this run (default "arrakis").',
     )
+    parser.add_argument(
+        "-n",
+        dest="number_of_files",
+        default=None,
+        help='number of files to process (default None).',
+    )
     args = parser.parse_args()
     # Setup config file.
     name = args.name
+    number_of_files = args.number_of_files
+
     logger = Logger(name, output="both", file_mode="w")
     logger.info("configuring arrakis...")
+
     config = ConfigParser(args.config_file).data
     if "arrakis_nd" not in config.keys():
         logger.error("arrakis_nd section not in config!")
     arrakis_nd_config = config["arrakis_nd"]
 
+    if number_of_files is not None:
+        number_of_files = int(number_of_files)
+        if isinstance(number_of_files, int):
+            if number_of_files > 0:
+                arrakis_nd_config["number_of_files"] = number_of_files
+
     system_info = logger.get_system_info()
     for key, value in system_info.items():
         logger.info(f"system_info - {key}: {value}")
+
     meta = {"config_file": args.config_file}
     if "verbose" in arrakis_nd_config:
         if not isinstance(arrakis_nd_config["verbose"], bool):
