@@ -224,10 +224,10 @@ class SimulationWrangler:
         unique_physics_meso: int = 0,
     ):
         for hit in hits:
-            point_cloud_index = self.get_index_trackid(hit, trackid)
+            point_cloud_index = list(self.get_index_trackid(hit, trackid))
             vertexid = self.trackid_vertexid[trackid]
             physics_macro = self.vertexid_label[vertexid]
-            if point_cloud_index != -1:
+            if len(point_cloud_index) != 0:
                 self.det_point_cloud.data["topology_labels"][hit][
                     point_cloud_index
                 ] = topology.value
@@ -259,27 +259,24 @@ class SimulationWrangler:
                     point_cloud_index
                 ] = vertexid
 
-            self.det_point_cloud.data["topology_label"][hit] = topology.value
-            self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[
-                trackid
-            ]
-            self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
-            self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
-            self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
-            self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
-            self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
-            self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
-            self.det_point_cloud.data["unique_topology_label"][hit] = unique_topology
-            self.det_point_cloud.data["unique_particle_label"][hit] = trackid
-            self.det_point_cloud.data["unique_physics_micro_label"][
-                hit
-            ] = unique_physics_micro
-            self.det_point_cloud.data["unique_physics_meso_label"][
-                hit
-            ] = unique_physics_meso
-            self.det_point_cloud.data["unique_physics_macro_label"][
-                hit
-            ] = vertexid
+                self.det_point_cloud.data["topology_label"][hit] = topology.value
+                self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[
+                    trackid
+                ]
+                self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
+                self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
+                self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value
+                self.det_point_cloud.data["unique_topology_label"][hit] = unique_topology
+                self.det_point_cloud.data["unique_particle_label"][hit] = trackid
+                self.det_point_cloud.data["unique_physics_micro_label"][
+                    hit
+                ] = unique_physics_micro
+                self.det_point_cloud.data["unique_physics_meso_label"][
+                    hit
+                ] = unique_physics_meso
+                self.det_point_cloud.data["unique_physics_macro_label"][
+                    hit
+                ] = vertexid
 
     def set_hit_labels_list(
         self,
@@ -718,9 +715,20 @@ class SimulationWrangler:
         elif self.wrangler_mode == "numpy":
             self.process_event_hits_numpy(event_hits, event_hits_back_track, event_segments)
 
-    def process_event_hits_map(self, event_hits, event_hits_back_track, event_segments):
+    def process_event_hits_map(
+        self,
+        event_hits,
+        event_hits_back_track,
+        event_segments
+    ):
         segment_ids = np.array(event_hits_back_track["segment_id"])
         segment_fractions = np.array(event_hits_back_track["fraction"])
+        segment_track_ids = []
+        for segment_id in segment_ids:
+            segment_id = segment_id[segment_id != 0]
+            segment_id_indices = np.where(np.isin(event_segments["segment_id"], segment_id))
+            segment_track_ids.append(event_segments["traj_id"][segment_id_indices])
+        segment_track_ids = np.array(segment_track_ids, dtype=object)
         # Create a dictionary mapping from segment IDs to number of photons
         segment_id_to_n_photons = {seg['segment_id']: seg['n_photons'] for seg in event_segments}
 
@@ -741,6 +749,7 @@ class SimulationWrangler:
             total_photons_per_hit,
             segment_ids,
             segment_fractions,
+            segment_track_ids,
         )
         for ii, hit in enumerate(event_hits):
             segment_ids = event_hits_back_track["segment_id"][ii]
@@ -976,9 +985,9 @@ class SimulationWrangler:
         ]
         return trackid
 
-    def get_index_trackid(self, hit, segment_id):
-        index = np.where(self.det_point_cloud.data["segment_ids"][hit] == segment_id)
-        return index
+    def get_index_trackid(self, hit, track_id):
+        index = np.where(self.det_point_cloud.data["segment_track_ids"][hit] == track_id)
+        return index[0]
 
     def get_hit_distance(self, hit1, hit2):
         x1 = self.det_point_cloud.data['x'][hit1]

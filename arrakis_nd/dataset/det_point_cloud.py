@@ -1,7 +1,7 @@
 """
 """
 import numpy as np
-
+import copy
 
 class DetectorPointCloud:
     def __init__(
@@ -56,6 +56,7 @@ class DetectorPointCloud:
         n_photons: float,
         segment_ids: list = [],
         segment_fractions: list = [],
+        segment_track_ids:  list = [],
     ):
         # Create a dictionary with the event data
         # segment_ids = np.array(segment_ids)
@@ -91,16 +92,17 @@ class DetectorPointCloud:
             "unique_physics_macro_label": np.full(x.shape, -1),
             "segment_ids": segment_ids,
             "segment_fractions": segment_fractions,
-            "topology_labels": empty_labels,
-            "particle_labels": empty_labels,
-            "physics_micro_labels": empty_labels,
-            "physics_meso_labels": empty_labels,
-            "physics_macro_labels": empty_labels,
-            "unique_topology_labels": empty_labels,
-            "unique_particle_labels": empty_labels,
-            "unique_physics_micro_labels": empty_labels,
-            "unique_physics_meso_labels": empty_labels,
-            "unique_physics_macro_labels": empty_labels,
+            "segment_track_ids": segment_track_ids,
+            "topology_labels": copy.deepcopy(empty_labels),
+            "particle_labels": copy.deepcopy(empty_labels),
+            "physics_micro_labels": copy.deepcopy(empty_labels),
+            "physics_meso_labels": copy.deepcopy(empty_labels),
+            "physics_macro_labels": copy.deepcopy(empty_labels),
+            "unique_topology_labels": copy.deepcopy(empty_labels),
+            "unique_particle_labels": copy.deepcopy(empty_labels),
+            "unique_physics_micro_labels": copy.deepcopy(empty_labels),
+            "unique_physics_meso_labels": copy.deepcopy(empty_labels),
+            "unique_physics_macro_labels": copy.deepcopy(empty_labels),
         }
         for key, item in event_data.items():
             self.data[key] = item
@@ -173,4 +175,3 @@ class DetectorPointCloud:
     def show_point(self):
         for key, value in self.data.items():
             print(f"{key}: {value.shape}")
-

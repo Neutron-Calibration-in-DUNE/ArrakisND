@@ -6,6 +6,7 @@ Developers: Nicholas Carrara        [nmcarrara@ucdavis.edu]
 
 ChangeLog:  12/17/2023 - started putting together shower logic.
 """
+import numpy as np
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.dataset.common import (
     TopologyLabel,
@@ -258,10 +259,11 @@ class SimulationLabelingLogic:
                 self.simulation_wrangler.print_particle_data(particle)
 
     def clean_up_labels(self):
+        
         for particle in self.simulation_wrangler.trackid_hit.keys():
             hits = self.simulation_wrangler.trackid_hit[particle]
             for hit in hits:
-                if self.simulation_wrangler.det_point_cloud.data["topology_label"][hit] == -1:
+                if self.simulation_wrangler.det_point_cloud.data["topology_label"][hit] == TopologyLabel.Undefined.value:
                     if self.simulation_wrangler.trackid_subprocess[particle] == 2:
                         self.infer_ionization(particle, hit)
                 else:
@@ -273,6 +275,10 @@ class SimulationLabelingLogic:
         particle,
         hit
     ):
+        """
+        This function cleans up points which are generated from electron ionization
+        but which are not caught by any of the logic.
+        """
         parent = self.simulation_wrangler.trackid_parentid[particle]
         if parent != -1:
             parent_hits = self.simulation_wrangler.get_hits_trackid(parent)
@@ -301,11 +307,49 @@ class SimulationLabelingLogic:
         particle,
         hit
     ):
-        topology_labels = self.simulation_wrangler.det_point_cloud.data['topology_labels'][hit]
-        if 2 in topology_labels:
-            self.simulation_wrangler.det_point_cloud.data['topology_label'][hit] = 2
+        """
+        This function takes care of hits that have multiple contributions from
+        different particles.  The heirarchy is that tracks take precendence
+        over all other type (blips/showers).  So first check if there are any track
+        labels.  Then, adjust the other labels accordingly
+        """
+        """
+        Multiple possible situations here, either:
+            1. a single track is crossing another object (switch all labels to the track)
+            2. two or more tracks are crossing each other (pick the largest contributor)
+            3. a delta is coming off a track (assign labels to the track not the delta)
+        """
+        segment_fractions = self.simulation_wrangler.det_point_cloud.data['segment_fractions'][hit]
+        largest_fraction = np.argmax(segment_fractions)
+        
+        # set labels to largest object labels
+        topology_label = self.simulation_wrangler.det_point_cloud.data['topology_labels'][hit][largest_fraction]
+        particle_label = self.simulation_wrangler.det_point_cloud.data['particle_labels'][hit][largest_fraction]
+        physics_micro_label = self.simulation_wrangler.det_point_cloud.data['physics_micro_labels'][hit][largest_fraction]
+        physics_meso_label = self.simulation_wrangler.det_point_cloud.data['physics_meso_labels'][hit][largest_fraction]
+        physics_macro_label = self.simulation_wrangler.det_point_cloud.data['physics_macro_labels'][hit][largest_fraction]
+        unique_topology_label = self.simulation_wrangler.det_point_cloud.data['unique_topology_labels'][hit][largest_fraction]
+        unique_particle_label = self.simulation_wrangler.det_point_cloud.data['unique_particle_labels'][hit][largest_fraction]
+        unique_physics_micro_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_micro_labels'][hit][largest_fraction]
+        unique_physics_meso_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_meso_labels'][hit][largest_fraction]
+        unique_physics_macro_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_macro_labels'][hit][largest_fraction]
+
+        self.simulation_wrangler.det_point_cloud.data['topology_label'][hit] = topology_label
+        self.simulation_wrangler.det_point_cloud.data['particle_label'][hit] = particle_label
+        self.simulation_wrangler.det_point_cloud.data['physics_micro_label'][hit] = physics_micro_label
+        self.simulation_wrangler.det_point_cloud.data['physics_meso_label'][hit] = physics_meso_label
+        self.simulation_wrangler.det_point_cloud.data['physics_macro_label'][hit] = physics_macro_label
+        self.simulation_wrangler.det_point_cloud.data['unique_topology_label'][hit] = unique_topology_label
+        self.simulation_wrangler.det_point_cloud.data['unique_particle_label'][hit] = unique_particle_label
+        self.simulation_wrangler.det_point_cloud.data['unique_physics_micro_label'][hit] = unique_physics_micro_label
+        self.simulation_wrangler.det_point_cloud.data['unique_physics_meso_label'][hit] = unique_physics_meso_label
+        self.simulation_wrangler.det_point_cloud.data['unique_physics_macro_label'][hit] = unique_physics_macro_label
 
     def process_mc_truth(self):
+        """
+        This processes the macro labels for each hit.  We check vertex ids to see
+        what kind of interaction is associated with each hit.
+        """
         for vertex_id, reaction in self.simulation_wrangler.vertexid_reaction.items():
             if abs(reaction) in [1, 2, 3, 4, 5]:
                 if abs(self.simulation_wrangler.vertexid_pdgcode[vertex_id] == 12):
@@ -892,8 +936,8 @@ class SimulationLabelingLogic:
 
             track_label = next(self.unique_topology)
             self.simulation_wrangler.set_hit_labels(
-                kaon_hits,
-                kaon_segments,
+                kaon_hits[0],
+                kaon_segments[0],
                 kaon,
                 TopologyLabel.Track,
                 PhysicsMicroLabel.HIPIonization,
@@ -912,8 +956,8 @@ class SimulationLabelingLogic:
             proton_segments = self.simulation_wrangler.get_segments_trackid(proton)
             cluster_label = next(self.unique_topology)
             self.simulation_wrangler.set_hit_labels(
-                proton_hits,
-                proton_segments,
+                proton_hits[0],
+                proton_segments[0],
                 proton,
                 TopologyLabel.Track,
                 PhysicsMicroLabel.HIPIonization,
@@ -1093,8 +1137,8 @@ class SimulationLabelingLogic:
             sulfur_hits = self.simulation_wrangler.get_hits_trackid(s)
             sulfur_segments = self.simulation_wrangler.get_segments_trackid(s)
             self.simulation_wrangler.set_hit_labels(
-                sulfur_hits,
-                sulfur_segments,
+                sulfur_hits[0],
+                sulfur_segments[0],
                 s,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
@@ -1108,8 +1152,8 @@ class SimulationLabelingLogic:
             chlorine_hits = self.simulation_wrangler.get_hits_trackid(cl)
             chlorine_segments = self.simulation_wrangler.get_segments_trackid(cl)
             self.simulation_wrangler.set_hit_labels(
-                chlorine_hits,
-                chlorine_segments,
+                chlorine_hits[0],
+                chlorine_segments[0],
                 cl,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
@@ -1123,8 +1167,8 @@ class SimulationLabelingLogic:
             argon_hits = self.simulation_wrangler.get_hits_trackid(ar)
             argon_segments = self.simulation_wrangler.get_segments_trackid(ar)
             self.simulation_wrangler.set_hit_labels(
-                argon_hits,
-                argon_segments,
+                argon_hits[0],
+                argon_segments[0],
                 ar,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
@@ -1143,8 +1187,8 @@ class SimulationLabelingLogic:
             deuteron_segments = self.simulation_wrangler.get_segments_trackid(deuteron)
 
             self.simulation_wrangler.set_hit_labels(
-                deuteron_hits,
-                deuteron_segments,
+                deuteron_hits[0],
+                deuteron_segments[0],
                 deuteron,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
@@ -1159,8 +1203,8 @@ class SimulationLabelingLogic:
             triton_segments = self.simulation_wrangler.get_segments_trackid(triton)
 
             self.simulation_wrangler.set_hit_labels(
-                triton_hits,
-                triton_segments,
+                triton_hits[0],
+                triton_segments[0],
                 triton,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,

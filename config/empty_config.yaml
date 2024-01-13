@@ -8,7 +8,7 @@ arrakis_nd:
     "MiniRun4_1E19_RHC.flow.00002.FLOW.h5"
   ]
   skip_files:   []
-  skip_events:  [0, 2000]
+  skip_events:  [0, 1000, 2000]
   output_folder:  "/local_data/"
   verbose:  true
   gpu:      true
