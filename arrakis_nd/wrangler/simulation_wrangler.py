@@ -11,6 +11,7 @@ from arrakis_nd.utils.logger import Logger
 from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud
 from arrakis_nd.dataset.light_point_cloud import LightPointCloud
 from arrakis_nd.dataset.common import (
+    ParticleLabel,
     TopologyLabel,
     PhysicsMicroLabel,
     PhysicsMesoLabel,
@@ -234,6 +235,15 @@ class SimulationWrangler:
                 self.det_point_cloud.data["particle_labels"][hit][
                     point_cloud_index
                 ] = self.trackid_pdgcode[trackid]
+                if self.trackid_pdgcode[trackid] not in classification_labels['particle'].keys():
+                    if self.trackid_pdgcode[trackid] > 2212:
+                        self.det_point_cloud.data["particle_labels"][hit][
+                            point_cloud_index
+                        ] = ParticleLabel.Ion.value
+                    else:
+                        self.det_point_cloud.data["particle_labels"][hit][
+                            point_cloud_index
+                        ] = ParticleLabel.Undefined.value
                 self.det_point_cloud.data["physics_micro_labels"][hit][
                     point_cloud_index
                 ] = physics_micro.value
@@ -260,9 +270,15 @@ class SimulationWrangler:
                 ] = vertexid
 
                 self.det_point_cloud.data["topology_label"][hit] = topology.value
+                
                 self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[
                     trackid
                 ]
+                if self.trackid_pdgcode[trackid] not in classification_labels['particle'].keys():
+                    if self.trackid_pdgcode[trackid] > 2212:
+                        self.det_point_cloud.data["particle_label"][hit] = ParticleLabel.Ion.value
+                    else:
+                        self.det_point_cloud.data['particle_label'][hit] = ParticleLabel.Undefined.value
                 self.det_point_cloud.data["physics_micro_label"][hit] = physics_micro.value
                 self.det_point_cloud.data["physics_meso_label"][hit] = physics_meso.value
                 self.det_point_cloud.data["physics_macro_label"][hit] = physics_macro.value

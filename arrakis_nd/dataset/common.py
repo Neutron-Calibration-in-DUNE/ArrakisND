@@ -32,6 +32,24 @@ class ParticleLabel(Enum):
     Deuteron = 1000010020
     Triton = 1000010030
     Alpha = 1000020040
+    Sulfur32 = 1000160320
+    Sulfur33 = 1000160330
+    Sulfur34 = 1000160340
+    Sulfur35 = 1000160350
+    Sulfur36 = 1000160360
+    Chlorine35 = 1000170350
+    Chlorine36 = 1000170360
+    Chlorine37 = 1000170370
+    Chlorine38 = 1000170380
+    Chlorine39 = 1000170390
+    Chlorine40 = 1000170400
+    Argon36 = 1000180360
+    Argon37 = 1000180370
+    Argon38 = 1000180380
+    Argon39 = 1000180390
+    Argon40 = 1000180400
+    Argon41 = 1000180410
+    Ion = 1000000000
 
 
 class TopologyLabel(Enum):
@@ -167,21 +185,23 @@ classification_labels = {
         1000010020: "deuteron",
         1000010030: "triton",
         1000020040: "alpha",
-        10000160330: "sulfur_33",
-        10000160340: "sulfur_34",
-        10000160350: "sulfur_35",
-        10000160360: "sulfur_36",
-        10000170360: "chlorine_36",
-        10000170370: "chlorine_37",
-        10000170380: "chlorine_38",
-        10000170390: "chlorine_39",
-        10000170400: "chlorine_40",
-        10000180360: "argon_36",
-        10000180370: "argon_37",
-        10000180380: "argon_38",
-        10000180390: "argon_39",
-        10000180400: "argon_40",
-        10000180410: "argon_41",
+        1000160330: "sulfur_33",
+        1000160340: "sulfur_34",
+        1000160350: "sulfur_35",
+        1000160360: "sulfur_36",
+        1000170350: "chlorine_35",
+        1000170360: "chlorine_36",
+        1000170370: "chlorine_37",
+        1000170380: "chlorine_38",
+        1000170390: "chlorine_39",
+        1000170400: "chlorine_40",
+        1000180360: "argon_36",
+        1000180370: "argon_37",
+        1000180380: "argon_38",
+        1000180390: "argon_39",
+        1000180400: "argon_40",
+        1000180410: "argon_41",
+        1000000000: "ion",
     },
     "topology": {
         -1: "undefined",

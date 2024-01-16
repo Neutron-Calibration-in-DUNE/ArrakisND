@@ -9,6 +9,7 @@ ChangeLog:  12/17/2023 - started putting together shower logic.
 import numpy as np
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.dataset.common import (
+    ParticleLabel,
     TopologyLabel,
     PhysicsMicroLabel,
     PhysicsMesoLabel,
@@ -256,10 +257,40 @@ class SimulationLabelingLogic:
                 for hit in hits
             ]
             if -1 in topology_labels:
+                self.logger.info('###################################################')
+                self.logger.info(f'## Missing hit labels for hits: {hits}')
+                self.logger.info(f'## Topology labels:             {topology_labels}')
                 self.simulation_wrangler.print_particle_data(particle)
 
     def clean_up_labels(self):
-        
+        # take care of ions which are not specifically itemized in the particle list
+        for particle in self.simulation_wrangler.trackid_hit.keys():
+            if self.simulation_wrangler.trackid_pdgcode[particle] > 2212:
+                hits = self.simulation_wrangler.trackid_hit[particle]
+                topology_labels = np.array([
+                    self.simulation_wrangler.det_point_cloud.data["topology_labels"][hit]
+                    for hit in hits
+                ], dtype=object)
+                if len(topology_labels) > 0:
+                    topology_labels = np.concatenate(topology_labels)
+                if -1 in topology_labels.flatten():
+                    ion_hits = self.simulation_wrangler.get_hits_trackid(particle)
+                    ion_segments = self.simulation_wrangler.get_segments_trackid(particle)
+                    self.simulation_wrangler.set_hit_labels(
+                        ion_hits[0],
+                        ion_segments[0],
+                        particle,
+                        TopologyLabel.Blip,
+                        PhysicsMicroLabel.HIPIonization,
+                        PhysicsMesoLabel.NuclearRecoil,
+                        next(self.unique_topology),
+                        next(self.unique_physics_micro),
+                        next(self.unique_physics_meso),
+                    )
+                for hit in hits:
+                    self.simulation_wrangler.det_point_cloud.data['particle_label'][hit] = ParticleLabel.Ion.value
+        # infer ionization from surrounding hits, and reconcile hits which have multiple
+        # contributing particles.
         for particle in self.simulation_wrangler.trackid_hit.keys():
             hits = self.simulation_wrangler.trackid_hit[particle]
             for hit in hits:
@@ -321,7 +352,7 @@ class SimulationLabelingLogic:
         """
         segment_fractions = self.simulation_wrangler.det_point_cloud.data['segment_fractions'][hit]
         largest_fraction = np.argmax(segment_fractions)
-        
+
         # set labels to largest object labels
         topology_label = self.simulation_wrangler.det_point_cloud.data['topology_labels'][hit][largest_fraction]
         particle_label = self.simulation_wrangler.det_point_cloud.data['particle_labels'][hit][largest_fraction]
@@ -1011,6 +1042,7 @@ class SimulationLabelingLogic:
         neutrons = self.simulation_wrangler.get_trackid_pdg_code(2112)
         elastic_neutrons = self.simulation_wrangler.filter_trackid_subprocess(neutrons, 111)
         inelastic_neutrons = self.simulation_wrangler.filter_trackid_subprocess(neutrons, 121)
+        inelastic_neutrons += self.simulation_wrangler.filter_trackid_endsubprocess(neutrons, 121)
         hadron_at_rest_neutrons = self.simulation_wrangler.filter_trackid_subprocess(neutrons, 151)
 
         elastic_neutrons_hits = self.simulation_wrangler.get_hits_trackid(elastic_neutrons)
@@ -1054,6 +1086,22 @@ class SimulationLabelingLogic:
             next(self.unique_physics_micro),
             next(self.unique_physics_meso),
         )
+        
+        other_neutrons = remove_sublist(neutrons, elastic_neutrons + inelastic_neutrons + hadron_at_rest_neutrons)
+        other_neutrons_hits = self.simulation_wrangler.get_hits_trackid(other_neutrons)
+        other_neutrons_segments = self.simulation_wrangler.get_segments_trackid(other_neutrons)
+        self.simulation_wrangler.set_hit_labels_list(
+            other_neutrons_hits,
+            other_neutrons_segments,
+            other_neutrons,
+            TopologyLabel.Blip,
+            PhysicsMicroLabel.HadronElastic,
+            PhysicsMesoLabel.NuclearRecoil,
+            next(self.unique_topology),
+            next(self.unique_physics_micro),
+            next(self.unique_physics_meso),
+        )
+        
         for neutron in neutrons:
             # process neutron hits
 
@@ -1115,12 +1163,14 @@ class SimulationLabelingLogic:
             self.process_showers_list(other_gammas, next(self.unique_topology))
 
     def process_nuclear_recoils(self):
-        sulfur = self.simulation_wrangler.get_trackid_pdg_code(1000160330)
+        sulfur = self.simulation_wrangler.get_trackid_pdg_code(1000160320)
+        sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160330)
         sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160340)
         sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160350)
         sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160360)
 
-        chlorine = self.simulation_wrangler.get_trackid_pdg_code(1000170360)
+        chlorine = self.simulation_wrangler.get_trackid_pdg_code(1000170350)
+        chlorine += self.simulation_wrangler.get_trackid_pdg_code(1000170360)
         chlorine += self.simulation_wrangler.get_trackid_pdg_code(1000170370)
         chlorine += self.simulation_wrangler.get_trackid_pdg_code(1000170380)
         chlorine += self.simulation_wrangler.get_trackid_pdg_code(1000170390)
@@ -1181,6 +1231,7 @@ class SimulationLabelingLogic:
     def process_electron_recoils(self):
         deuterons = self.simulation_wrangler.get_trackid_pdg_code(1000010020)
         tritons = self.simulation_wrangler.get_trackid_pdg_code(1000010030)
+        alphas = self.simulation_wrangler.get_trackid_pdg_code(1000020040)
 
         for deuteron in deuterons:
             deuteron_hits = self.simulation_wrangler.get_hits_trackid(deuteron)
@@ -1206,6 +1257,22 @@ class SimulationLabelingLogic:
                 triton_hits[0],
                 triton_segments[0],
                 triton,
+                TopologyLabel.Blip,
+                PhysicsMicroLabel.HadronElastic,
+                PhysicsMesoLabel.ElectronRecoil,
+                next(self.unique_topology),
+                next(self.unique_physics_micro),
+                next(self.unique_physics_meso),
+            )
+
+        for alpha in alphas:
+            alpha_hits = self.simulation_wrangler.get_hits_trackid(alpha)
+            alpha_segments = self.simulation_wrangler.get_segments_trackid(alpha)
+
+            self.simulation_wrangler.set_hit_labels(
+                alpha_hits[0],
+                alpha_segments[0],
+                alpha,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
                 PhysicsMesoLabel.ElectronRecoil,
