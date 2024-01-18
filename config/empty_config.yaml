@@ -2,13 +2,10 @@
 arrakis_nd:
   process_type:      "npz"  # npz or flow
   simulation_folder: "/local_data/"
-  simulation_files: [
-    "MiniRun4_1E19_RHC.flow.00000.FLOW.h5",
-    "MiniRun4_1E19_RHC.flow.00001.FLOW.h5",
-    "MiniRun4_1E19_RHC.flow.00002.FLOW.h5"
-  ]
+  simulation_files:  "all"
   skip_files:   []
-  skip_events:  [0, 1000, 2000]
+  skip_event:   0
+  skip_events:  []
   output_folder:  "/local_data/"
   verbose:  true
   gpu:      true

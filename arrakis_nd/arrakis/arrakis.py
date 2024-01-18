@@ -144,11 +144,15 @@ class Arrakis(H5FlowStage):
                 self.logger.error(
                     f'specified process_type {self.config["process_type"]} not allowed!'
                 )
+        if "skip_event" not in self.config:
+            self.config["skip_event"] = -1
+            self.logger.warn('skip_event not specified in config! setting to -1')
+        self.skip_event = self.config["skip_event"]
         if "skip_events" not in self.config:
-            self.skip_events = []
-        else:
-            self.skip_events = self.config["skip_events"]
-            self.logger.info(f'skipping events {self.skip_events}')
+            self.config["skip_events"] = []
+            self.logger.warn('skip_events not specfied in config! setting to []')
+        self.skip_events = self.config["skip_events"]
+        self.logger.info(f'skipping events {self.skip_events}')
 
     def parse_dataset_folder(self):
         # default to what's in the configuration file. May decide to deprecate in the future
@@ -199,22 +203,23 @@ class Arrakis(H5FlowStage):
         elif isinstance(self.config["simulation_files"], str):
             if self.config["simulation_files"] == "all":
                 self.logger.info(
-                    f"searching {self.simulation_folder} recursively for all .npz files."
+                    f"searching {self.simulation_folder} recursively for all .h5 files."
                 )
                 self.simulation_files = [
-                    input_file for input_file in glob.glob(
-                        "**/*.npz", recursive=True
+                    os.path.basename(input_file) for input_file in glob.glob(
+                        f"{self.simulation_folder}*.h5", recursive=True
                     )
                     if input_file not in self.meta["skip_files"]
                 ]
+                print(self.simulation_files)
             else:
                 try:
                     self.logger.info(
                         f'searching {self.simulation_folder} recursively for all {self.config["simulation_files"]} files.'
                     )
                     self.simulation_files = [
-                        input_file for input_file in glob.glob(
-                            f'**/{self.config["simulation_files"]}',
+                        os.path.basename(input_file) for input_file in glob.glob(
+                            f'{self.simulation_folder}{self.config["simulation_files"]}',
                             recursive=True,
                         )
                         if input_file not in self.meta["skip_files"]
@@ -317,11 +322,13 @@ class Arrakis(H5FlowStage):
             event_loop = tqdm(
                 enumerate(event_ids, 0),
                 total=len(event_ids),
-                leave=True,
+                leave=False,
                 position=1,
                 colour="green",
             )
             for jj, event_id in event_loop:
+                if jj == self.skip_event:
+                    continue
                 if event_id in self.skip_events:
                     continue
                 event_interactions = interactions[interactions["event_id"] == event_id]

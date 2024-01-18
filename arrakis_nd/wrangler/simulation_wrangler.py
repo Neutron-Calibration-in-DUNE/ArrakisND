@@ -270,7 +270,7 @@ class SimulationWrangler:
                 ] = vertexid
 
                 self.det_point_cloud.data["topology_label"][hit] = topology.value
-                
+
                 self.det_point_cloud.data["particle_label"][hit] = self.trackid_pdgcode[
                     trackid
                 ]

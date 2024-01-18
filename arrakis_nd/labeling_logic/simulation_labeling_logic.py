@@ -9,6 +9,8 @@ ChangeLog:  12/17/2023 - started putting together shower logic.
 import numpy as np
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.dataset.common import (
+    ProcessType,
+    SubProcessType,
     ParticleLabel,
     TopologyLabel,
     PhysicsMicroLabel,
@@ -295,7 +297,7 @@ class SimulationLabelingLogic:
             hits = self.simulation_wrangler.trackid_hit[particle]
             for hit in hits:
                 if self.simulation_wrangler.det_point_cloud.data["topology_label"][hit] == TopologyLabel.Undefined.value:
-                    if self.simulation_wrangler.trackid_subprocess[particle] == 2:
+                    if self.simulation_wrangler.trackid_subprocess[particle] == SubProcessType.Ionization.value:
                         self.infer_ionization(particle, hit)
                 else:
                     if len(self.simulation_wrangler.det_point_cloud.data["topology_labels"][hit]) > 1:
@@ -434,46 +436,46 @@ class SimulationLabelingLogic:
         particle_descendants = self.simulation_wrangler.trackid_descendants[particle]
 
         ionization_descendants = self.simulation_wrangler.filter_trackid_subprocess(
-            particle_descendants, 2
+            particle_descendants, SubProcessType.Ionization.value
         )
         bremsstrahlung_descendants = self.simulation_wrangler.filter_trackid_subprocess(
-            particle_descendants, 3
+            particle_descendants, SubProcessType.Bremsstrahlung.value
         )
         pairprodcharge_descendants = self.simulation_wrangler.filter_trackid_subprocess(
-            particle_descendants, 4
+            particle_descendants, SubProcessType.PairProdByCharge.value
         )
         annihilation_descendants = self.simulation_wrangler.filter_trackid_subprocess(
-            particle_descendants, 5
+            particle_descendants, SubProcessType.Annihilation.value
         )
         photoelectric_descendants = self.simulation_wrangler.filter_trackid_subprocess(
-            particle_descendants, 12
+            particle_descendants, SubProcessType.PhotoElectricEffect.value
         )
         compton_descendants = self.simulation_wrangler.filter_trackid_subprocess(
-            particle_descendants, 13
+            particle_descendants, SubProcessType.ComptonScattering.value
         )
         conversion_descendants = self.simulation_wrangler.filter_trackid_subprocess(
-            particle_descendants, 14
+            particle_descendants, SubProcessType.GammaConversion.value
         )
         scintillation_descendants = self.simulation_wrangler.filter_trackid_subprocess(
-            particle_descendants, 22
+            particle_descendants, SubProcessType.Scintillation.value
         )
 
         # count number of each subprocess, including the particle itself
-        if particle_subprocess == 2:
+        if particle_subprocess == SubProcessType.Ionization.value:
             ionization_descendants.append(particle)
-        elif particle_subprocess == 3:
+        elif particle_subprocess == SubProcessType.Bremsstrahlung.value:
             bremsstrahlung_descendants.append(particle)
-        elif particle_subprocess == 4:
+        elif particle_subprocess == SubProcessType.PairProdByCharge.value:
             pairprodcharge_descendants.append(particle)
-        elif particle_subprocess == 5:
+        elif particle_subprocess == SubProcessType.Annihilation.value:
             annihilation_descendants.append(particle)
-        elif particle_subprocess == 12:
+        elif particle_subprocess == SubProcessType.PhotoElectricEffect.value:
             photoelectric_descendants.append(particle)
-        elif particle_subprocess == 13:
+        elif particle_subprocess == SubProcessType.ComptonScattering.value:
             compton_descendants.append(particle)
-        elif particle_subprocess == 14:
+        elif particle_subprocess == SubProcessType.GammaConversion.value:
             conversion_descendants.append(particle)
-        elif particle_subprocess == 22:
+        elif particle_subprocess == SubProcessType.Scintillation.value:
             scintillation_descendants.append(particle)
 
         num_conversion = len(conversion_descendants)
@@ -672,22 +674,28 @@ class SimulationLabelingLogic:
         )
 
         gamma_descendants = self.simulation_wrangler.filter_trackid_abs_pdg_code(particle_descendants, 22)
-        hadron_elastic = self.simulation_wrangler.filter_trackid_subprocess(gamma_descendants, 111)
-        hadron_inelastic = self.simulation_wrangler.filter_trackid_subprocess(gamma_descendants, 121)
-        hadron_at_rest = self.simulation_wrangler.filter_trackid_subprocess(gamma_descendants, 151)
+        hadron_elastic = self.simulation_wrangler.filter_trackid_subprocess(
+            gamma_descendants, SubProcessType.HadronElastic.value
+        )
+        hadron_inelastic = self.simulation_wrangler.filter_trackid_subprocess(
+            gamma_descendants, SubProcessType.HadronInelastic.value
+        )
+        hadron_at_rest = self.simulation_wrangler.filter_trackid_subprocess(
+            gamma_descendants, SubProcessType.HadronCaptureAtRest.value
+        )
         if (
             self.simulation_wrangler.trackid_pdgcode[particle] == 22 and
-            self.simulation_wrangler.trackid_subprocess[particle] == 111
+            self.simulation_wrangler.trackid_subprocess[particle] == SubProcessType.HadronElastic.value
         ):
             hadron_elastic.append(particle)
         if (
             self.simulation_wrangler.trackid_pdgcode[particle] == 22 and
-            self.simulation_wrangler.trackid_subprocess[particle] == 121
+            self.simulation_wrangler.trackid_subprocess[particle] == SubProcessType.HadronInelastic.value
         ):
             hadron_inelastic.append(particle)
         if (
             self.simulation_wrangler.trackid_pdgcode[particle] == 22 and
-            self.simulation_wrangler.trackid_subprocess[particle] == 151
+            self.simulation_wrangler.trackid_subprocess[particle] == SubProcessType.HadronCaptureAtRest.value
         ):
             hadron_at_rest.append(particle)
 
@@ -758,8 +766,8 @@ class SimulationLabelingLogic:
         """
         electrons = self.simulation_wrangler.get_primaries_pdg_code(11)
         for electron in electrons:
-            if self.simulation_wrangler.trackid_subprocess[electron] == 0:
-                self.simulation_wrangler.trackid_subprocess[electron] = 2
+            if self.simulation_wrangler.trackid_subprocess[electron] == SubProcessType.Primary.value:
+                self.simulation_wrangler.trackid_subprocess[electron] = SubProcessType.Ionization.value
             self.process_showers(electron, next(self.unique_topology))
 
     def process_positrons(self):
@@ -769,8 +777,8 @@ class SimulationLabelingLogic:
         """
         positrons = self.simulation_wrangler.get_primaries_pdg_code(-11)
         for positron in positrons:
-            if self.simulation_wrangler.trackid_subprocess[positron] == 0:
-                self.simulation_wrangler.trackid_subprocess[positron] = 2
+            if self.simulation_wrangler.trackid_subprocess[positron] == SubProcessType.Primary.value:
+                self.simulation_wrangler.trackid_subprocess[positron] = SubProcessType.Ionization.value
             self.process_showers(positron, next(self.unique_topology))
 
     def process_gammas(self):
@@ -816,10 +824,10 @@ class SimulationLabelingLogic:
 
             # process Michel electrons
             decay_daughters = self.simulation_wrangler.filter_trackid_process(
-                elec_daughters, 6
+                elec_daughters, ProcessType.Decay.value
             )
             decay_daughters += self.simulation_wrangler.filter_trackid_subprocess(
-                elec_daughters, 151
+                elec_daughters, SubProcessType.HadronCaptureAtRest.value
             )
             michel_decay_hits = self.simulation_wrangler.get_hits_trackid(
                 decay_daughters
@@ -843,10 +851,10 @@ class SimulationLabelingLogic:
 
             # process deltas
             elec_em_daughters = self.simulation_wrangler.filter_trackid_process(
-                elec_daughters, 2
+                elec_daughters, ProcessType.Electromagnetic.value
             )
             delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(
-                elec_em_daughters, 2
+                elec_em_daughters, SubProcessType.Ionization.value
             )
             delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
             delta_segments = self.simulation_wrangler.get_segments_trackid(
@@ -926,10 +934,10 @@ class SimulationLabelingLogic:
                 pion_daughters, 11
             )
             elec_em_daughters = self.simulation_wrangler.filter_trackid_process(
-                elec_daughters, 2
+                elec_daughters, ProcessType.Electromagnetic.value
             )
             delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(
-                elec_em_daughters, 2
+                elec_em_daughters, SubProcessType.Ionization.value
             )
             delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
             delta_segments = self.simulation_wrangler.get_segments_trackid(
@@ -1002,10 +1010,10 @@ class SimulationLabelingLogic:
                 proton_daughters, 11
             )
             elec_em_daughters = self.simulation_wrangler.filter_trackid_process(
-                elec_daughters, 2
+                elec_daughters, ProcessType.Electromagnetic.value
             )
             delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(
-                elec_em_daughters, 2
+                elec_em_daughters, SubProcessType.Ionization.value
             )
             delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
             delta_segments = self.simulation_wrangler.get_segments_trackid(
@@ -1039,11 +1047,19 @@ class SimulationLabelingLogic:
 
         TODO: Only doing ar40 captures right now, need to update this.
         """
-        neutrons = self.simulation_wrangler.get_trackid_pdg_code(2112)
-        elastic_neutrons = self.simulation_wrangler.filter_trackid_subprocess(neutrons, 111)
-        inelastic_neutrons = self.simulation_wrangler.filter_trackid_subprocess(neutrons, 121)
-        inelastic_neutrons += self.simulation_wrangler.filter_trackid_endsubprocess(neutrons, 121)
-        hadron_at_rest_neutrons = self.simulation_wrangler.filter_trackid_subprocess(neutrons, 151)
+        neutrons = self.simulation_wrangler.get_trackid_abs_pdg_code(2112)
+        elastic_neutrons = self.simulation_wrangler.filter_trackid_subprocess(
+            neutrons, SubProcessType.HadronElastic.value
+        )
+        inelastic_neutrons = self.simulation_wrangler.filter_trackid_subprocess(
+            neutrons, SubProcessType.HadronInelastic.value
+        )
+        inelastic_neutrons += self.simulation_wrangler.filter_trackid_endsubprocess(
+            neutrons, SubProcessType.HadronInelastic.value
+        )
+        hadron_at_rest_neutrons = self.simulation_wrangler.filter_trackid_subprocess(
+            neutrons, SubProcessType.HadronCaptureAtRest.value
+        )
 
         elastic_neutrons_hits = self.simulation_wrangler.get_hits_trackid(elastic_neutrons)
         elastic_neutrons_segments = self.simulation_wrangler.get_segments_trackid(elastic_neutrons)
@@ -1086,7 +1102,7 @@ class SimulationLabelingLogic:
             next(self.unique_physics_micro),
             next(self.unique_physics_meso),
         )
-        
+
         other_neutrons = remove_sublist(neutrons, elastic_neutrons + inelastic_neutrons + hadron_at_rest_neutrons)
         other_neutrons_hits = self.simulation_wrangler.get_hits_trackid(other_neutrons)
         other_neutrons_segments = self.simulation_wrangler.get_segments_trackid(other_neutrons)
@@ -1101,7 +1117,7 @@ class SimulationLabelingLogic:
             next(self.unique_physics_micro),
             next(self.unique_physics_meso),
         )
-        
+
         for neutron in neutrons:
             # process neutron hits
 
@@ -1113,12 +1129,12 @@ class SimulationLabelingLogic:
                 neutron_daughters, 22
             )
             capture_daughters = self.simulation_wrangler.filter_trackid_process(
-                gamma_daughters, 131
+                gamma_daughters, SubProcessType.HadronCapture.value
             )
-            # 131 = GEANT process capture
-            other_gammas = self.simulation_wrangler.filter_trackid_not_process(
-                gamma_daughters, 131
+            capture_daughters += self.simulation_wrangler.filter_trackid_process(
+                gamma_daughters, SubProcessType.HadronCaptureAtRest.value
             )
+            other_gammas = remove_sublist(gamma_daughters, capture_daughters)
 
             for capture in capture_daughters:
                 for gamma in capture:
