@@ -211,7 +211,6 @@ class Arrakis(H5FlowStage):
                     )
                     if input_file not in self.meta["skip_files"]
                 ]
-                print(self.simulation_files)
             else:
                 try:
                     self.logger.info(

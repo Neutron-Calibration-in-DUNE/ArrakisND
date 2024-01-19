@@ -531,12 +531,20 @@ class SimulationWrangler:
                 "physics_meso": 3,
                 "physics_macro": 4,
             },
-            "clusters": {"topology": 0, "particle": 1, "physics": 2},
+            "clusters": {
+                "particle": 0,
+                "topology": 1,
+                "physics_micro": 2,
+                "physics_meso": 3,
+                "physics_macro": 4,
+            },
             "topology_labels": {
-                key: value for key, value in classification_labels["topology"].items()
+                key: value
+                for key, value in classification_labels["topology"].items()
             },
             "particle_labels": {
-                key: value for key, value in classification_labels["particle"].items()
+                key: value
+                for key, value in classification_labels["particle"].items()
             },
             "physics_micro_labels": {
                 key: value
@@ -611,7 +619,26 @@ class SimulationWrangler:
             ],
             dtype=object,
         )
-
+        meta['particle_points'] = {
+            key: np.count_nonzero(np.concatenate(classes)[:, 0] == key)
+            for key in classification_labels['particle'].keys()
+        }
+        meta['topology_points'] = {
+            key: np.count_nonzero(np.concatenate(classes)[:, 1] == key)
+            for key in classification_labels['topology'].keys()
+        }
+        meta['physics_micro_points'] = {
+            key: np.count_nonzero(np.concatenate(classes)[:, 2] == key)
+            for key in classification_labels['physics_micro'].keys()
+        }
+        meta['physics_meso_points'] = {
+            key: np.count_nonzero(np.concatenate(classes)[:, 3] == key)
+            for key in classification_labels['physics_meso'].keys()
+        }
+        meta['physics_macro_points'] = {
+            key: np.count_nonzero(np.concatenate(classes)[:, 4] == key)
+            for key in classification_labels['physics_macro'].keys()
+        }
         np.savez(
             output_file,
             det_features=det_features,

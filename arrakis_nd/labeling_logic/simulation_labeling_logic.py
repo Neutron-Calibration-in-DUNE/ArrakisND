@@ -985,7 +985,36 @@ class SimulationLabelingLogic:
                 next(self.unique_physics_micro),
                 next(self.unique_physics_meso),
             )
-            self.process_showers_list(kaon_daughters, next(self.unique_topology))
+            elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(
+                kaon_daughters, 11
+            )
+            elec_em_daughters = self.simulation_wrangler.filter_trackid_process(
+                elec_daughters, ProcessType.Electromagnetic.value
+            )
+            delta_daughters = self.simulation_wrangler.filter_trackid_subprocess(
+                elec_em_daughters, SubProcessType.Ionization.value
+            )
+            delta_hits = self.simulation_wrangler.get_hits_trackid(delta_daughters)
+            delta_segments = self.simulation_wrangler.get_segments_trackid(
+                delta_daughters
+            )
+            self.simulation_wrangler.set_hit_labels_list(
+                delta_hits,
+                delta_segments,
+                delta_daughters,
+                TopologyLabel.Track,
+                PhysicsMicroLabel.ElectronIonization,
+                PhysicsMesoLabel.DeltaElectron,
+                track_label,
+                next(self.unique_physics_micro),
+                next(self.unique_physics_meso),
+            )
+            delta_descendants = self.simulation_wrangler.get_descendants_trackid(delta_daughters)
+            self.process_showers_array(delta_descendants)
+            other_daughters = remove_sublist(
+                kaon_daughters, delta_daughters
+            )
+            self.process_showers_list(other_daughters, next(self.unique_topology))
 
     def process_protons(self):
         protons = self.simulation_wrangler.get_trackid_pdg_code(2212)
