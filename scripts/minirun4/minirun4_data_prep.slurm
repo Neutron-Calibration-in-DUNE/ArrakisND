@@ -11,7 +11,7 @@
 #SBATCH --gpus-per-node=1       # number of gpus per node.
 #SBATCH --gpu-bind=none         # comment this out if you don't want all gpus visible to each task
 #SBATCH --dependency=afterok:<minirun4_config_prep_id>      # don't run until prep job is finished
-#SBATCH --array=0-<NUMBER_OF_ARRAKIS_PROCESSES>
+#SBATCH --array=0-10
 
 export LOCAL_SCRATCH=/pscratch/sd/${USER:0:1}/${USER}/$SLURM_JOB_ID/$SLURM_ARRAY_TASK_ID
 mkdir -p $LOCAL_SCRATCH
