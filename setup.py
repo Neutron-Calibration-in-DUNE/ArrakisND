@@ -42,6 +42,9 @@ setup(
     python_requires=">3.7",
     # possible entry point
     entry_points={
-        "console_scripts": ["arrakis_nd = arrakis_nd.programs.run_arrakis:run"],
+        "console_scripts": [
+            "arrakis_nd = arrakis_nd.programs.run_arrakis:run",
+            "create_arrakis_runs = arrakis_nd.programs.create_arrakis_runs:run"
+        ],
     },
 )

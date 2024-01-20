@@ -8,9 +8,10 @@ arrakis_nd:
   skip_events:  []
   output_folder:  "/local_data/"
   verbose:  true
-  gpu:      true
+  gpu:      false
   gpu_device: 0
   debug:  true
+  multi_processing: false
   # wrangler parameters
   shower_threshold: 20
   ionization_influence_distance:  4

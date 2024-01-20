@@ -41,6 +41,69 @@ error_list = {
 }
 
 
+class LoggingFormatter(logging.Formatter):
+    console_extra = " [%(name)s]: %(message)s"
+    grey = "\x1b[38;20m"
+    yellow = "\x1b[33;20m"
+    blue = "\x1b[1;34m"
+    purple = "\x1b[1;35m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    FORMATS = {
+        logging.DEBUG: "["
+        + grey
+        + "%(levelname)s"
+        + reset
+        + "] ["
+        + purple
+        + "%(name)s"
+        + reset
+        + "]: %(message)s",
+        logging.INFO: "["
+        + blue
+        + "%(levelname)s"
+        + reset
+        + "] ["
+        + purple
+        + "%(name)s"
+        + reset
+        + "]: %(message)s",
+        logging.WARNING: "["
+        + yellow
+        + "%(levelname)s"
+        + reset
+        + "] ["
+        + purple
+        + "%(name)s"
+        + reset
+        + "]: %(message)s",
+        logging.ERROR: "["
+        + red
+        + "%(levelname)s"
+        + reset
+        + "] ["
+        + purple
+        + "%(name)s"
+        + reset
+        + "]: %(message)s",
+        logging.CRITICAL: "["
+        + bold_red
+        + "%(levelname)s"
+        + reset
+        + "] ["
+        + purple
+        + "%(name)s"
+        + reset
+        + "]: %(message)s",
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+
 class Logger:
     """ """
 
@@ -84,68 +147,6 @@ class Logger:
 
         # set format
         self.dateformat = "%H:%M:%S"
-
-        class LoggingFormatter(logging.Formatter):
-            console_extra = " [%(name)s]: %(message)s"
-            grey = "\x1b[38;20m"
-            yellow = "\x1b[33;20m"
-            blue = "\x1b[1;34m"
-            purple = "\x1b[1;35m"
-            red = "\x1b[31;20m"
-            bold_red = "\x1b[31;1m"
-            reset = "\x1b[0m"
-            FORMATS = {
-                logging.DEBUG: "["
-                + grey
-                + "%(levelname)s"
-                + reset
-                + "] ["
-                + purple
-                + "%(name)s"
-                + reset
-                + "]: %(message)s",
-                logging.INFO: "["
-                + blue
-                + "%(levelname)s"
-                + reset
-                + "] ["
-                + purple
-                + "%(name)s"
-                + reset
-                + "]: %(message)s",
-                logging.WARNING: "["
-                + yellow
-                + "%(levelname)s"
-                + reset
-                + "] ["
-                + purple
-                + "%(name)s"
-                + reset
-                + "]: %(message)s",
-                logging.ERROR: "["
-                + red
-                + "%(levelname)s"
-                + reset
-                + "] ["
-                + purple
-                + "%(name)s"
-                + reset
-                + "]: %(message)s",
-                logging.CRITICAL: "["
-                + bold_red
-                + "%(levelname)s"
-                + reset
-                + "] ["
-                + purple
-                + "%(name)s"
-                + reset
-                + "]: %(message)s",
-            }
-
-            def format(self, record):
-                log_fmt = self.FORMATS.get(record.levelno)
-                formatter = logging.Formatter(log_fmt)
-                return formatter.format(record)
 
         self.console_formatter = LoggingFormatter()
         self.file_formatter = logging.Formatter(

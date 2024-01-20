@@ -6,6 +6,7 @@ import glob
 import h5flow
 from tqdm import tqdm
 import numpy as np
+import multiprocessing
 from h5flow.core import H5FlowStage, H5FlowDataManager
 
 from arrakis_nd.arrakis.common import process_types
@@ -153,6 +154,10 @@ class Arrakis(H5FlowStage):
             self.logger.warn('skip_events not specfied in config! setting to []')
         self.skip_events = self.config["skip_events"]
         self.logger.info(f'skipping events {self.skip_events}')
+        if "multi_processing" not in self.config:
+            self.config["multi_processing"] = False
+            self.logger.warn('multi_processing not specified in config! setting to False')
+        self.multi_processing = self.config["multi_processing"]
 
     def parse_dataset_folder(self):
         # default to what's in the configuration file. May decide to deprecate in the future
@@ -271,105 +276,244 @@ class Arrakis(H5FlowStage):
     # TODO: break this up into smaller functions
     def run_arrakis_nd_npz(self):
         self.logger.info("running arrakis_nd in npz mode")
-        for ii, simulation_file in enumerate(self.simulation_files):
-            try:
-                flow_file = h5flow.data.H5FlowDataManager(
-                    self.simulation_folder + "/" + simulation_file, "r"
-                )
-            except Exception as exception:
-                self.logger.error(
-                    f"there was a problem processing flow file {simulation_file}!"
-                    + f" exception: {exception}"
-                )
-            interactions = flow_file["mc_truth/interactions/data"][
-                "event_id",
-                "vertex_id",
-                "vertex",
-                "target",
-                "reaction",
-                "nu_pdg"
-            ]
-            trajectories = flow_file["mc_truth/trajectories/data"][
-                "event_id",
-                "traj_id",
-                "vertex_id",
-                "parent_id",
-                "pdg_id",
-                "start_process",
-                "start_subprocess",
-                "end_process",
-                "end_subprocess",
-                "E_end",
-                "t_start",
-            ]
-            segments = flow_file["mc_truth/segments/data"][
-                "event_id",
-                "segment_id",
-                "traj_id",
-                "n_photons"
-            ]
-            stacks = flow_file["mc_truth/stack/data"][
-                "event_id",
-                "vertex_id",
-                "part_pdg"
-            ]
-            hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
-            hits = flow_file["charge/calib_final_hits/data"]
-            light = flow_file["light/sipm_hits/data"]
+        if self.multi_processing:
+            number_of_cores = 2
+            chunk_size = int(np.ceil(len(self.simulation_files) / number_of_cores))
+            chunks = [self.simulation_files[i:i+chunk_size] for i in range(0, len(self.simulation_files), chunk_size)]
+            positions = [ii+1 for ii in range(number_of_cores)]
+            args_for_chunk = [(chunks[ii], positions[ii]) for ii in range(len(chunks))]
 
-            event_ids = np.unique(flow_file["mc_truth/segments/data"]["event_id"])
-            event_loop = tqdm(
-                enumerate(event_ids, 0),
-                total=len(event_ids),
-                leave=False,
-                position=1,
-                colour="green",
-            )
-            for jj, event_id in event_loop:
-                if jj == self.skip_event:
-                    continue
-                if event_id in self.skip_events:
-                    continue
-                event_interactions = interactions[interactions["event_id"] == event_id]
-                event_trajectories = trajectories[trajectories["event_id"] == event_id]
-                event_segments = segments[segments["event_id"] == event_id]
-                event_stacks = stacks[stacks["event_id"] == event_id]
-                hits_back_track_mask = np.any(
-                    np.isin(
-                        hits_back_track["segment_id"], event_segments["segment_id"]
-                    ),
-                    axis=1,
-                )
-                event_back_track_hits = hits_back_track[hits_back_track_mask]
-                event_hits = hits[hits_back_track_mask]
-                event_light = light[light["id"] == event_id]
-
-                self.simulation_wrangler.process_event(
-                    event_id,
-                    event_interactions,
-                    event_trajectories,
-                    event_segments,
-                    event_stacks,
-                    event_back_track_hits,
-                    event_hits,
-                    event_light,
-                )
-                self.simulation_labeling_logic.process_event()
-                if len(self.simulation_wrangler.det_point_cloud.data["x"]) == 0:
-                    continue
-                self.simulation_wrangler.save_event()
-                event_loop.set_description(
-                    f"File [{ii+1}/{len(self.simulation_files)}][{simulation_file}]"
-                )
-            self.simulation_wrangler.save_events(
-                self.output_folder + "/" + simulation_file
-            )                                       # modify so it will save light info too?
-            self.simulation_wrangler.clear_event()  # modify so it will clear light info too?
-            flow_file.finish()
-            flow_file.close_file()
+            # Create a multiprocessing Pool
+            with multiprocessing.Pool(processes=number_of_cores) as pool:
+                # Map the function to each sublist
+                pool.map(self.process_simulation_files_multiprocessing, args_for_chunk)
+        else:
+            for ii, simulation_file in enumerate(self.simulation_files):
+                self.process_simulation_file(simulation_file, ii)
         if self.simulation_labeling_logic.debug:
             self.meta["timers"].evaluate_run()
             self.meta["memory_trackers"].evaluate_run()
 
     def run_arrakis_nd_flow(self):
         pass
+
+    def process_simulation_files_multiprocessing(
+        self,
+        simulation_files:   list = [],
+        position:           int = 1,
+    ):
+        for ii, simulation_file in enumerate(simulation_files):
+            self.process_simulation_file_multiprocessing(
+                simulation_file,
+                file_index=ii,
+                number_of_files=len(simulation_files),
+                position=position,
+                output_folder=self.output_folder
+            )
+
+    def process_simulation_file_multiprocessing(
+        self,
+        simulation_file:    str = '',
+        file_index:         int = 0,
+        number_of_files:    int = 0,
+        position:           int = 1,
+        output_folder:      str = '',
+    ):
+        simulation_wrangler = SimulationWrangler(self.name, self.config, self.meta)
+        simulation_labeling_logic = SimulationLabelingLogic(
+            self.name, self.config, self.meta
+        )
+        try:
+            flow_file = h5flow.data.H5FlowDataManager(
+                self.simulation_folder + "/" + simulation_file, "r"
+            )
+        except Exception as exception:
+            return
+        interactions = flow_file["mc_truth/interactions/data"][
+            "event_id",
+            "vertex_id",
+            "vertex",
+            "target",
+            "reaction",
+            "nu_pdg"
+        ]
+        trajectories = flow_file["mc_truth/trajectories/data"][
+            "event_id",
+            "traj_id",
+            "vertex_id",
+            "parent_id",
+            "pdg_id",
+            "start_process",
+            "start_subprocess",
+            "end_process",
+            "end_subprocess",
+            "E_end",
+            "t_start",
+        ]
+        segments = flow_file["mc_truth/segments/data"][
+            "event_id",
+            "segment_id",
+            "traj_id",
+            "n_photons"
+        ]
+        stacks = flow_file["mc_truth/stack/data"][
+            "event_id",
+            "vertex_id",
+            "part_pdg"
+        ]
+        hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
+        hits = flow_file["charge/calib_final_hits/data"]
+        light = flow_file["light/sipm_hits/data"]
+
+        event_ids = np.unique(flow_file["mc_truth/segments/data"]["event_id"])
+        event_loop = tqdm(
+            enumerate(event_ids, 0),
+            total=len(event_ids),
+            leave=False,
+            position=position,
+            colour="green",
+        )
+        for jj, event_id in event_loop:
+            if jj == self.skip_event:
+                continue
+            if event_id in self.skip_events:
+                continue
+            event_interactions = interactions[interactions["event_id"] == event_id]
+            event_trajectories = trajectories[trajectories["event_id"] == event_id]
+            event_segments = segments[segments["event_id"] == event_id]
+            event_stacks = stacks[stacks["event_id"] == event_id]
+            hits_back_track_mask = np.any(
+                np.isin(
+                    hits_back_track["segment_id"], event_segments["segment_id"]
+                ),
+                axis=1,
+            )
+            event_back_track_hits = hits_back_track[hits_back_track_mask]
+            event_hits = hits[hits_back_track_mask]
+            event_light = light[light["id"] == event_id]
+
+            simulation_wrangler.process_event(
+                event_id,
+                event_interactions,
+                event_trajectories,
+                event_segments,
+                event_stacks,
+                event_back_track_hits,
+                event_hits,
+                event_light,
+            )
+            simulation_labeling_logic.process_event()
+            if len(simulation_wrangler.det_point_cloud.data["x"]) == 0:
+                continue
+            simulation_wrangler.save_event()
+            event_loop.set_description(
+                f"File [{file_index+1}/{number_of_files}][{simulation_file}]"
+            )
+        simulation_wrangler.save_events(
+            output_folder + "/" + simulation_file
+        )                                       # modify so it will save light info too?
+        simulation_wrangler.clear_event()  # modify so it will clear light info too?
+        flow_file.finish()
+        flow_file.close_file()
+
+    def process_simulation_file(
+        self,
+        simulation_file:    str = '',
+        file_index:         int = 0,
+        position:           int = 1
+    ):
+        try:
+            flow_file = h5flow.data.H5FlowDataManager(
+                self.simulation_folder + "/" + simulation_file, "r"
+            )
+        except Exception as exception:
+            self.logger.error(
+                f"there was a problem processing flow file {simulation_file}!"
+                + f" exception: {exception}"
+            )
+        interactions = flow_file["mc_truth/interactions/data"][
+            "event_id",
+            "vertex_id",
+            "vertex",
+            "target",
+            "reaction",
+            "nu_pdg"
+        ]
+        trajectories = flow_file["mc_truth/trajectories/data"][
+            "event_id",
+            "traj_id",
+            "vertex_id",
+            "parent_id",
+            "pdg_id",
+            "start_process",
+            "start_subprocess",
+            "end_process",
+            "end_subprocess",
+            "E_end",
+            "t_start",
+        ]
+        segments = flow_file["mc_truth/segments/data"][
+            "event_id",
+            "segment_id",
+            "traj_id",
+            "n_photons"
+        ]
+        stacks = flow_file["mc_truth/stack/data"][
+            "event_id",
+            "vertex_id",
+            "part_pdg"
+        ]
+        hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
+        hits = flow_file["charge/calib_final_hits/data"]
+        light = flow_file["light/sipm_hits/data"]
+
+        event_ids = np.unique(flow_file["mc_truth/segments/data"]["event_id"])
+        event_loop = tqdm(
+            enumerate(event_ids, 0),
+            total=len(event_ids),
+            leave=False,
+            position=position,
+            colour="green",
+        )
+        for jj, event_id in event_loop:
+            if jj == self.skip_event:
+                continue
+            if event_id in self.skip_events:
+                continue
+            event_interactions = interactions[interactions["event_id"] == event_id]
+            event_trajectories = trajectories[trajectories["event_id"] == event_id]
+            event_segments = segments[segments["event_id"] == event_id]
+            event_stacks = stacks[stacks["event_id"] == event_id]
+            hits_back_track_mask = np.any(
+                np.isin(
+                    hits_back_track["segment_id"], event_segments["segment_id"]
+                ),
+                axis=1,
+            )
+            event_back_track_hits = hits_back_track[hits_back_track_mask]
+            event_hits = hits[hits_back_track_mask]
+            event_light = light[light["id"] == event_id]
+
+            self.simulation_wrangler.process_event(
+                event_id,
+                event_interactions,
+                event_trajectories,
+                event_segments,
+                event_stacks,
+                event_back_track_hits,
+                event_hits,
+                event_light,
+            )
+            self.simulation_labeling_logic.process_event()
+            if len(self.simulation_wrangler.det_point_cloud.data["x"]) == 0:
+                continue
+            self.simulation_wrangler.save_event()
+            event_loop.set_description(
+                f"File [{file_index+1}/{len(self.simulation_files)}][{simulation_file}]"
+            )
+        self.simulation_wrangler.save_events(
+            self.output_folder + "/" + simulation_file
+        )                                       # modify so it will save light info too?
+        self.simulation_wrangler.clear_event()  # modify so it will clear light info too?
+        flow_file.finish()
+        flow_file.close_file()

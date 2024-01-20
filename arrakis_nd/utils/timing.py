@@ -55,6 +55,12 @@ class Timer:
 
     def _end_cpu(self):
         self.timer_end = time.time()
+        self.timer_values = torch.cat(
+            (
+                self.timer_values,
+                torch.tensor([[self.timer_end - self.timer_start]]),
+            )
+        )
 
 
 class Timers:
