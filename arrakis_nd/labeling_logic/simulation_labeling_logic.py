@@ -111,6 +111,7 @@ class SimulationLabelingLogic:
         self.process_neutrons()
         self.process_nuclear_recoils()
         self.process_electron_recoils()
+        self.process_baryons()
         self.process_ar39()
         self.process_ar42()
         self.process_kr85()
@@ -205,6 +206,12 @@ class SimulationLabelingLogic:
         self.process_electron_recoils()
         self.meta["timers"].end("logic_process_electron_recoils")
         self.meta["memory_trackers"].end("logic_process_electron_recoils")
+
+        self.meta["timers"].start("logic_process_baryons")
+        self.meta["memory_trackers"].start("logic_process_baryons")
+        self.process_baryons()
+        self.meta["timers"].end("logic_process_baryons")
+        self.meta["memory_trackers"].end("logic_process_baryons")
 
         self.meta["timers"].start("logic_process_ar39")
         self.meta["memory_trackers"].start("logic_process_ar39")
@@ -488,7 +495,7 @@ class SimulationLabelingLogic:
         with bremsstrahlung.  If the particle is a primary, use its pdg code instead
         """
         if num_conversion > 0:
-            conversion_times = self.simulation_wrangler.get_tstart_trackid(conversion_descendants)
+            conversion_times = self.simulation_wrangler.get_t_start_trackid(conversion_descendants)
             earliest_conversion_time = min(conversion_times)
             earliest_conversion = conversion_descendants[conversion_times.index(earliest_conversion_time)]
             if self.simulation_wrangler.trackid_parentid[earliest_conversion] == -1:
@@ -502,7 +509,7 @@ class SimulationLabelingLogic:
             earliest_conversion = None
             earliest_conversion_pdg_code = None
         if num_bremsstrahlung > 0:
-            bremsstrahlung_times = self.simulation_wrangler.get_tstart_trackid(bremsstrahlung_descendants)
+            bremsstrahlung_times = self.simulation_wrangler.get_t_start_trackid(bremsstrahlung_descendants)
             earliest_bremsstrahlung_time = min(bremsstrahlung_times)
             earliest_bremsstrahlung = bremsstrahlung_descendants[bremsstrahlung_times.index(earliest_bremsstrahlung_time)]
             if self.simulation_wrangler.trackid_parentid[earliest_bremsstrahlung] == -1:
@@ -550,7 +557,7 @@ class SimulationLabelingLogic:
             else:
                 physics_meso = PhysicsMesoLabel.PositronShower
         else:
-            if self.simulation_wrangler.trackid_energy[particle] > self.shower_threshold:
+            if self.simulation_wrangler.trackid_energy_start[particle] > self.shower_threshold:
                 topology = TopologyLabel.Shower
                 if self.simulation_wrangler.trackid_pdgcode[particle] == 11:
                     physics_meso = PhysicsMesoLabel.ElectronShower
@@ -790,7 +797,7 @@ class SimulationLabelingLogic:
         for gamma in gammas:
             self.process_showers(gamma, next(self.unique_topology))
 
-    def process_muons(self):
+    def process_muons(self, debug=False):
         """
         Getting all muons, not just primaries, since they all need to
         be labelled the same.  Therefore, these physics_macro labels
@@ -1208,6 +1215,11 @@ class SimulationLabelingLogic:
             self.process_showers_list(other_gammas, next(self.unique_topology))
 
     def process_nuclear_recoils(self):
+        """
+        This section concerns recoiling nuclei, such as argon, sulfur, chlorine,
+        and others.  These nuclei are usually scattered from nuclear interactions
+        such as neutron capture, or scattering from neutrons/neutrinos.
+        """
         sulfur = self.simulation_wrangler.get_trackid_pdg_code(1000160320)
         sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160330)
         sulfur += self.simulation_wrangler.get_trackid_pdg_code(1000160340)
@@ -1265,6 +1277,67 @@ class SimulationLabelingLogic:
                 argon_hits[0],
                 argon_segments[0],
                 ar,
+                TopologyLabel.Blip,
+                PhysicsMicroLabel.HadronElastic,
+                PhysicsMesoLabel.NuclearRecoil,
+                next(self.unique_topology),
+                next(self.unique_physics_micro),
+                next(self.unique_physics_meso),
+            )
+
+    def process_baryons(self):
+        """
+        This section concerns light and strange baryons, such as the Delta,
+        Lambda and Sigma varieties.
+        """
+        delta_baryons = self.simulation_wrangler.get_trackid_pdg_code(2224)
+        delta_baryons += self.simulation_wrangler.get_trackid_pdg_code(2214)
+        delta_baryons += self.simulation_wrangler.get_trackid_pdg_code(2114)
+        delta_baryons += self.simulation_wrangler.get_trackid_pdg_code(1114)
+
+        lambda_baryons = self.simulation_wrangler.get_trackid_pdg_code(3122)
+
+        sigma_baryons = self.simulation_wrangler.get_trackid_pdg_code(3222)
+        sigma_baryons += self.simulation_wrangler.get_trackid_pdg_code(3212)
+        sigma_baryons += self.simulation_wrangler.get_trackid_pdg_code(3112)
+
+        for delta in delta_baryons:
+            delta_hits = self.simulation_wrangler.get_hits_trackid(delta)
+            delta_segments = self.simulation_wrangler.get_segments_trackid(delta)
+            self.simulation_wrangler.set_hit_labels(
+                delta_hits[0],
+                delta_segments[0],
+                delta,
+                TopologyLabel.Blip,
+                PhysicsMicroLabel.HadronElastic,
+                PhysicsMesoLabel.NuclearRecoil,
+                next(self.unique_topology),
+                next(self.unique_physics_micro),
+                next(self.unique_physics_meso),
+            )
+
+        for lamb in lambda_baryons:
+            lamb_hits = self.simulation_wrangler.get_hits_trackid(lamb)
+            lamb_segments = self.simulation_wrangler.get_segments_trackid(lamb)
+            self.simulation_wrangler.set_hit_labels(
+                lamb_hits[0],
+                lamb_segments[0],
+                lamb,
+                TopologyLabel.Blip,
+                PhysicsMicroLabel.HadronElastic,
+                PhysicsMesoLabel.NuclearRecoil,
+                next(self.unique_topology),
+                next(self.unique_physics_micro),
+                next(self.unique_physics_meso),
+            )
+
+        for sigma in sigma_baryons:
+            sigma_hits = self.simulation_wrangler.get_hits_trackid(sigma)
+            sigma_segments = self.simulation_wrangler.get_segments_trackid(sigma)
+            self.simulation_wrangler.set_hit_labels(
+                sigma_hits[0],
+                sigma_segments[0],
+                sigma,
                 TopologyLabel.Blip,
                 PhysicsMicroLabel.HadronElastic,
                 PhysicsMesoLabel.NuclearRecoil,

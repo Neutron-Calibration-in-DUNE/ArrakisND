@@ -10,6 +10,8 @@ import copy
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.dataset.det_point_cloud import DetectorPointCloud
 from arrakis_nd.dataset.light_point_cloud import LightPointCloud
+from arrakis_nd.dataset.scalar import Scalar
+from arrakis_nd.dataset.particle import Particle
 from arrakis_nd.dataset.common import (
     ParticleLabel,
     TopologyLabel,
@@ -75,6 +77,12 @@ class SimulationWrangler:
         self.light_point_cloud = LightPointCloud()
         self.light_point_clouds = {}
 
+        self.particle = Particle()
+        self.particles = {}
+
+        self.scalar = Scalar()
+        self.scalars = {}
+
         self.vertexid_vertex = {}
         self.vertexid_target = {}
         self.vertexid_reaction = {}
@@ -88,8 +96,12 @@ class SimulationWrangler:
         self.trackid_subprocess = {}
         self.trackid_endprocess = {}
         self.trackid_endsubprocess = {}
-        self.trackid_energy = {}
-        self.trackid_tstart = {}
+        self.trackid_energy_start = {}
+        self.trackid_momentum_start = {}
+        self.trackid_t_start = {}
+        self.trackid_energy_end = {}
+        self.trackid_momentum_end = {}
+        self.trackid_t_end = {}
         self.trackid_daughters = {}
         self.trackid_progeny = {}
         self.trackid_descendants = {}
@@ -107,6 +119,8 @@ class SimulationWrangler:
     def clear_event_maps(self):
         self.det_point_cloud.clear()
         self.light_point_cloud.clear()
+        self.particle.clear()
+        self.scalar.clear()
 
         self.vertexid_vertex = {}
         self.vertexid_target = {}
@@ -121,8 +135,12 @@ class SimulationWrangler:
         self.trackid_subprocess = {}
         self.trackid_endprocess = {}
         self.trackid_endsubprocess = {}
-        self.trackid_energy = {}
-        self.trackid_tstart = {}
+        self.trackid_energy_start = {}
+        self.trackid_momentum_start = {}
+        self.trackid_t_start = {}
+        self.trackid_energy_end = {}
+        self.trackid_momentum_end = {}
+        self.trackid_t_end = {}
         self.trackid_daughters = {}
         self.trackid_progeny = {}
         self.trackid_descendants = {}
@@ -141,6 +159,7 @@ class SimulationWrangler:
     def clear_point_clouds(self):
         self.det_point_clouds = {}
         self.light_point_clouds = {}
+        self.scalars = {}
 
     def print_particle_data(self, particle):
         self.logger.info("## MCParticle #######################################")
@@ -150,7 +169,7 @@ class SimulationWrangler:
             f"## PDG:                [{'.' * 25}{self.trackid_pdgcode[particle]}] ##"
         )
         self.logger.info(
-            f"## Energy [MeV]:       [{'.' * 25}{self.trackid_energy[particle]}] ##"
+            f"## Energy [MeV]:       [{'.' * 25}{self.trackid_energy_start[particle]}] ##"
         )
         self.logger.info(
             f"## Process:            [{'.' * 25}{self.trackid_process[particle]}] ##"
@@ -401,6 +420,7 @@ class SimulationWrangler:
         self.clear_event()
         self.det_point_cloud.data["event"] = event_id
         self.light_point_cloud.data["event"] = event_id
+        self.particle.mc_particles["event"] = event_id
         self.process_event_interactions(event_interactions)
         self.process_event_trajectories(event_trajectories)
         self.process_event_stacks(event_stacks)
@@ -422,6 +442,7 @@ class SimulationWrangler:
         self.clear_event()
         self.det_point_cloud.data["event"] = event_id
         self.light_point_cloud.data["event"] = event_id
+        self.particle.mc_particles["event"] = event_id
 
         self.meta["timers"].start("wrangler_process_all")
         self.meta["memory_trackers"].start("wrangler_process_all")
@@ -466,6 +487,7 @@ class SimulationWrangler:
         self.meta["memory_trackers"].end("wrangler_process_all")
 
     def save_event(self):
+        # detector point cloud data
         self.det_point_cloud.data["x"] = np.array(self.det_point_cloud.data["x"])
         self.det_point_cloud.data["y"] = np.array(self.det_point_cloud.data["y"])
         self.det_point_cloud.data["z"] = np.array(self.det_point_cloud.data["z"])
@@ -513,6 +535,18 @@ class SimulationWrangler:
         self.det_point_clouds[self.det_point_cloud.data["event"]] = copy.deepcopy(
             self.det_point_cloud
         )
+        # light point cloud data
+        self.light_point_cloud.data["tpc"] = np.array(self.light_point_cloud.data["tpc"])
+        self.light_point_cloud.data["channel"] = np.array(self.light_point_cloud.data["channel"])
+        self.light_point_cloud.data["tick"] = np.array(self.light_point_cloud.data["tick"])
+        self.light_point_cloud.data["max_peak"] = np.array(self.light_point_cloud.data["max_peak"])
+        self.light_point_cloud.data["fwhm_peak"] = np.array(self.light_point_cloud.data["fwhm_peak"])
+        self.light_point_cloud.data["integral_peak"] = np.array(self.light_point_cloud.data["integral_peak"])
+        self.light_point_clouds[self.light_point_cloud.data["event"]] = copy.deepcopy(
+            self.light_point_cloud
+        )
+        # particles
+        self.particles[self.particle.mc_particles["event"]] = copy.deepcopy(self.particle)
 
     def save_events(self, simulation_file):
         output_file = simulation_file.replace(".h5", "")
@@ -522,21 +556,56 @@ class SimulationWrangler:
             "when_created": datetime.now().strftime("%m-%d-%Y-%H:%M:%S"),
             "where_created": socket.gethostname(),
             "input_file":   simulation_file,
-            "det_features": {"x": 0, "y": 1, "z": 2, "Q": 3},
-            "mc_features": {"t_drift": 0, "ts_pps": 1, "E": 2, "n_photons": 3},
+            "det_features": {"x": 0, "y": 1, "z": 2, "Q": 3, "ts_pps": 4},
+            "light_features": {
+                "tpc": 0,
+                "channel": 1,
+                "tick": 2,
+                "max_peak": 3,
+                "fwhm_peak": 4,
+                "integral_peak": 5,
+            },
+            "mc_features": {"E": 0, "n_photons": 1, "t_drift": 2},
             "classes": {
-                "particle": 0,
-                "topology": 1,
+                "particle":      0,
+                "topology":      1,
                 "physics_micro": 2,
-                "physics_meso": 3,
+                "physics_meso":  3,
                 "physics_macro": 4,
             },
             "clusters": {
-                "particle": 0,
-                "topology": 1,
+                "particle":      0,
+                "topology":      1,
                 "physics_micro": 2,
-                "physics_meso": 3,
+                "physics_meso":  3,
                 "physics_macro": 4,
+            },
+            "hits": {},
+            "track_topology": {
+                "vertex":       0,
+                "track_begin":  1,
+                "track_end":    2,
+                "shower_begin": 3,
+                "shower_end":   4,
+            },
+            "causality": {},
+            "mc_truth": {
+                "particles": {
+                    "track_id": 0,
+                    "pdg_code": 1,
+                    "E_start":   2,
+                    "momentum_start": 3,
+                    "t_start":  4,
+                    "E_end":    5,
+                    "momentum_end": 6,
+                    "t_end":    7,
+                    "process":  8,
+                    "end_process":  9,
+                    "parent_id":    10,
+                    "daughters":    11,
+                    "descendants":  12,
+                    "ancestry":     13,
+                },
             },
             "topology_labels": {
                 key: value
@@ -569,9 +638,26 @@ class SimulationWrangler:
                         self.det_point_clouds[ii].data["y"],
                         self.det_point_clouds[ii].data["z"],
                         self.det_point_clouds[ii].data["Q"],
+                        self.det_point_clouds[ii].data["ts_pps"],
                     )
                 ).T
                 for ii in self.det_point_clouds.keys()
+            ],
+            dtype=object,
+        )
+        light_features = np.array(
+            [
+                np.vstack(
+                    (
+                        self.light_point_clouds[ii].data["tpc"],
+                        self.light_point_clouds[ii].data["channel"],
+                        self.light_point_clouds[ii].data["tick"],
+                        self.light_point_clouds[ii].data["max_peak"],
+                        self.light_point_clouds[ii].data["fwhm_peak"],
+                        self.light_point_clouds[ii].data["integral_peak"],
+                    )
+                ).T
+                for ii in self.light_point_clouds.keys()
             ],
             dtype=object,
         )
@@ -579,10 +665,9 @@ class SimulationWrangler:
             [
                 np.vstack(
                     (
-                        self.det_point_clouds[ii].data["t_drift"],
-                        self.det_point_clouds[ii].data["ts_pps"],
                         self.det_point_clouds[ii].data["E"],
                         self.det_point_clouds[ii].data["n_photons"],
+                        self.det_point_clouds[ii].data["t_drift"],
                     )
                 ).T
                 for ii in self.det_point_clouds.keys()
@@ -619,6 +704,40 @@ class SimulationWrangler:
             ],
             dtype=object,
         )
+        track_topology = np.array(
+            [
+                np.vstack(
+                    (
+                        self.det_point_clouds[ii].data["vertex"],
+                        self.det_point_clouds[ii].data["track_begin"],
+                        self.det_point_clouds[ii].data["track_end"],
+                        self.det_point_clouds[ii].data["shower_begin"],
+                        self.det_point_clouds[ii].data["shower_end"],
+                    )
+                ).T
+                for ii in self.det_point_clouds.keys()
+            ],
+            dtype=object,
+        )
+        particles = [
+            [
+                self.particles[ii].mc_particles["track_id"],
+                self.particles[ii].mc_particles["pdg_code"],
+                self.particles[ii].mc_particles["energy_start"],
+                self.particles[ii].mc_particles["momentum_start"],
+                self.particles[ii].mc_particles["t_start"],
+                self.particles[ii].mc_particles["energy_end"],
+                self.particles[ii].mc_particles["momentum_end"],
+                self.particles[ii].mc_particles["t_end"],
+                self.particles[ii].mc_particles["process"],
+                self.particles[ii].mc_particles["end_process"],
+                self.particles[ii].mc_particles["parent_id"],
+                self.particles[ii].mc_particles["daughters"],
+                self.particles[ii].mc_particles["descendants"],
+                self.particles[ii].mc_particles["ancestry"],
+            ]
+            for ii in self.particles.keys()
+        ]
         meta['particle_points'] = {
             key: np.count_nonzero(np.concatenate(classes)[:, 0] == key)
             for key in classification_labels['particle'].keys()
@@ -642,9 +761,12 @@ class SimulationWrangler:
         np.savez(
             output_file,
             det_features=det_features,
+            light_features=light_features,
             mc_features=mc_features,
             classes=classes,
             clusters=clusters,
+            track_topology=track_topology,
+            particles=particles,
             meta=meta,
         )
         self.clear_point_clouds()
@@ -674,8 +796,12 @@ class SimulationWrangler:
             self.trackid_subprocess[track_id] = particle["start_subprocess"]
             self.trackid_endprocess[track_id] = particle["end_process"]
             self.trackid_endsubprocess[track_id] = particle["end_subprocess"]
-            self.trackid_energy[track_id] = particle["E_end"]  # E_start or E_end?
-            self.trackid_tstart[track_id] = particle["t_start"]
+            self.trackid_energy_start[track_id] = particle["E_start"]
+            self.trackid_momentum_start[track_id] = particle["pxyz_start"]
+            self.trackid_t_start[track_id] = particle["t_start"]
+            self.trackid_energy_end[track_id] = particle["E_end"]
+            self.trackid_momentum_end[track_id] = particle["pxyz_end"]
+            self.trackid_t_end[track_id] = particle["t_end"]
 
             # iterate over daughters
             self.trackid_daughters[track_id] = []
@@ -685,6 +811,7 @@ class SimulationWrangler:
                 self.trackid_daughters[particle["parent_id"]].append(track_id)
                 self.trackid_descendants[particle["parent_id"]].append(track_id)
             self.trackid_progeny[track_id] = []
+
             # iterate over ancestry
             level = 0
             mother = particle["parent_id"]
@@ -706,6 +833,24 @@ class SimulationWrangler:
             self.trackid_hit[track_id] = []
             self.trackid_segmentid[track_id] = []
 
+        # add mc_particle info to scalars
+        self.particle.add_mc_particles(
+            track_id=np.array(list(self.trackid_pdgcode.keys())),
+            pdg_code=np.array(list(self.trackid_pdgcode.values())),
+            energy_start=np.array(list(self.trackid_energy_start.values())),
+            momentum_start=np.array(list(self.trackid_momentum_start.values())),
+            t_start=np.array(list(self.trackid_t_start.values())),
+            energy_end=np.array(list(self.trackid_energy_end.values())),
+            momentum_end=np.array(list(self.trackid_momentum_end.values())),
+            t_end=np.array(list(self.trackid_t_end.values())),
+            process=np.array(list(self.trackid_subprocess.values())),
+            end_process=np.array(list(self.trackid_endsubprocess.values())),
+            parent_id=np.array(list(self.trackid_parentid.values())),
+            daughters=np.array(list(self.trackid_daughters.values()), dtype=object),
+            descendants=np.array(list(self.trackid_descendants.values()), dtype=object),
+            ancestry=np.array(list(self.trackid_ancestry.values()), dtype=object),
+        )
+
     def process_event_trajectories_numpy(self, event_trajectories):
         self.trackid_parentid = event_trajectories["parent_id"]
         self.trackid_pdgcode = event_trajectories["pdg_id"]
@@ -713,7 +858,7 @@ class SimulationWrangler:
         self.trackid_subprocess = event_trajectories["start_subprocess"]
         self.trackid_endprocess = event_trajectories["end_process"]
         self.trackid_endsubprocess = event_trajectories["end_subprocess"]
-        self.trackid_energy = event_trajectories["E_end"]  # E_start or E_end?
+        self.trackid_energy_start = event_trajectories["E_end"]  # E_start or E_end?
         # how to prevent looping for finding daughters?
 
     def process_event_stacks(self, event_stacks):
@@ -838,8 +983,8 @@ class SimulationWrangler:
                     self.trackid_hit[self.segmentid_trackid[segmentid]].append(ii)
 
     def process_event_light(
-            self,
-            event_light,
+        self,
+        event_light,
     ):
         self.light_point_cloud.add_event(
             event_light["tpc"],
@@ -921,9 +1066,9 @@ class SimulationWrangler:
         descendants = [self.trackid_descendants[track_id] for track_id in trackids]
         return descendants
 
-    def get_tstart_trackid(self, trackids):
-        tstart = [self.trackid_tstart[track_id] for track_id in trackids]
-        return tstart
+    def get_t_start_trackid(self, trackids):
+        t_start = [self.trackid_t_start[track_id] for track_id in trackids]
+        return t_start
 
     def filter_trackid_not_pdg_code(self, trackids, pdg):
         trackid = [

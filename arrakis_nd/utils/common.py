@@ -23,6 +23,7 @@ process_functions = [
     "logic_process_neutrons",
     "logic_process_nuclear_recoils",
     "logic_process_electron_recoils",
+    "logic_process_baryons",
     "logic_process_ar39",
     "logic_process_ar42",
     "logic_process_kr85",

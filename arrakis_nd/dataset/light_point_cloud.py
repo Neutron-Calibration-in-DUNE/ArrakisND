@@ -18,7 +18,6 @@ class LightPointCloud:
             "max_peak": np.array([]),   # the height of the peak in ADC counts
             "fwhm_peak": np.array([]),  # the full width at half maximum of the peak in ticks
             "integral_peak": np.array([]),  # the integral of the peak in ADC counts
-            "n_photons": np.array([]),      # the number of photons in the peak (truth)
             "segment_ids": np.array([]),    # the segment ids that created the peak (truth)
         }
 
@@ -30,7 +29,6 @@ class LightPointCloud:
         max_peak: float,
         fwhm_peak: float,
         integral_peak: float,
-        n_photons: float,
         segment_ids: list = [],
     ):
         """
@@ -45,7 +43,6 @@ class LightPointCloud:
             "max_peak": max_peak,
             "fwhm_peak": fwhm_peak,
             "integral_peak": integral_peak,
-            "n_photons": n_photons,
             "segment_ids": segment_ids,
         }
         for key, item in event_data.items():
@@ -53,14 +50,12 @@ class LightPointCloud:
 
     def add_event(
         self,
-        event_id: int,
         tpc: list = [],
         channel: list = [],
         tick: list = [],
         max_peak: list = [],
         fwhm_peak: list = [],
         integral_peak: list = [],
-        n_photons: list = [],
         segment_id: list = [],
     ):
         """
@@ -68,14 +63,12 @@ class LightPointCloud:
         registered on any channel.
         """
         for key, value in {
-            "event": event_id,
             "tpc": tpc,
             "channel": channel,
             "tick": tick,
             "max_peak": max_peak,
             "fwhm_peak": fwhm_peak,
             "integral_peak": integral_peak,
-            "n_photons": n_photons,
             "segment_id": segment_id,
         }.items():
             self.data[key] = np.array(value)

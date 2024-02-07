@@ -347,7 +347,7 @@ class Arrakis(H5FlowStage):
             "start_subprocess",
             "end_process",
             "end_subprocess",
-            "E_end",
+            "E_start",
             "t_start",
         ]
         segments = flow_file["mc_truth/segments/data"][
@@ -364,6 +364,7 @@ class Arrakis(H5FlowStage):
         hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
         hits = flow_file["charge/calib_final_hits/data"]
         light = flow_file["light/sipm_hits/data"]
+        light_events = flow_file["light/events/data"]
 
         event_ids = np.unique(flow_file["mc_truth/segments/data"]["event_id"])
         event_loop = tqdm(
@@ -390,8 +391,7 @@ class Arrakis(H5FlowStage):
             )
             event_back_track_hits = hits_back_track[hits_back_track_mask]
             event_hits = hits[hits_back_track_mask]
-            event_light = light[light["id"] == event_id]
-
+            event_light = light[light_events["id"] == event_id]
             simulation_wrangler.process_event(
                 event_id,
                 event_interactions,
@@ -449,13 +449,19 @@ class Arrakis(H5FlowStage):
             "start_subprocess",
             "end_process",
             "end_subprocess",
-            "E_end",
+            "E_start",
+            "pxyz_start",
             "t_start",
+            "E_end",
+            "pxyz_end",
+            "t_end",
         ]
         segments = flow_file["mc_truth/segments/data"][
             "event_id",
             "segment_id",
             "traj_id",
+            "dE",
+            "dx",
             "n_photons"
         ]
         stacks = flow_file["mc_truth/stack/data"][
@@ -466,6 +472,7 @@ class Arrakis(H5FlowStage):
         hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
         hits = flow_file["charge/calib_final_hits/data"]
         light = flow_file["light/sipm_hits/data"]
+        light_events = flow_file["light/events/data"]
 
         event_ids = np.unique(flow_file["mc_truth/segments/data"]["event_id"])
         event_loop = tqdm(
@@ -476,6 +483,8 @@ class Arrakis(H5FlowStage):
             colour="green",
         )
         for jj, event_id in event_loop:
+            if jj > 2:
+                break
             if jj == self.skip_event:
                 continue
             if event_id in self.skip_events:
