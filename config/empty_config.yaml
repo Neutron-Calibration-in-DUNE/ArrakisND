@@ -5,7 +5,7 @@ arrakis_nd:
   simulation_files:  "all"
   skip_files:   []
   skip_event:   0
-  skip_events:  []
+  skip_events:  [0, 1000, 2000]
   output_folder:  "/local_data/"
   verbose:  true
   gpu:      false

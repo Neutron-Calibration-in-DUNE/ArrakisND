@@ -927,9 +927,9 @@ class SimulationWrangler:
         ]
         total_photons_per_hit = [np.sum(hit) for hit in n_photons_per_hit]
         self.det_point_cloud.add_event(
-            event_hits["x"],
-            event_hits["y"],
-            event_hits["z"],
+            event_hits["x"] * 10,
+            event_hits["y"] * 10,
+            event_hits["z"] * 10,
             event_hits["t_drift"],
             event_hits["ts_pps"],
             event_hits["Q"],
@@ -965,9 +965,9 @@ class SimulationWrangler:
         ]
         total_photons_per_hit = [np.sum(hit) for hit in n_photons_per_hit]
         self.det_point_cloud.add_event(
-            event_hits["x"],
-            event_hits["y"],
-            event_hits["z"],
+            event_hits["x"] * 10,
+            event_hits["y"] * 10,
+            event_hits["z"] * 10,
             event_hits["t_drift"],
             event_hits["ts_pps"],
             event_hits["Q"],
