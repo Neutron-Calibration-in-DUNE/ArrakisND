@@ -97,9 +97,11 @@ class SimulationWrangler:
         self.trackid_endprocess = {}
         self.trackid_endsubprocess = {}
         self.trackid_energy_start = {}
+        self.trackid_xyz_start = {}
         self.trackid_momentum_start = {}
         self.trackid_t_start = {}
         self.trackid_energy_end = {}
+        self.trackid_xyz_end = {}
         self.trackid_momentum_end = {}
         self.trackid_t_end = {}
         self.trackid_daughters = {}
@@ -136,9 +138,11 @@ class SimulationWrangler:
         self.trackid_endprocess = {}
         self.trackid_endsubprocess = {}
         self.trackid_energy_start = {}
+        self.trackid_xyz_start = {}
         self.trackid_momentum_start = {}
         self.trackid_t_start = {}
         self.trackid_energy_end = {}
+        self.trackid_xyz_end = {}
         self.trackid_momentum_end = {}
         self.trackid_t_end = {}
         self.trackid_daughters = {}
@@ -591,20 +595,25 @@ class SimulationWrangler:
             "causality": {},
             "mc_truth": {
                 "particles": {
-                    "track_id": 0,
-                    "pdg_code": 1,
-                    "E_start":   2,
-                    "momentum_start": 3,
-                    "t_start":  4,
-                    "E_end":    5,
-                    "momentum_end": 6,
-                    "t_end":    7,
-                    "process":  8,
-                    "end_process":  9,
-                    "parent_id":    10,
-                    "daughters":    11,
-                    "descendants":  12,
-                    "ancestry":     13,
+                    "vertex_id":    0,
+                    "traj_id":      1,
+                    "pdg_id":       2,
+                    "E_start":      3,
+                    "xyz_start":    4,
+                    "pxyz_start":   5,
+                    "t_start":  6,
+                    "E_end":    7,
+                    "xyz_end":  8,
+                    "pxyz_end": 9,
+                    "t_end":    10,
+                    "start_process":    11,
+                    "start_subprocess": 12,
+                    "end_process":      13,
+                    "end_subprocess":   14,
+                    "parent_id":    15,
+                    "daughters":    16,
+                    "descendants":  17,
+                    "ancestry":     18,
                 },
             },
             "topology_labels": {
@@ -721,16 +730,21 @@ class SimulationWrangler:
         )
         particles = [
             [
-                self.particles[ii].mc_particles["track_id"],
-                self.particles[ii].mc_particles["pdg_code"],
-                self.particles[ii].mc_particles["energy_start"],
-                self.particles[ii].mc_particles["momentum_start"],
+                self.particles[ii].mc_particles["vertex_id"],
+                self.particles[ii].mc_particles["traj_id"],
+                self.particles[ii].mc_particles["pdg_id"],
+                self.particles[ii].mc_particles["E_start"],
+                self.particles[ii].mc_particles["xyz_start"],
+                self.particles[ii].mc_particles["pxyz_start"],
                 self.particles[ii].mc_particles["t_start"],
-                self.particles[ii].mc_particles["energy_end"],
-                self.particles[ii].mc_particles["momentum_end"],
+                self.particles[ii].mc_particles["E_end"],
+                self.particles[ii].mc_particles["xyz_end"],
+                self.particles[ii].mc_particles["pxyz_end"],
                 self.particles[ii].mc_particles["t_end"],
-                self.particles[ii].mc_particles["process"],
+                self.particles[ii].mc_particles["start_process"],
+                self.particles[ii].mc_particles["start_subprocess"],
                 self.particles[ii].mc_particles["end_process"],
+                self.particles[ii].mc_particles["end_subprocess"],
                 self.particles[ii].mc_particles["parent_id"],
                 self.particles[ii].mc_particles["daughters"],
                 self.particles[ii].mc_particles["descendants"],
@@ -797,9 +811,11 @@ class SimulationWrangler:
             self.trackid_endprocess[track_id] = particle["end_process"]
             self.trackid_endsubprocess[track_id] = particle["end_subprocess"]
             self.trackid_energy_start[track_id] = particle["E_start"]
+            self.trackid_xyz_start[track_id] = particle["xyz_start"]
             self.trackid_momentum_start[track_id] = particle["pxyz_start"]
             self.trackid_t_start[track_id] = particle["t_start"]
             self.trackid_energy_end[track_id] = particle["E_end"]
+            self.trackid_xyz_end[track_id] = particle["xyz_end"]
             self.trackid_momentum_end[track_id] = particle["pxyz_end"]
             self.trackid_t_end[track_id] = particle["t_end"]
 
@@ -835,17 +851,22 @@ class SimulationWrangler:
 
         # add mc_particle info to scalars
         self.particle.add_mc_particles(
-            track_id=np.array(list(self.trackid_pdgcode.keys())),
-            pdg_code=np.array(list(self.trackid_pdgcode.values())),
-            energy_start=np.array(list(self.trackid_energy_start.values())),
-            momentum_start=np.array(list(self.trackid_momentum_start.values())),
+            vertex_id=np.array(list(self.trackid_vertexid.values()), dtype=np.int32),
+            traj_id=np.array(list(self.trackid_pdgcode.keys()), dtype=np.int32),
+            pdg_id=np.array(list(self.trackid_pdgcode.values())),
+            E_start=np.array(list(self.trackid_energy_start.values())),
+            xyz_start=np.array(list(self.trackid_xyz_start.values())),
+            pxyz_start=np.array(list(self.trackid_momentum_start.values())),
             t_start=np.array(list(self.trackid_t_start.values())),
-            energy_end=np.array(list(self.trackid_energy_end.values())),
-            momentum_end=np.array(list(self.trackid_momentum_end.values())),
+            E_end=np.array(list(self.trackid_energy_end.values())),
+            xyz_end=np.array(list(self.trackid_xyz_end.values())),
+            pxyz_end=np.array(list(self.trackid_momentum_end.values())),
             t_end=np.array(list(self.trackid_t_end.values())),
-            process=np.array(list(self.trackid_subprocess.values())),
-            end_process=np.array(list(self.trackid_endsubprocess.values())),
-            parent_id=np.array(list(self.trackid_parentid.values())),
+            start_process=np.array(list(self.trackid_process.values()), dtype=np.int32),
+            start_subprocess=np.array(list(self.trackid_subprocess.values()), dtype=np.int32),
+            end_process=np.array(list(self.trackid_endprocess.values()), dtype=np.int32),
+            end_subprocess=np.array(list(self.trackid_endsubprocess.values()), dtype=np.int32),
+            parent_id=np.array(list(self.trackid_parentid.values()), dtype=np.int32),
             daughters=np.array(list(self.trackid_daughters.values()), dtype=object),
             descendants=np.array(list(self.trackid_descendants.values()), dtype=object),
             ancestry=np.array(list(self.trackid_ancestry.values()), dtype=object),

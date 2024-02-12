@@ -450,9 +450,11 @@ class Arrakis(H5FlowStage):
             "end_process",
             "end_subprocess",
             "E_start",
+            "xyz_start",
             "pxyz_start",
             "t_start",
             "E_end",
+            "xyz_end",
             "pxyz_end",
             "t_end",
         ]
