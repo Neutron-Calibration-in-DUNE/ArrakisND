@@ -941,24 +941,51 @@ class SimulationWrangler:
         elif self.wrangler_mode == "numpy":
             self.process_event_trajectories_numpy(event_trajectories)
 
+    def process_event_trajectories_basic_info(self, particle):
+        track_id = particle["traj_id"]
+        self.trackid_vertexid[track_id] = particle["vertex_id"]
+        self.trackid_parentid[track_id] = particle["parent_id"]
+        self.trackid_pdgcode[track_id] = particle["pdg_id"]
+        self.trackid_process[track_id] = particle["start_process"]
+        self.trackid_subprocess[track_id] = particle["start_subprocess"]
+        self.trackid_endprocess[track_id] = particle["end_process"]
+        self.trackid_endsubprocess[track_id] = particle["end_subprocess"]
+        self.trackid_energy_start[track_id] = particle["E_start"]
+        self.trackid_xyz_start[track_id] = particle["xyz_start"] * 10
+        self.trackid_momentum_start[track_id] = particle["pxyz_start"]
+        self.trackid_t_start[track_id] = particle["t_start"]
+        self.trackid_energy_end[track_id] = particle["E_end"]
+        self.trackid_xyz_end[track_id] = particle["xyz_end"] * 10
+        self.trackid_momentum_end[track_id] = particle["pxyz_end"]
+        self.trackid_t_end[track_id] = particle["t_end"]
+
     def process_event_trajectories_map(self, event_trajectories):
         for ii, particle in enumerate(event_trajectories):
+            if self.debug:
+                self.meta["timers"].start("wrangler_process_event_trajectories_basic_info")
+                self.meta["memory_trackers"].start("wrangler_process_event_trajectories_basic_info")
+                self.process_event_trajectories_basic_info(particle)
+                self.meta["timers"].end("wrangler_process_event_trajectories_basic_info")
+                self.meta["memory_trackers"].end("wrangler_process_event_trajectories_basic_info")
+            else:
+                self.process_event_trajectories_basic_info(particle)
+
             track_id = particle["traj_id"]
-            self.trackid_vertexid[track_id] = particle["vertex_id"]
-            self.trackid_parentid[track_id] = particle["parent_id"]
-            self.trackid_pdgcode[track_id] = particle["pdg_id"]
-            self.trackid_process[track_id] = particle["start_process"]
-            self.trackid_subprocess[track_id] = particle["start_subprocess"]
-            self.trackid_endprocess[track_id] = particle["end_process"]
-            self.trackid_endsubprocess[track_id] = particle["end_subprocess"]
-            self.trackid_energy_start[track_id] = particle["E_start"]
-            self.trackid_xyz_start[track_id] = particle["xyz_start"] * 10
-            self.trackid_momentum_start[track_id] = particle["pxyz_start"]
-            self.trackid_t_start[track_id] = particle["t_start"]
-            self.trackid_energy_end[track_id] = particle["E_end"]
-            self.trackid_xyz_end[track_id] = particle["xyz_end"] * 10
-            self.trackid_momentum_end[track_id] = particle["pxyz_end"]
-            self.trackid_t_end[track_id] = particle["t_end"]
+            # self.trackid_vertexid[track_id] = particle["vertex_id"]
+            # self.trackid_parentid[track_id] = particle["parent_id"]
+            # self.trackid_pdgcode[track_id] = particle["pdg_id"]
+            # self.trackid_process[track_id] = particle["start_process"]
+            # self.trackid_subprocess[track_id] = particle["start_subprocess"]
+            # self.trackid_endprocess[track_id] = particle["end_process"]
+            # self.trackid_endsubprocess[track_id] = particle["end_subprocess"]
+            # self.trackid_energy_start[track_id] = particle["E_start"]
+            # self.trackid_xyz_start[track_id] = particle["xyz_start"] * 10
+            # self.trackid_momentum_start[track_id] = particle["pxyz_start"]
+            # self.trackid_t_start[track_id] = particle["t_start"]
+            # self.trackid_energy_end[track_id] = particle["E_end"]
+            # self.trackid_xyz_end[track_id] = particle["xyz_end"] * 10
+            # self.trackid_momentum_end[track_id] = particle["pxyz_end"]
+            # self.trackid_t_end[track_id] = particle["t_end"]
 
             # iterate over daughters
             self.trackid_daughters[track_id] = []

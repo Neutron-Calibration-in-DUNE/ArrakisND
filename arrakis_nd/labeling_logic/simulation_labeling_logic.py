@@ -266,9 +266,9 @@ class SimulationLabelingLogic:
                 for hit in hits
             ]
             if -1 in topology_labels:
-                self.logger.info('###################################################')
-                self.logger.info(f'## Missing hit labels for hits: {hits}')
-                self.logger.info(f'## Topology labels:             {topology_labels}')
+                self.logger.debug('###################################################')
+                self.logger.debug(f'## Missing hit labels for hits: {hits}')
+                self.logger.debug(f'## Topology labels:             {topology_labels}')
                 self.simulation_wrangler.print_particle_data(particle)
 
     def clean_up_labels(self):

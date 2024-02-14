@@ -141,9 +141,11 @@ class Logger:
 
         # create logger
         self.logger = logging.getLogger(self.name)
+        self.debug_logger = logging.getLogger(self.name + "_debug")
 
         # set level
         self.logger.setLevel(self.level)
+        self.debug_logger.setLevel(self.level)
 
         # set format
         self.dateformat = "%H:%M:%S"
@@ -152,6 +154,11 @@ class Logger:
         self.file_formatter = logging.Formatter(
             "[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s", self.dateformat
         )
+
+        self.debug = logging.FileHandler(
+            self.local_log_dir + "/" + self.output_file + ".debug", mode="a"
+        )
+        self.debug.setLevel(self.level)
 
         # create handler
         if self.output == "console" or self.output == "both":
@@ -166,6 +173,8 @@ class Logger:
             self.file.setLevel(logging.DEBUG)
             self.file.setFormatter(self.file_formatter)
             self.logger.addHandler(self.file)
+        self.debug.setFormatter(self.file)
+        self.debug_logger.addHandler(self.debug)
         self.logger.propagate = False
 
     def info(
@@ -180,7 +189,7 @@ class Logger:
         message: str,
     ):
         """Output to the standard logger "debug" """
-        return self.logger.debug(message)
+        return self.debug_logger.debug(message)
 
     def warn(
         self,
