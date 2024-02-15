@@ -471,8 +471,11 @@ class Arrakis(H5FlowStage):
         ]
         hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
         hits = flow_file["charge/calib_final_hits/data"]
-        light = flow_file["light/sipm_hits/data"]
+        light = flow_file["charge/events/", "light/events/", "light/sipm_hits"]
         light_events = flow_file["light/events/data"]
+
+        truth_file = H5FlowDataManager("/global/cfs/cdirs/dune/users/mnuland/test-backtrack/giving_it_a_try.hdf5")
+        light_truth = truth_file["light_wvfm_mc_assn"] # ('trigger_id', 'op_channel_id', 'tick', 'event_id', 'segment_id', 'pe_current')
 
         event_ids = np.unique(flow_file["mc_truth/segments/data"]["event_id"])
         event_loop = tqdm(
@@ -501,7 +504,8 @@ class Arrakis(H5FlowStage):
             )
             event_back_track_hits = hits_back_track[hits_back_track_mask]
             event_hits = hits[hits_back_track_mask]
-            event_light = light[light["id"] == event_id]
+            event_light = light[jj]
+            event_light_truth = light_truth[light_truth["event_id"] == event_id]
 
             self.simulation_wrangler.process_event(
                 event_id,
@@ -512,6 +516,7 @@ class Arrakis(H5FlowStage):
                 event_back_track_hits,
                 event_hits,
                 event_light,
+                event_light_truth
             )
             self.simulation_labeling_logic.process_event()
             if len(self.simulation_wrangler.det_point_cloud.data["x"]) == 0:

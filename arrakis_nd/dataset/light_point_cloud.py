@@ -18,7 +18,10 @@ class LightPointCloud:
             "max_peak": np.array([]),   # the height of the peak in ADC counts
             "fwhm_peak": np.array([]),  # the full width at half maximum of the peak in ticks
             "integral_peak": np.array([]),  # the integral of the peak in ADC counts
-            "segment_ids": np.array([]),    # the segment ids that created the peak (truth)
+            "true_segment_ids": np.array([]),    # the segment ids that created the peak (truth)
+            "true_tick": np.array([]),           # the tick of the segment (truth)
+            "true_channel": np.array([]),        # the channel of the segment (truth)
+            "true_pe": np.array([]),             # the number of photoelectrons of the segment (truth)
         }
 
     def add_point(
@@ -29,7 +32,10 @@ class LightPointCloud:
         max_peak: float,
         fwhm_peak: float,
         integral_peak: float,
-        segment_ids: list = [],
+        true_segment_ids: list = [],
+        true_tick: list = [],
+        true_channel: list = [],
+        true_pe: list = [],
     ):
         """
         Add a single hit to the point cloud. So, a single peak, caused by possibly
@@ -43,7 +49,10 @@ class LightPointCloud:
             "max_peak": max_peak,
             "fwhm_peak": fwhm_peak,
             "integral_peak": integral_peak,
-            "segment_ids": segment_ids,
+            "true_segment_ids": true_segment_ids,
+            "true_tick": true_tick,
+            "true_channel": true_channel,
+            "true_pe": true_pe,
         }
         for key, item in event_data.items():
             self.data[key] = item
@@ -56,12 +65,18 @@ class LightPointCloud:
         max_peak: list = [],
         fwhm_peak: list = [],
         integral_peak: list = [],
-        segment_id: list = [],
+        true_segment_id: list = [],
+        true_tick: list = [],
+        true_channel: list = [],
+        true_pe: list = [],        
     ):
         """
         Add all the peaks of a single event to the point cloud. So, all the peaks,
         registered on any channel.
         """
+        print(true_segment_id)
+        print(tick)
+        print(channel)
         for key, value in {
             "tpc": tpc,
             "channel": channel,
@@ -69,7 +84,10 @@ class LightPointCloud:
             "max_peak": max_peak,
             "fwhm_peak": fwhm_peak,
             "integral_peak": integral_peak,
-            "segment_id": segment_id,
+            "true_segment_id": true_segment_id,
+            "true_tick": true_tick,
+            "true_channel": true_channel,
+            "true_pe": true_pe,
         }.items():
             self.data[key] = np.array(value)
 

@@ -373,6 +373,7 @@ class SimulationWrangler:
         event_hits_back_track,
         event_hits,
         event_light,
+        event_light_truth,
     ):
         """
         Go through each of the individual logic functions
@@ -393,6 +394,7 @@ class SimulationWrangler:
                 event_hits_back_track,
                 event_hits,
                 event_light,
+                event_light_truth,
             )
         else:
             self._process_event_without_timing(
@@ -404,6 +406,7 @@ class SimulationWrangler:
                 event_hits_back_track,
                 event_hits,
                 event_light,
+                event_light_truth,
             )
 
     def _process_event_without_timing(
@@ -416,6 +419,7 @@ class SimulationWrangler:
         event_hits_back_track,
         event_hits,
         event_light,
+        event_light_truth,
     ):
         self.clear_event()
         self.det_point_cloud.data["event"] = event_id
@@ -426,7 +430,7 @@ class SimulationWrangler:
         self.process_event_stacks(event_stacks)
         self.process_event_segments(event_segments)
         self.process_event_hits(event_hits, event_hits_back_track, event_segments)
-        self.process_event_light(event_light)
+        self.process_event_light(event_light, event_light_truth)
 
     def _process_event_with_timing(
         self,
@@ -438,6 +442,7 @@ class SimulationWrangler:
         event_hits_back_track,
         event_hits,
         event_light,
+        event_light_truth,
     ):
         self.clear_event()
         self.det_point_cloud.data["event"] = event_id
@@ -479,7 +484,7 @@ class SimulationWrangler:
 
         self.meta["timers"].start("wrangler_process_event_light")
         self.meta["memory_trackers"].start("wrangler_process_event_light")
-        self.process_event_light(event_light)
+        self.process_event_light(event_light, event_light_truth)
         self.meta["timers"].end("wrangler_process_event_light")
         self.meta["memory_trackers"].end("wrangler_process_event_light")
 
@@ -655,6 +660,10 @@ class SimulationWrangler:
                         self.light_point_clouds[ii].data["max_peak"],
                         self.light_point_clouds[ii].data["fwhm_peak"],
                         self.light_point_clouds[ii].data["integral_peak"],
+                        self.light_point_clouds[ii].data["true_segment_ids"],
+                        self.light_point_clouds[ii].data["true_tick"],
+                        self.light_point_clouds[ii].data["true_channel"],
+                        self.light_point_clouds[ii].data["true_pe"],
                     )
                 ).T
                 for ii in self.light_point_clouds.keys()
@@ -806,7 +815,7 @@ class SimulationWrangler:
             # iterate over daughters
             self.trackid_daughters[track_id] = []
             self.trackid_descendants[track_id] = []
-
+            
             if particle["parent_id"] != -1:
                 self.trackid_daughters[particle["parent_id"]].append(track_id)
                 self.trackid_descendants[particle["parent_id"]].append(track_id)
@@ -985,6 +994,7 @@ class SimulationWrangler:
     def process_event_light(
         self,
         event_light,
+        event_light_truth,
     ):
         self.light_point_cloud.add_event(
             event_light["tpc"],
@@ -993,7 +1003,10 @@ class SimulationWrangler:
             event_light["max"],
             event_light["fwhm_spline"],
             event_light["sum"],
-            [],                         # TODO: segment_ids from truth
+            event_light_truth["segment_id"],     # TODO: how to make sure it matches tick and det?
+            event_light_truth["tick"],          # adding now extra
+            event_light_truth["op_channel_id"],  # adding now extra
+            event_light_truth["pe_current"],     # adding now extra
         )
 
     def get_total_hit_energy_map(self, hits):
