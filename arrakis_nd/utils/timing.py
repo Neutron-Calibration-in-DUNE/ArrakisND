@@ -101,15 +101,13 @@ class Timers:
             stds[item] = temp_times.std()
 
         fig, axs = plt.subplots(figsize=(15, 10))
-        box_values = torch.empty(
-            size=(0, len(self.timers[item].timer_values.squeeze()))
-        )
+        box_values = []
         labels = []
         for item in self.timers.keys():
             if len(self.timers[item].timer_values) == 0:
                 continue
             temp_times = self.timers[item].timer_values.squeeze()
-            box_values = torch.cat((box_values, temp_times.unsqueeze(0)), dim=0)
+            box_values.append(temp_times.numpy())
             axs.plot(
                 [],
                 [],

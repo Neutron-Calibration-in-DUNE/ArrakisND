@@ -123,6 +123,8 @@ class DetectorPointCloud:
             "vertex": np.full(x.shape, 0),
             "track_begin": np.full(x.shape, 0),
             "track_end": np.full(x.shape, 0),
+            "delta_begin": np.full(x.shape, 0),
+            "delta_end": np.full(x.shape, 0),
             "shower_begin": np.full(x.shape, 0),
             "shower_end": np.full(x.shape, 0),
             "causal_parent": np.full(x.shape, -1),

@@ -266,9 +266,9 @@ class SimulationLabelingLogic:
                 for hit in hits
             ]
             if -1 in topology_labels:
-                self.logger.info('###################################################')
-                self.logger.info(f'## Missing hit labels for hits: {hits}')
-                self.logger.info(f'## Topology labels:             {topology_labels}')
+                self.logger.debug('###################################################')
+                self.logger.debug(f'## Missing hit labels for hits: {hits}')
+                self.logger.debug(f'## Topology labels:             {topology_labels}')
                 self.simulation_wrangler.print_particle_data(particle)
 
     def clean_up_labels(self):
@@ -370,9 +370,15 @@ class SimulationLabelingLogic:
         physics_macro_label = self.simulation_wrangler.det_point_cloud.data['physics_macro_labels'][hit][largest_fraction]
         unique_topology_label = self.simulation_wrangler.det_point_cloud.data['unique_topology_labels'][hit][largest_fraction]
         unique_particle_label = self.simulation_wrangler.det_point_cloud.data['unique_particle_labels'][hit][largest_fraction]
-        unique_physics_micro_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_micro_labels'][hit][largest_fraction]
-        unique_physics_meso_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_meso_labels'][hit][largest_fraction]
-        unique_physics_macro_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_macro_labels'][hit][largest_fraction]
+        unique_physics_micro_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_micro_labels'][hit][
+            largest_fraction
+        ]
+        unique_physics_meso_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_meso_labels'][hit][
+            largest_fraction
+        ]
+        unique_physics_macro_label = self.simulation_wrangler.det_point_cloud.data['unique_physics_macro_labels'][hit][
+            largest_fraction
+        ]
 
         self.simulation_wrangler.det_point_cloud.data['topology_label'][hit] = topology_label
         self.simulation_wrangler.det_point_cloud.data['particle_label'][hit] = particle_label
@@ -384,6 +390,28 @@ class SimulationLabelingLogic:
         self.simulation_wrangler.det_point_cloud.data['unique_physics_micro_label'][hit] = unique_physics_micro_label
         self.simulation_wrangler.det_point_cloud.data['unique_physics_meso_label'][hit] = unique_physics_meso_label
         self.simulation_wrangler.det_point_cloud.data['unique_physics_macro_label'][hit] = unique_physics_macro_label
+
+    def find_closest_hit(
+        self,
+        position,
+        hits:   list = [],
+    ):
+        # add in ability to search through all hits if hits list is empty
+        closest_hit = hits[0]
+        closest_distance = 10e10
+        for ii in range(len(hits)):
+            hit_x = self.simulation_wrangler.det_point_cloud.data["x"][hits[ii]]
+            hit_y = self.simulation_wrangler.det_point_cloud.data["y"][hits[ii]]
+            hit_z = self.simulation_wrangler.det_point_cloud.data["z"][hits[ii]]
+            hit_distance = np.sqrt(
+                (position[0] - hit_x)**2 +
+                (position[1] - hit_y)**2 +
+                (position[2] - hit_z)**2
+            )
+            if hit_distance < closest_distance:
+                closest_hit = hits[ii]
+                closest_distance = hit_distance
+        return closest_hit
 
     def process_mc_truth(self):
         """
@@ -398,6 +426,80 @@ class SimulationLabelingLogic:
                     self.simulation_wrangler.vertexid_label[vertex_id] = PhysicsMacroLabel.CCNuMu
             else:
                 self.simulation_wrangler.vertexid_label[vertex_id] = PhysicsMacroLabel.NC
+
+    def process_track(
+        self,
+        particle: int = 0,
+        unique_topology: int = 0
+    ):
+        """
+        """
+        particle_hits = self.simulation_wrangler.trackid_hit[particle]
+        if len(particle_hits) > 0:
+            hit_start = self.find_closest_hit(
+                self.simulation_wrangler.trackid_xyz_start[particle],
+                particle_hits
+            )
+            hit_end = self.find_closest_hit(
+                self.simulation_wrangler.trackid_xyz_end[particle],
+                particle_hits
+            )
+            self.simulation_wrangler.det_point_cloud.data["track_begin"][hit_start] = 1
+            self.simulation_wrangler.det_point_cloud.data["track_end"][hit_end] = 1
+            self.simulation_wrangler.track.add_mc_track(
+                track_id=particle,
+                E_start=self.simulation_wrangler.trackid_energy_start[particle],
+                xyz_start=self.simulation_wrangler.trackid_xyz_start[particle],
+                pxyz_start=self.simulation_wrangler.trackid_momentum_start[particle],
+                t_start=self.simulation_wrangler.trackid_t_start[particle],
+                hit_start=hit_start,
+                E_end=self.simulation_wrangler.trackid_energy_end[particle],
+                xyz_end=self.simulation_wrangler.trackid_xyz_end[particle],
+                pxyz_end=self.simulation_wrangler.trackid_momentum_end[particle],
+                t_end=self.simulation_wrangler.trackid_t_end[particle],
+                hit_end=hit_end,
+                track_length=0,
+                dEdx=0,
+                Q_total=0,
+                hits=particle_hits,
+            )
+
+    def process_delta(
+        self,
+        particle: int = 0,
+        unique_topology: int = 0
+    ):
+        """
+        """
+        particle_hits = self.simulation_wrangler.trackid_hit[particle]
+        if len(particle_hits) > 0:
+            hit_start = self.find_closest_hit(
+                self.simulation_wrangler.trackid_xyz_start[particle],
+                particle_hits
+            )
+            hit_end = self.find_closest_hit(
+                self.simulation_wrangler.trackid_xyz_end[particle],
+                particle_hits
+            )
+            self.simulation_wrangler.det_point_cloud.data["delta_begin"][hit_start] = 1
+            self.simulation_wrangler.det_point_cloud.data["delta_end"][hit_end] = 1
+            self.simulation_wrangler.track.add_mc_track(
+                track_id=particle,
+                E_start=self.simulation_wrangler.trackid_energy_start[particle],
+                xyz_start=self.simulation_wrangler.trackid_xyz_start[particle],
+                pxyz_start=self.simulation_wrangler.trackid_momentum_start[particle],
+                t_start=self.simulation_wrangler.trackid_t_start[particle],
+                hit_start=hit_start,
+                E_end=self.simulation_wrangler.trackid_energy_end[particle],
+                xyz_end=self.simulation_wrangler.trackid_xyz_end[particle],
+                pxyz_end=self.simulation_wrangler.trackid_momentum_end[particle],
+                t_end=self.simulation_wrangler.trackid_t_end[particle],
+                hit_end=hit_end,
+                track_length=0,
+                dEdx=0,
+                Q_total=0,
+                hits=particle_hits,
+            )
 
     def process_showers(self, particle: int = 0, unique_topology: int = 0):
         """
@@ -823,6 +925,8 @@ class SimulationLabelingLogic:
                 next(self.unique_physics_micro),
                 next(self.unique_physics_meso),
             )
+            # add muon track to tracks object
+            self.process_track(muon, muon_topology)
             # process daughters (michel or delta, ignore the rest)
             muon_daughters = self.simulation_wrangler.trackid_daughters[muon]
             elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(
@@ -842,17 +946,21 @@ class SimulationLabelingLogic:
             michel_decay_segments = self.simulation_wrangler.get_segments_trackid(
                 decay_daughters
             )
-            self.simulation_wrangler.set_hit_labels_list(
-                michel_decay_hits,
-                michel_decay_segments,
-                decay_daughters,
-                TopologyLabel.Track,
-                PhysicsMicroLabel.ElectronIonization,
-                PhysicsMesoLabel.MichelElectron,
-                muon_topology,
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
+            for ii, decay in enumerate(decay_daughters):
+                decay_topology = next(self.unique_topology)
+                self.simulation_wrangler.set_hit_labels(
+                    michel_decay_hits[ii],
+                    michel_decay_segments[ii],
+                    decay_daughters[ii],
+                    TopologyLabel.Track,
+                    PhysicsMicroLabel.ElectronIonization,
+                    PhysicsMesoLabel.MichelElectron,
+                    decay_topology,
+                    next(self.unique_physics_micro),
+                    next(self.unique_physics_meso),
+                )
+                # add michel track to tracks object
+                self.process_track(decay, decay_topology)
             michel_descendants = self.simulation_wrangler.get_descendants_trackid(decay_daughters)
             self.process_showers_array(michel_descendants)
 
@@ -867,17 +975,21 @@ class SimulationLabelingLogic:
             delta_segments = self.simulation_wrangler.get_segments_trackid(
                 delta_daughters
             )
-            self.simulation_wrangler.set_hit_labels_list(
-                delta_hits,
-                delta_segments,
-                delta_daughters,
-                TopologyLabel.Track,
-                PhysicsMicroLabel.ElectronIonization,
-                PhysicsMesoLabel.DeltaElectron,
-                muon_topology,
-                next(self.unique_physics_micro),
-                next(self.unique_physics_meso),
-            )
+            for ii, delta in enumerate(delta_daughters):
+                delta_topology = next(self.unique_topology)
+                self.simulation_wrangler.set_hit_labels(
+                    delta_hits[ii],
+                    delta_segments[ii],
+                    delta_daughters[ii],
+                    TopologyLabel.Track,
+                    PhysicsMicroLabel.ElectronIonization,
+                    PhysicsMesoLabel.DeltaElectron,
+                    delta_topology,
+                    next(self.unique_physics_micro),
+                    next(self.unique_physics_meso),
+                )
+                # add deltas to tracks
+                self.process_delta(delta, delta_topology)
             delta_descendants = self.simulation_wrangler.get_descendants_trackid(delta_daughters)
             self.process_showers_array(delta_descendants)
             # process other electrons not michel

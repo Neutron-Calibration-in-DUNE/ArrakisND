@@ -6,6 +6,7 @@ process_functions = [
     "wrangler_process_all",
     "wrangler_process_event_interactions",
     "wrangler_process_event_trajectories",
+    "wrangler_process_event_trajectories_basic_info",
     "wrangler_process_event_stacks",
     "wrangler_process_event_segments",
     "wrangler_process_event_hits",

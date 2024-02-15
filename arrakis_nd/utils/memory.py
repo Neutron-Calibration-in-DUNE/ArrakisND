@@ -101,9 +101,7 @@ class MemoryTrackers:
             cpu_stds[item] = temp_times.std()
 
         fig, axs = plt.subplots(figsize=(15, 10))
-        box_values = torch.empty(
-            size=(0, len(self.memory_trackers[item].cpu_memory_values.squeeze()))
-        )
+        box_values = []
         labels = []
         for item in self.memory_trackers.keys():
             if len(self.memory_trackers[item].cpu_memory_values) == 0:
@@ -111,7 +109,7 @@ class MemoryTrackers:
             if sum(self.memory_trackers[item].cpu_memory_values) == 0:
                 continue
             temp_times = self.memory_trackers[item].cpu_memory_values.squeeze()
-            box_values = torch.cat((box_values, temp_times.unsqueeze(0)), dim=0)
+            box_values.append(temp_times.numpy())
             axs.plot(
                 [],
                 [],
