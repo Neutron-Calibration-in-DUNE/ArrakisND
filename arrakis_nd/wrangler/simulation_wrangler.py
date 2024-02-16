@@ -959,6 +959,40 @@ class SimulationWrangler:
         self.trackid_momentum_end[track_id] = particle["pxyz_end"]
         self.trackid_t_end[track_id] = particle["t_end"]
 
+    def process_event_trajectories_daughters(self, particle):
+        track_id = particle["traj_id"]
+        # iterate over daughters
+        self.trackid_daughters[track_id] = []
+        self.trackid_descendants[track_id] = []
+
+        if particle["parent_id"] != -1:
+            self.trackid_daughters[particle["parent_id"]].append(track_id)
+            self.trackid_descendants[particle["parent_id"]].append(track_id)
+        self.trackid_progeny[track_id] = []
+
+        # iterate over ancestry
+        level = 0
+        mother = particle["parent_id"]
+        temp_track_id = particle["traj_id"]
+        ancestry = []
+        while mother != -1:
+            level += 1
+            if track_id not in self.trackid_descendants[mother]:
+                self.trackid_descendants[mother].append(track_id)
+            temp_track_id = mother
+            ancestry.append(mother)
+            mother = self.trackid_parentid[temp_track_id]
+
+            if level > 1 and mother != -1:
+                self.trackid_progeny[mother].append(temp_track_id)
+
+        self.trackid_ancestorlevel[track_id] = level
+        self.trackid_ancestry[track_id] = ancestry
+        self.trackid_hit[track_id] = []
+        self.trackid_segmentid[track_id] = []
+
+
+
     def process_event_trajectories_map(self, event_trajectories):
         for ii, particle in enumerate(event_trajectories):
             if self.debug:
@@ -967,26 +1001,20 @@ class SimulationWrangler:
                 self.process_event_trajectories_basic_info(particle)
                 self.meta["timers"].end("wrangler_process_event_trajectories_basic_info")
                 self.meta["memory_trackers"].end("wrangler_process_event_trajectories_basic_info")
+
+
+                self.meta["timers"].start("wrangler_process_event_trajectories_daughters")
+                self.meta["memory_trackers"].start("wrangler_process_event_trajectories_daughters")
+                self.process_event_trajectories_daughters(particle)
+                self.meta["timers"].end("wrangler_process_event_trajectories_daughters")
+                self.meta["memory_trackers"].end("wrangler_process_event_trajectories_daughters")
             else:
                 self.process_event_trajectories_basic_info(particle)
+                self.process_event_trajectories_daughters(particle)
 
             track_id = particle["traj_id"]
-            # self.trackid_vertexid[track_id] = particle["vertex_id"]
-            # self.trackid_parentid[track_id] = particle["parent_id"]
-            # self.trackid_pdgcode[track_id] = particle["pdg_id"]
-            # self.trackid_process[track_id] = particle["start_process"]
-            # self.trackid_subprocess[track_id] = particle["start_subprocess"]
-            # self.trackid_endprocess[track_id] = particle["end_process"]
-            # self.trackid_endsubprocess[track_id] = particle["end_subprocess"]
-            # self.trackid_energy_start[track_id] = particle["E_start"]
-            # self.trackid_xyz_start[track_id] = particle["xyz_start"] * 10
-            # self.trackid_momentum_start[track_id] = particle["pxyz_start"]
-            # self.trackid_t_start[track_id] = particle["t_start"]
-            # self.trackid_energy_end[track_id] = particle["E_end"]
-            # self.trackid_xyz_end[track_id] = particle["xyz_end"] * 10
-            # self.trackid_momentum_end[track_id] = particle["pxyz_end"]
-            # self.trackid_t_end[track_id] = particle["t_end"]
 
+            '''
             # iterate over daughters
             self.trackid_daughters[track_id] = []
             self.trackid_descendants[track_id] = []
@@ -1016,6 +1044,7 @@ class SimulationWrangler:
             self.trackid_ancestry[track_id] = ancestry
             self.trackid_hit[track_id] = []
             self.trackid_segmentid[track_id] = []
+        '''
 
         # add mc_particle info to scalars
         self.particle.add_mc_particles(
