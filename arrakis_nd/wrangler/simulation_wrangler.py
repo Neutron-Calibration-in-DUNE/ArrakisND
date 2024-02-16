@@ -13,6 +13,7 @@ from arrakis_nd.dataset.light_point_cloud import LightPointCloud
 from arrakis_nd.dataset.scalar import Scalar
 from arrakis_nd.dataset.particle import Particle
 from arrakis_nd.dataset.track import Track
+from arrakis_nd.dataset.interaction import Interaction
 from arrakis_nd.dataset.common import (
     ParticleLabel,
     TopologyLabel,
@@ -168,6 +169,9 @@ class SimulationWrangler:
 
         self.particle = Particle()
         self.particles = {}
+        
+        self.interaction = Interaction()
+        self.interactions = {}
 
         self.scalar = Scalar()
         self.scalars = {}
@@ -178,7 +182,9 @@ class SimulationWrangler:
         self.vertexid_vertex = {}
         self.vertexid_target = {}
         self.vertexid_reaction = {}
-        self.vertexid_pdgcode = {}
+        self.vertexid_Enu = {}
+        self.vertexid_nu_4mom = {}
+        self.vertexid_nu_pdg = {}
         self.vertexid_label = {}
 
         self.trackid_vertexid = {}
@@ -214,13 +220,16 @@ class SimulationWrangler:
         self.det_point_cloud.clear()
         self.light_point_cloud.clear()
         self.particle.clear()
+        self.interaction.clear()
         self.scalar.clear()
         self.track.clear()
 
         self.vertexid_vertex = {}
         self.vertexid_target = {}
         self.vertexid_reaction = {}
-        self.vertexid_pdgcode = {}
+        self.vertex_Enu = {}
+        self.vertex_nu_4mom = {}
+        self.vertexid_nu_pdg = {}
         self.vertexid_label = {}
 
         self.trackid_vertexid = {}
@@ -256,7 +265,10 @@ class SimulationWrangler:
     def clear_point_clouds(self):
         self.det_point_clouds = {}
         self.light_point_clouds = {}
+        self.particles = {}
+        self.interactions = {}
         self.scalars = {}
+        self.tracks = {}
 
     def print_particle_data(self, particle):
         self.logger.info("## MCParticle #######################################")
@@ -522,6 +534,7 @@ class SimulationWrangler:
         self.det_point_cloud.data["event"] = event_id
         self.light_point_cloud.data["event"] = event_id
         self.particle.mc_particles["event"] = event_id
+        self.interaction.mc_interactions["event"] = event_id
         self.track.mc_tracks["event"] = event_id
         self.process_event_interactions(event_interactions)
         self.process_event_trajectories(event_trajectories)
@@ -546,6 +559,7 @@ class SimulationWrangler:
         self.det_point_cloud.data["event"] = event_id
         self.light_point_cloud.data["event"] = event_id
         self.particle.mc_particles["event"] = event_id
+        self.interaction.mc_interactions["event"] = event_id
         self.track.mc_tracks["event"] = event_id
 
         self.meta["timers"].start("wrangler_process_all")
@@ -651,6 +665,8 @@ class SimulationWrangler:
         )
         # particles
         self.particles[self.particle.mc_particles["event"]] = copy.deepcopy(self.particle)
+        # interactions
+        self.interactions[self.interaction.mc_interactions["event"]] = copy.deepcopy(self.interaction)
         # tracks
         self.tracks[self.track.mc_tracks["event"]] = copy.deepcopy(self.track)
 
@@ -720,6 +736,15 @@ class SimulationWrangler:
                     "daughters":    16,
                     "descendants":  17,
                     "ancestry":     18,
+                },
+                "interactions": {
+                    "vertex_id": 0,
+                    "vertex": 1,
+                    "target": 2,
+                    "reaction": 3,
+                    "Enu": 4,
+                    "nu_4mom": 5,
+                    "nu_pdg": 6
                 },
                 "tracks": {
                     "track_id": 0,
@@ -881,6 +906,18 @@ class SimulationWrangler:
             ]
             for ii in self.particles.keys()
         ]
+        interactions = [
+            [
+                self.interactions[ii].mc_interactions["vertex_id"],
+                self.interactions[ii].mc_interactions["vertex"],
+                self.interactions[ii].mc_interactions["target"],
+                self.interactions[ii].mc_interactions["reaction"],
+                self.interactions[ii].mc_interactions["Enu"],
+                self.interactions[ii].mc_interactions["nu_4mom"],
+                self.interactions[ii].mc_interactions["nu_pdg"],
+            ]
+            for ii in self.interactions.keys()
+        ]
         tracks = [
             [
                 self.tracks[ii].mc_tracks["track_id"],
@@ -930,6 +967,7 @@ class SimulationWrangler:
             clusters=clusters,
             track_topology=track_topology,
             particles=particles,
+            interactions=interactions,
             tracks=tracks,
             meta=meta,
         )
@@ -941,8 +979,20 @@ class SimulationWrangler:
             self.vertexid_vertex[vertex_id] = interaction['vertex']
             self.vertexid_target[vertex_id] = interaction['target']
             self.vertexid_reaction[vertex_id] = interaction['reaction']
-            self.vertexid_pdgcode[vertex_id] = interaction['nu_pdg']
+            self.vertexid_Enu[vertex_id] = interaction['Enu']
+            self.vertexid_nu_4mom[vertex_id] = interaction['nu_4mom']
+            self.vertexid_nu_pdg[vertex_id] = interaction['nu_pdg']
             self.vertexid_label[vertex_id] = PhysicsMacroLabel.Undefined
+            
+        self.interaction.add_mc_interactions(
+            vertex_id=np.array(list(self.vertexid_vertex.keys()), dtype=np.int32),
+            vertex=np.array(list(self.vertexid_vertex.values())),
+            target=np.array(list(self.vertexid_target.values())),
+            reaction=np.array(list(self.vertexid_reaction.values())),
+            Enu=np.array(list(self.vertexid_Enu.values())),
+            nu_4mom=np.array(list(self.vertexid_nu_4mom.values())),
+            nu_pdg=np.array(list(self.vertexid_nu_pdg.values()))
+        )
 
     def process_event_trajectories(self, event_trajectories):
         if self.wrangler_mode == "map":
@@ -1087,8 +1137,8 @@ class SimulationWrangler:
     def process_event_stacks_map(self, event_stacks):
         for ii, stack in enumerate(event_stacks):
             vertex_id = stack['vertex_id']
-            if vertex_id not in self.vertexid_pdgcode.keys():
-                self.vertexid_pdgcode[vertex_id] = stack['part_pdg']
+            if vertex_id not in self.vertexid_nu_pdg.keys():
+                self.vertexid_nu_pdg[vertex_id] = stack['part_pdg']
 
     def process_event_stacks_numpy(self, event_stacks):
         pass

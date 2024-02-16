@@ -423,9 +423,9 @@ class SimulationLabelingLogic:
         """
         for vertex_id, reaction in self.simulation_wrangler.vertexid_reaction.items():
             if abs(reaction) in [1, 2, 3, 4, 5]:
-                if abs(self.simulation_wrangler.vertexid_pdgcode[vertex_id] == 12):
+                if abs(self.simulation_wrangler.vertexid_nu_pdg[vertex_id] == 12):
                     self.simulation_wrangler.vertexid_label[vertex_id] = PhysicsMacroLabel.CCNue
-                elif abs(self.simulation_wrangler.vertexid_pdgcode[vertex_id] == 14):
+                elif abs(self.simulation_wrangler.vertexid_nu_pdg[vertex_id] == 14):
                     self.simulation_wrangler.vertexid_label[vertex_id] = PhysicsMacroLabel.CCNuMu
             else:
                 self.simulation_wrangler.vertexid_label[vertex_id] = PhysicsMacroLabel.NC

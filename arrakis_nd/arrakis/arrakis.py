@@ -335,6 +335,8 @@ class Arrakis(H5FlowStage):
             "vertex",
             "target",
             "reaction",
+            "Enu",
+            "nu_4mom",
             "nu_pdg"
         ]
         trajectories = flow_file["mc_truth/trajectories/data"][
@@ -437,6 +439,8 @@ class Arrakis(H5FlowStage):
             "vertex",
             "target",
             "reaction",
+            "Enu",
+            "nu_4mom",
             "nu_pdg"
         ]
         trajectories = flow_file["mc_truth/trajectories/data"][
