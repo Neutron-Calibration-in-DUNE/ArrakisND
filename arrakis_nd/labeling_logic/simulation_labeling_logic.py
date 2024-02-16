@@ -44,9 +44,9 @@ class SimulationLabelingLogic:
             self.device = "cpu"
             self.gpu = False
         if meta["verbose"]:
-            self.logger = Logger(self.name, output="both", file_mode="w")
+            self.warning_machine = Logger(self.name, output="both", file_mode="w")
         else:
-            self.logger = Logger(self.name, level="warning", file_mode="w")
+            self.warning_machine = Logger(self.name, level="warning", file_mode="w")
 
         self.unique_topology = ResetableIterator()
         self.unique_physics_micro = ResetableIterator()
@@ -266,9 +266,12 @@ class SimulationLabelingLogic:
                 for hit in hits
             ]
             if -1 in topology_labels:
-                self.logger.debug('###################################################')
-                self.logger.debug(f'## Missing hit labels for hits: {hits}')
-                self.logger.debug(f'## Topology labels:             {topology_labels}')
+                print("###################################################")
+                print(f"## Missing hit labels for hits: {hits}")
+                print(f"## Topology labels: {topology_labels}")
+                # self.logger.debug(f'###################################################')
+                # self.logger.debug(f'## Missing hit labels for hits: {hits}')
+                # self.logger.debug(f'## Topology labels:             {topology_labels}')
                 self.simulation_wrangler.print_particle_data(particle)
 
     def clean_up_labels(self):
@@ -542,7 +545,11 @@ class SimulationLabelingLogic:
         """
         # grab descendants by type
         particle_subprocess = self.simulation_wrangler.trackid_subprocess[particle]
-        particle_descendants = self.simulation_wrangler.trackid_descendants[particle]
+        try:
+            particle_descendants = self.simulation_wrangler.trackid_descendants[particle]
+        except KeyError:
+            print("particle has no descendants!")
+            particle_descendants = []
 
         ionization_descendants = self.simulation_wrangler.filter_trackid_subprocess(
             particle_descendants, SubProcessType.Ionization.value
@@ -928,7 +935,11 @@ class SimulationLabelingLogic:
             # add muon track to tracks object
             self.process_track(muon, muon_topology)
             # process daughters (michel or delta, ignore the rest)
-            muon_daughters = self.simulation_wrangler.trackid_daughters[muon]
+            try:
+                muon_daughters = self.simulation_wrangler.trackid_daughters[muon]
+            except KeyError:
+                muon_daughters = []
+                print("muon has no daughters!")
             elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(
                 muon_daughters, 11
             )
@@ -1034,7 +1045,11 @@ class SimulationLabelingLogic:
         pions = self.simulation_wrangler.get_trackid_abs_pdg_code(211)
         for pion in pions:
             # label pion as HIP ionization
-            pion_daughters = self.simulation_wrangler.trackid_daughters[pion]
+            try:
+                pion_daughters = self.simulation_wrangler.trackid_daughters[pion]
+            except KeyError:
+                print("pion has no daughters!")
+                pion_daughters = []
             pion_hits = self.simulation_wrangler.trackid_hit[pion]
             pion_segments = self.simulation_wrangler.trackid_segmentid[pion]
             cluster_label = next(self.unique_topology)
@@ -1088,7 +1103,11 @@ class SimulationLabelingLogic:
     def process_kaons(self):
         kaons = self.simulation_wrangler.get_trackid_abs_pdg_code(321)
         for kaon in kaons:
-            kaon_daughters = self.simulation_wrangler.trackid_daughters[kaon]
+            try:
+                kaon_daughters = self.simulation_wrangler.trackid_daughters[kaon]
+            except KeyError:
+                print("kaon has no daughters!")
+                kaon_daughters = []
             kaon_hits = self.simulation_wrangler.get_hits_trackid(kaon)
             kaon_segments = self.simulation_wrangler.get_segments_trackid(kaon)
 
@@ -1153,7 +1172,11 @@ class SimulationLabelingLogic:
                 next(self.unique_physics_micro),
                 next(self.unique_physics_meso),
             )
-            proton_daughters = self.simulation_wrangler.trackid_daughters[proton]
+            try:
+                proton_daughters = self.simulation_wrangler.trackid_daughters[proton]
+            except KeyError:
+                print("proton has no daughters!")
+                proton_daughters = []
             elec_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(
                 proton_daughters, 11
             )
@@ -1268,8 +1291,11 @@ class SimulationLabelingLogic:
 
         for neutron in neutrons:
             # process neutron hits
-
-            neutron_daughters = self.simulation_wrangler.trackid_daughters[neutron]
+            try:
+                neutron_daughters = self.simulation_wrangler.trackid_daughters[neutron]
+            except KeyError:
+                print("neutron has no daughters!")
+                neutron_daughters = []
             gamma_daughters = self.simulation_wrangler.filter_trackid_abs_pdg_code(
                 neutron_daughters, 22
             )

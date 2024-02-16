@@ -526,7 +526,7 @@ class SimulationWrangler:
         self.process_event_interactions(event_interactions)
         self.process_event_trajectories(event_trajectories)
         self.process_event_stacks(event_stacks)
-        self.process_event_segments(event_segments)
+        self.process_event_segments(event_segments, event_trajectories)
         self.process_event_hits(event_hits, event_hits_back_track, event_segments)
         self.process_event_light(event_light, event_light_truth)
 
@@ -571,7 +571,7 @@ class SimulationWrangler:
 
         self.meta["timers"].start("wrangler_process_event_segments")
         self.meta["memory_trackers"].start("wrangler_process_event_segments")
-        self.process_event_segments(event_segments)
+        self.process_event_segments(event_segments, event_trajectories)
         self.meta["timers"].end("wrangler_process_event_segments")
         self.meta["memory_trackers"].end("wrangler_process_event_segments")
 
@@ -950,70 +950,87 @@ class SimulationWrangler:
         elif self.wrangler_mode == "numpy":
             self.process_event_trajectories_numpy(event_trajectories)
 
-    def process_event_trajectories_basic_info(self, particle):
+    def process_event_trajectories_basic_info(self, particle, ii):
         track_id = particle["traj_id"]
-        self.trackid_vertexid[track_id] = particle["vertex_id"]
-        self.trackid_parentid[track_id] = particle["parent_id"]
-        self.trackid_pdgcode[track_id] = particle["pdg_id"]
-        self.trackid_process[track_id] = particle["start_process"]
-        self.trackid_subprocess[track_id] = particle["start_subprocess"]
-        self.trackid_endprocess[track_id] = particle["end_process"]
-        self.trackid_endsubprocess[track_id] = particle["end_subprocess"]
-        self.trackid_energy_start[track_id] = particle["E_start"]
-        self.trackid_xyz_start[track_id] = particle["xyz_start"] * 10
-        self.trackid_momentum_start[track_id] = particle["pxyz_start"]
-        self.trackid_t_start[track_id] = particle["t_start"]
-        self.trackid_energy_end[track_id] = particle["E_end"]
-        self.trackid_xyz_end[track_id] = particle["xyz_end"] * 10
-        self.trackid_momentum_end[track_id] = particle["pxyz_end"]
-        self.trackid_t_end[track_id] = particle["t_end"]
+        self.trackid_vertexid[ii] = particle["vertex_id"]
+        # self.trackid_parentid[ii] = particle["parent_id"]
+        self.trackid_pdgcode[ii] = particle["pdg_id"]
+        self.trackid_process[ii] = particle["start_process"]
+        self.trackid_subprocess[ii] = particle["start_subprocess"]
+        self.trackid_endprocess[ii] = particle["end_process"]
+        self.trackid_endsubprocess[ii] = particle["end_subprocess"]
+        self.trackid_energy_start[ii] = particle["E_start"]
+        self.trackid_xyz_start[ii] = particle["xyz_start"] * 10
+        self.trackid_momentum_start[ii] = particle["pxyz_start"]
+        self.trackid_t_start[ii] = particle["t_start"]
+        self.trackid_energy_end[ii] = particle["E_end"]
+        self.trackid_xyz_end[ii] = particle["xyz_end"] * 10
+        self.trackid_momentum_end[ii] = particle["pxyz_end"]
+        self.trackid_t_end[ii] = particle["t_end"]
 
     def process_event_trajectories_map(self, event_trajectories):
         for ii, particle in enumerate(event_trajectories):
             if self.debug:
                 self.meta["timers"].start("wrangler_process_event_trajectories_basic_info")
                 self.meta["memory_trackers"].start("wrangler_process_event_trajectories_basic_info")
-                self.process_event_trajectories_basic_info(particle)
+                self.process_event_trajectories_basic_info(particle, ii)
                 self.meta["timers"].end("wrangler_process_event_trajectories_basic_info")
                 self.meta["memory_trackers"].end("wrangler_process_event_trajectories_basic_info")
             else:
-                self.process_event_trajectories_basic_info(particle)
+                self.process_event_trajectories_basic_info(particle, ii)
 
-            track_id = particle["traj_id"]
-            # self.trackid_vertexid[track_id] = particle["vertex_id"]
-            # self.trackid_parentid[track_id] = particle["parent_id"]
-            # self.trackid_pdgcode[track_id] = particle["pdg_id"]
-            # self.trackid_process[track_id] = particle["start_process"]
-            # self.trackid_subprocess[track_id] = particle["start_subprocess"]
-            # self.trackid_endprocess[track_id] = particle["end_process"]
-            # self.trackid_endsubprocess[track_id] = particle["end_subprocess"]
-            # self.trackid_energy_start[track_id] = particle["E_start"]
-            # self.trackid_xyz_start[track_id] = particle["xyz_start"] * 10
-            # self.trackid_momentum_start[track_id] = particle["pxyz_start"]
-            # self.trackid_t_start[track_id] = particle["t_start"]
-            # self.trackid_energy_end[track_id] = particle["E_end"]
-            # self.trackid_xyz_end[track_id] = particle["xyz_end"] * 10
-            # self.trackid_momentum_end[track_id] = particle["pxyz_end"]
-            # self.trackid_t_end[track_id] = particle["t_end"]
+            track_id = ii # particle["traj_id"] not unique!
+            parent_options = event_trajectories[event_trajectories["traj_id"] == particle["parent_id"]]
+            parent = parent_options[parent_options["vertex_id"] == particle["vertex_id"]]
+            try:
+                parent_id = np.where(event_trajectories == parent)[0][0]
+            except:
+                parent_id = -1
+
+            self.trackid_vertexid[ii] = particle["vertex_id"]
+            self.trackid_parentid[ii] = parent_id
+            self.trackid_pdgcode[ii] = particle["pdg_id"]
+            self.trackid_process[ii] = particle["start_process"]
+            self.trackid_subprocess[ii] = particle["start_subprocess"]
+            self.trackid_endprocess[ii] = particle["end_process"]
+            self.trackid_endsubprocess[ii] = particle["end_subprocess"]
+            self.trackid_energy_start[ii] = particle["E_start"]
+            self.trackid_xyz_start[ii] = particle["xyz_start"] * 10
+            self.trackid_momentum_start[ii] = particle["pxyz_start"]
+            self.trackid_t_start[ii] = particle["t_start"]
+            self.trackid_energy_end[ii] = particle["E_end"]
+            self.trackid_xyz_end[ii] = particle["xyz_end"] * 10
+            self.trackid_momentum_end[ii] = particle["pxyz_end"]
+            self.trackid_t_end[ii] = particle["t_end"]
 
             # iterate over daughters
-            self.trackid_daughters[track_id] = []
-            self.trackid_descendants[track_id] = []
+            self.trackid_daughters[parent_id] = []
+            self.trackid_descendants[parent_id] = []
             
-            if particle["parent_id"] != -1:
-                self.trackid_daughters[particle["parent_id"]].append(track_id)
-                self.trackid_descendants[particle["parent_id"]].append(track_id)
-            self.trackid_progeny[track_id] = []
-
+            # TODO: this will no longer work with non-unique track ids
+            if parent_id != -1:
+                self.trackid_daughters[parent_id].append(ii)
+                self.trackid_descendants[parent_id].append(ii)
+            self.trackid_progeny[ii] = []
+        
+        for ii, particle in enumerate(event_trajectories):
+            track_id = ii # particle["traj_id"] not unique!
+            parent_options = event_trajectories[event_trajectories["traj_id"] == particle["parent_id"]]
+            parent = parent_options[parent_options["vertex_id"] == particle["vertex_id"]]
+            try:
+                parent_id = np.where(event_trajectories == parent)[0][0]
+            except:
+                parent_id = -1
+            print(parent_id)
             # iterate over ancestry
             level = 0
-            mother = particle["parent_id"]
-            temp_track_id = particle["traj_id"]
+            mother = parent_id #particle["parent_id"]
+            temp_track_id = ii#particle["traj_id"]
             ancestry = []
             while mother != -1:
                 level += 1
-                if track_id not in self.trackid_descendants[mother]:
-                    self.trackid_descendants[mother].append(track_id)
+                if ii not in self.trackid_descendants[mother]:
+                    self.trackid_descendants[mother].append(ii)
                 temp_track_id = mother
                 ancestry.append(mother)
                 mother = self.trackid_parentid[temp_track_id]
@@ -1021,11 +1038,11 @@ class SimulationWrangler:
                 if level > 1 and mother != -1:
                     self.trackid_progeny[mother].append(temp_track_id)
 
-            self.trackid_ancestorlevel[track_id] = level
-            self.trackid_ancestry[track_id] = ancestry
-            self.trackid_hit[track_id] = []
-            self.trackid_segmentid[track_id] = []
-
+            self.trackid_ancestorlevel[ii] = level
+            self.trackid_ancestry[ii] = ancestry
+            self.trackid_hit[ii] = []
+            self.trackid_segmentid[ii] = []
+        print(self.trackid_descendants)
         # add mc_particle info to scalars
         self.particle.add_mc_particles(
             vertex_id=np.array(list(self.trackid_vertexid.values()), dtype=np.int32),
@@ -1050,6 +1067,8 @@ class SimulationWrangler:
         )
 
     def process_event_trajectories_numpy(self, event_trajectories):
+        # TODO: this will no longer work with the non-unique track ids
+        # we need to use a combination of vertex id and track id
         self.trackid_parentid = event_trajectories["parent_id"]
         self.trackid_pdgcode = event_trajectories["pdg_id"]
         self.trackid_process = event_trajectories["start_process"]
@@ -1074,20 +1093,21 @@ class SimulationWrangler:
     def process_event_stacks_numpy(self, event_stacks):
         pass
 
-    def process_event_segments(self, event_segments):
+    def process_event_segments(self, event_segments, event_trajectories):
         if self.wrangler_mode == "map":
-            self.process_event_segments_map(event_segments)
+            self.process_event_segments_map(event_segments, event_trajectories)
         elif self.wrangler_mode == "numpy":
             self.process_event_segments_numpy(event_segments)
 
-    def process_event_segments_map(self, event_segments):
+    def process_event_segments_map(self, event_segments, event_trajectories):
         for ii, segment in enumerate(event_segments):
-            self.trackid_segmentid[segment["traj_id"]].append(
+            # TODO: this will no longer work with non-unique track ids
+            same_vertex_ = event_trajectories[event_trajectories["vertex_id"] == segment["vertex_id"]]
+            traj_id = np.where(same_vertex_["traj_id"] == segment["traj_id"])[0][0]
+            self.trackid_segmentid[traj_id].append(
                 segment["segment_id"]
             )  # segment_ids belonging to a track_id
-            self.segmentid_trackid[segment["segment_id"]] = segment[
-                "traj_id"
-            ]  # track_id belonging to a segment_id
+            self.segmentid_trackid[segment["segment_id"]] = traj_id  # track_id belonging to a segment_id
             self.segmentid_hit[
                 segment["segment_id"]
             ] = []  # hit_ids belonging to a segment_id
@@ -1113,6 +1133,7 @@ class SimulationWrangler:
         for segment_id in segment_ids:
             segment_id = segment_id[segment_id != 0]
             segment_id_indices = np.where(np.isin(event_segments["segment_id"], segment_id))
+            # TODO: this will no longer work with non-unique track ids
             segment_track_ids.append(event_segments["traj_id"][segment_id_indices])
         segment_track_ids = np.array(segment_track_ids, dtype=object)
         # Create a dictionary mapping from segment IDs to number of photons
@@ -1185,18 +1206,19 @@ class SimulationWrangler:
         event_light,
         event_light_truth,
     ):
-        self.light_point_cloud.add_event(
-            event_light["tpc"],
-            event_light["det"],
-            event_light["sample_idx"],
-            event_light["max"],
-            event_light["fwhm_spline"],
-            event_light["sum"],
-            event_light_truth["segment_id"],     # TODO: how to make sure it matches tick and det?
-            event_light_truth["tick"],          # adding now extra
-            event_light_truth["op_channel_id"],  # adding now extra
-            event_light_truth["pe_current"],     # adding now extra
-        )
+        pass
+        # self.light_point_cloud.add_event(
+        #     event_light["tpc"],
+        #     event_light["det"],
+        #     event_light["sample_idx"],
+        #     event_light["max"],
+        #     event_light["fwhm_spline"],
+        #     event_light["sum"],
+        #     event_light_truth["segment_id"],     # TODO: how to make sure it matches tick and det?
+        #     event_light_truth["tick"],          # adding now extra
+        #     event_light_truth["op_channel_id"],  # adding now extra
+        #     event_light_truth["pe_current"],     # adding now extra
+        # )
 
     def get_total_hit_energy_map(self, hits):
         """Get total energy from a list of hits
@@ -1257,15 +1279,24 @@ class SimulationWrangler:
         return trackid
 
     def get_parentid_trackid(self, trackids):
-        parentid = [self.trackid_parentid[track_id] for track_id in trackids]
+        try:
+            parentid = [self.trackid_parentid[track_id] for track_id in trackids]
+        except KeyError:
+            parentid = []
         return parentid
 
     def get_daughters_trackid(self, trackids):
-        daughters = [self.trackid_daughters[track_id] for track_id in trackids]
+        try:
+            daughters = [self.trackid_daughters[track_id] for track_id in trackids]
+        except KeyError:
+            daughters = []
         return daughters
 
     def get_descendants_trackid(self, trackids):
-        descendants = [self.trackid_descendants[track_id] for track_id in trackids]
+        try:
+            descendants = [self.trackid_descendants[track_id] for track_id in trackids]
+        except KeyError:
+            descendants = []
         return descendants
 
     def get_t_start_trackid(self, trackids):

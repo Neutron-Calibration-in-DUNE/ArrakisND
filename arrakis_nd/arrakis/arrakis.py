@@ -461,6 +461,7 @@ class Arrakis(H5FlowStage):
         segments = flow_file["mc_truth/segments/data"][
             "event_id",
             "segment_id",
+            "vertex_id",
             "traj_id",
             "dE",
             "dx",
@@ -473,7 +474,18 @@ class Arrakis(H5FlowStage):
         ]
         hits_back_track = flow_file["mc_truth/calib_final_hit_backtrack/data"]
         hits = flow_file["charge/calib_final_hits/data"]
-        light = flow_file["charge/events/", "light/events/", "light/sipm_hits"]
+        light = flow_file["light/sipm_hits/data"]
+        # light = flow_file["charge/events/", "light/events/", "light/sipm_hits"][
+        #     "id",
+        #     "adc",
+        #     "chan",
+        #     "sample_idx",
+        #     "sum",
+        #     "max",
+        #     "sum_spline",
+        #     "max_spline",
+        #     "fwhm_spline",
+        # ] #('id', 'adc', 'chan', 'pos', 'sample_idx', 'ns', 'busy_ns', 'samples', 'sum', 'max', 'sum_spline', 'max_spline', 'ns_spline', 'rising_spline', 'rising_err_spline', 'fwhm_spline')
         light_events = flow_file["light/events/data"]
 
         truth_file = H5FlowDataManager("/global/cfs/cdirs/dune/users/mnuland/test-backtrack/giving_it_a_try.hdf5")
@@ -506,7 +518,7 @@ class Arrakis(H5FlowStage):
             )
             event_back_track_hits = hits_back_track[hits_back_track_mask]
             event_hits = hits[hits_back_track_mask]
-            event_light = light[jj]
+            event_light = light[event_id]
             event_light_truth = light_truth[light_truth["event_id"] == event_id]
 
             self.simulation_wrangler.process_event(
