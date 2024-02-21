@@ -8,17 +8,17 @@ setup(
     # name
     name="arrakis_nd",
     # current version
-    #   MAJOR VERSION:  00
-    #   MINOR VERSION:  01
+    #   MAJOR VERSION:  02
+    #   MINOR VERSION:  00
     #   Maintenance:    00
-    version="00.01.00",
+    version="2.00.00",
     # descriptions
     description="Arrakis module for near detector data.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     keywords="",
     # my info
-    author="Nicholas Carrara",
+    author="Nicholas Carrara, Marjolein van Nuland, Luis Lepin",
     author_email="ncarrara.physics@gmail.com",
     # where to find the source
     url="https://github.com/Neutron-Calibration-in-DUNE/ArrakisND",

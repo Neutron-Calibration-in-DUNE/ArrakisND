@@ -42,6 +42,14 @@ error_list = {
 
 
 class LoggingFormatter(logging.Formatter):
+    """_summary_
+
+    Args:
+        logging (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     console_extra = " [%(name)s]: %(message)s"
     grey = "\x1b[38;20m"
     yellow = "\x1b[33;20m"
@@ -51,51 +59,11 @@ class LoggingFormatter(logging.Formatter):
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
     FORMATS = {
-        logging.DEBUG: "["
-        + grey
-        + "%(levelname)s"
-        + reset
-        + "] ["
-        + purple
-        + "%(name)s"
-        + reset
-        + "]: %(message)s",
-        logging.INFO: "["
-        + blue
-        + "%(levelname)s"
-        + reset
-        + "] ["
-        + purple
-        + "%(name)s"
-        + reset
-        + "]: %(message)s",
-        logging.WARNING: "["
-        + yellow
-        + "%(levelname)s"
-        + reset
-        + "] ["
-        + purple
-        + "%(name)s"
-        + reset
-        + "]: %(message)s",
-        logging.ERROR: "["
-        + red
-        + "%(levelname)s"
-        + reset
-        + "] ["
-        + purple
-        + "%(name)s"
-        + reset
-        + "]: %(message)s",
-        logging.CRITICAL: "["
-        + bold_red
-        + "%(levelname)s"
-        + reset
-        + "] ["
-        + purple
-        + "%(name)s"
-        + reset
-        + "]: %(message)s",
+        logging.DEBUG: "[" + grey + "%(levelname)s" + reset + "] [" + purple + "%(name)s" + reset + "]: %(message)s",
+        logging.INFO: "[" + blue + "%(levelname)s" + reset + "] [" + purple + "%(name)s" + reset + "]: %(message)s",
+        logging.WARNING: "[" + yellow + "%(levelname)s" + reset + "] [" + purple + "%(name)s" + reset + "]: %(message)s",
+        logging.ERROR: "[" + red + "%(levelname)s" + reset + "] [" + purple + "%(name)s" + reset + "]: %(message)s",
+        logging.CRITICAL: "[" + bold_red + "%(levelname)s" + reset + "] [" + purple + "%(name)s" + reset + "]: %(message)s",
     }
 
     def format(self, record):
@@ -105,7 +73,8 @@ class LoggingFormatter(logging.Formatter):
 
 
 class Logger:
-    """ """
+    """_summary_
+    """
 
     def __init__(
         self,
@@ -115,6 +84,19 @@ class Logger:
         output_file: str = "",
         file_mode: str = "a",
     ):
+        """_summary_
+
+        Args:
+            name (str, optional): _description_. Defaults to "default".
+            level (str, optional): _description_. Defaults to "debug".
+            output (str, optional): _description_. Defaults to "file".
+            output_file (str, optional): _description_. Defaults to "".
+            file_mode (str, optional): _description_. Defaults to "a".
+
+        Raises:
+            ValueError: _description_
+            ValueError: _description_
+        """
         # check for mistakes
         if level not in logging_level.keys():
             raise ValueError(f"Logging level {level} not in {logging_level}.")
@@ -233,6 +215,11 @@ class Logger:
         raise error_list[error_type](f"traceback: {formatted_lines}\nerror: {message}")
 
     def get_system_info(self):
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
         info = {}
         try:
             info["platform"] = platform.system()

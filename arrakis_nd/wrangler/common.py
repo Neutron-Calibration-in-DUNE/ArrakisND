@@ -2,8 +2,6 @@
 ArrakisND data
 """
 
-wrangler_modes = ["map", "numpy"]
-
 process_type = {
     "not_defined":  0,
     "transportation":   1,

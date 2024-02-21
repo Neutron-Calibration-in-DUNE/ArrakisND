@@ -7,12 +7,15 @@ from arrakis_nd.utils.logger import Logger
 
 
 class ConfigParser:
-    """ """
+    """ 
+    """
 
     def __init__(
         self,
         config_file: str,
     ):
+        """
+        """
         self.logger = Logger("config_parser", output="both", file_mode="w")
         self.logger.info("setting up config file.")
         self.config_file = config_file
@@ -22,6 +25,8 @@ class ConfigParser:
         self.parse_config()
 
     def parse_config(self):
+        """
+        """
         self.collect_nested_configs(self.config_file)
         self.nested_config_files.reverse()
         self.nested_configs.reverse()
@@ -36,6 +41,11 @@ class ConfigParser:
         self,
         config_file
     ):
+        """_summary_
+
+        Args:
+            config_file (_type_): _description_
+        """
         with open(config_file, 'r') as file:
             temp_data = yaml.safe_load(file)
             if temp_data is None:
@@ -50,5 +60,11 @@ class ConfigParser:
         config_dictionary,
         output_file
     ):
+        """_summary_
+
+        Args:
+            config_dictionary (_type_): _description_
+            output_file (_type_): _description_
+        """
         with open(output_file, 'w') as file:
             yaml.dump(config_dictionary, file)
