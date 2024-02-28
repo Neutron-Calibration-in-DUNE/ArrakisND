@@ -2,7 +2,11 @@
 Utilities for ArrakisND
 """
 import numpy as np
-import h5py
+from collections import defaultdict
+import functools
+import psutil
+import time
+import os
 
 
 class ResetableIterator:
@@ -27,14 +31,54 @@ def remove_sublist(original_list, remove_list):
     return list(filter(lambda x: x not in remove_list, original_list))
 
 
-@np.vectorize
-def fill_with_minus_one(arr):
-    return np.full_like(arr, -1)
+# A class to store and manage timings
+class TimingManager:
+    def __init__(self):
+        self.timings = defaultdict(list)
+
+    def record_timing(self, func_name, elapsed):
+        self.timings[func_name].append(elapsed)
 
 
-def read_hdf5(path):
-    keys = []
-    with h5py.File(path, 'r') as f:     # open file
-        f.visit(keys.append)            # append all keys to list
-        for key in keys:
-            print(f[key].name)
+# A class to store and manage timings
+class MemoryManager:
+    def __init__(self):
+        self.memory = defaultdict(list)
+
+    def record_memory(self, func_name, elapsed):
+        self.memory[func_name].append(elapsed)
+
+
+# Global instance to store timings
+timing_manager = TimingManager()
+# Global instance to store profiles
+memory_manager = MemoryManager()
+
+
+def profiler(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Redirect stdout to a StringIO object to capture the memory_profiler output
+        process = psutil.Process(os.getpid())
+        mem_before = process.memory_info().rss / 1024 ** 2  # Convert bytes to MB
+
+        start_time = time.time()
+        result = func(*args, **kwargs)
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+
+        # Get the process after the function execution
+        mem_after = process.memory_info().rss / 1024 ** 2  # Convert bytes to MB
+        mem_used = mem_after - mem_before
+
+        # Capture the memory profile output
+        try:
+            memory_manager.record_memory(func.__qualname__, mem_used)
+            timing_manager.record_timing(func.__qualname__, elapsed_time)
+        finally:
+            memory_manager.record_memory(func.__name__, mem_used)
+            timing_manager.record_timing(func.__name__, elapsed_time)
+
+        return result
+    return wrapper
