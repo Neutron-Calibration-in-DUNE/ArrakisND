@@ -1,7 +1,6 @@
 """
 Utilities for ArrakisND
 """
-import numpy as np
 from collections import defaultdict
 import functools
 import psutil
@@ -10,6 +9,8 @@ import os
 
 
 class ResetableIterator:
+    """_summary_
+    """
     def __init__(self):
         self._value = 0
 
@@ -28,11 +29,21 @@ class ResetableIterator:
 
 
 def remove_sublist(original_list, remove_list):
+    """_summary_
+
+    Args:
+        original_list (_type_): _description_
+        remove_list (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     return list(filter(lambda x: x not in remove_list, original_list))
 
 
-# A class to store and manage timings
 class TimingManager:
+    """_summary_
+    """
     def __init__(self):
         self.timings = defaultdict(list)
 
@@ -40,8 +51,9 @@ class TimingManager:
         self.timings[func_name].append(elapsed)
 
 
-# A class to store and manage timings
 class MemoryManager:
+    """_summary_
+    """
     def __init__(self):
         self.memory = defaultdict(list)
 
@@ -56,6 +68,14 @@ memory_manager = MemoryManager()
 
 
 def profiler(func):
+    """_summary_
+
+    Args:
+        func (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Redirect stdout to a StringIO object to capture the memory_profiler output

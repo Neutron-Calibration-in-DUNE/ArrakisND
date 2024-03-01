@@ -27,6 +27,13 @@ class Arrakis:
         meta:   dict = {},
         number_of_files:    int = -1,
     ):
+        """_summary_
+
+        Args:
+            config (dict): _description_
+            meta (dict): _description_
+            number_of_files (int): _description_
+        """
         """
         Parse config parameters
         Configure plugins
@@ -54,8 +61,13 @@ class Arrakis:
         self.comm.Barrier()
 
         self.flow_files = []
+        """Distributed events and indices for various arrays"""
         self.distributed_events = {}
-        self.distributed_indices = {}
+        self.distributed_interactions_indices = {}
+        self.distributed_segments_indices = {}
+        self.distributed_stack_indices = {}
+        self.distributed_trajectories_indices = {}
+        self.distributed_charge_indices = {}
 
     @profiler
     def parse_config(self):
@@ -205,6 +217,11 @@ class Arrakis:
         self,
         file_name:  str
     ):
+        """_summary_
+
+        Args:
+            file_name (str): _description_
+        """
         with h5py.File(file_name, 'r+') as f:
             charge = f['charge/calib_final_hits/data']
             # Define the compound data type with named fields
@@ -224,26 +241,80 @@ class Arrakis:
         self,
         file_name:  str
     ):
-        if self.rank == 0:
-            with h5py.File(file_name, 'r+') as f:
-                events = f['mc_truth/trajectories/data']['event_id']
-                unique_events = np.unique(events)
-                self.distributed_events.clear()
-                self.distributed_indices.clear()
-                self.distributed_events = {i: [] for i in range(1, self.size)}  # Worker ranks start from 1
-                self.distributed_indices = {i: [] for i in range(1, self.size)}  # Worker ranks start from 1
+        """_summary_
 
+        Args:
+            file_name (_type_): _description_
+        """
+        with h5py.File(file_name, 'r+', driver='mpio', comm=self.comm) as file:
+            if self.rank == 0:
+                """Collect event ids from mc_truth and charge/light data"""
+                interactions_events = file['mc_truth/interactions/data']['event_id']
+                segments_events = file['mc_truth/segments/data']['event_id']
+                stack_events = file['mc_truth/stack/data']['event_id']
+                trajectories_events = file['mc_truth/trajectories/data']['event_id']
+                charge_segments = file['mc_truth/calib_final_hit_backtrack/data']['segment_id']
+                non_zero_charge_segments = [row[row != 0] for row in charge_segments]
+                max_length = len(max(non_zero_charge_segments, key=len))
+                segments_ids = file['mc_truth/segments/data']['segment_id']
+
+                """Determine unique events and distribute among workers"""
+                unique_events = np.unique(trajectories_events)
+                self.distributed_events.clear()
+                self.distributed_interactions_indices.clear()
+                self.distributed_segments_indices.clear()
+                self.distributed_stack_indices.clear()
+                self.distributed_trajectories_indices.clear()
+                self.distributed_charge_indices.clear()
+
+                self.distributed_events = {i: [] for i in range(1, self.size)}
+                self.distributed_interactions_indices = {i: [] for i in range(1, self.size)}
+                self.distributed_segments_indices = {i: [] for i in range(1, self.size)}
+                self.distributed_stack_indices = {i: [] for i in range(1, self.size)}
+                self.distributed_trajectories_indices = {i: [] for i in range(1, self.size)}
+                self.distributed_charge_indices = {i: [] for i in range(1, self.size)}
+
+                """Determine indices for mc_truth and charge/light data"""
                 for i, event_id in enumerate(unique_events):
                     worker_rank = 1 + i % (self.size - 1)  # Distribute round-robin among workers
-                    indices = np.where(events == event_id)[0]  # Indices of this event_id
                     self.distributed_events[worker_rank].append(event_id)
-                    self.distributed_indices[worker_rank].append(indices)  # Send list of indices to worker
-            for ii in range(1, self.comm.size):
-                self.comm.send(self.distributed_events[ii], dest=ii, tag=2)
-                self.comm.send(self.distributed_indices[ii], dest=ii, tag=3)
-        else:
-            self.distributed_events[self.rank] = self.comm.recv(source=0, tag=2)
-            self.distributed_indices[self.rank] = self.comm.recv(source=0, tag=3)
+                    self.distributed_interactions_indices[worker_rank].append(
+                        np.where(interactions_events == event_id)[0]
+                    )
+                    self.distributed_segments_indices[worker_rank].append(
+                        np.where(segments_events == event_id)[0]
+                    )
+                    self.distributed_stack_indices[worker_rank].append(
+                        np.where(stack_events == event_id)[0]
+                    )
+                    self.distributed_trajectories_indices[worker_rank].append(
+                        np.where(trajectories_events == event_id)[0]
+                    )
+                    """For charge data we must backtrack through segments"""
+                    self.distributed_charge_indices[worker_rank].append(
+                        np.any(
+                            np.isin(
+                                charge_segments[:, :max_length], segments_ids[(segments_events == event_id)]
+                            ),
+                            axis=1,
+                        )
+                    )
+
+                """Distribute indices for events among workers"""
+                for ii in range(1, self.comm.size):
+                    self.comm.send(self.distributed_events[ii], dest=ii, tag=2)
+                    self.comm.send(self.distributed_interactions_indices[ii], dest=ii, tag=3)
+                    self.comm.send(self.distributed_segments_indices[ii], dest=ii, tag=4)
+                    self.comm.send(self.distributed_stack_indices[ii], dest=ii, tag=5)
+                    self.comm.send(self.distributed_trajectories_indices[ii], dest=ii, tag=6)
+                    self.comm.send(self.distributed_charge_indices[ii], dest=ii, tag=7)
+            else:
+                self.distributed_events[self.rank] = self.comm.recv(source=0, tag=2)
+                self.distributed_interactions_indices[self.rank] = self.comm.recv(source=0, tag=3)
+                self.distributed_segments_indices[self.rank] = self.comm.recv(source=0, tag=4)
+                self.distributed_stack_indices[self.rank] = self.comm.recv(source=0, tag=5)
+                self.distributed_trajectories_indices[self.rank] = self.comm.recv(source=0, tag=6)
+                self.distributed_charge_indices[self.rank] = self.comm.recv(source=0, tag=7)
 
     @profiler
     def process_events_master(
@@ -272,7 +343,7 @@ class Arrakis:
             total=len(self.distributed_events[self.rank]),
         )
         for ii, event in progress_bar:
-            trajectories = file['mc_truth/trajectories/data'][self.distributed_indices[self.rank][ii]]
+            trajectories = file['mc_truth/trajectories/data'][self.distributed_trajectories_indices[self.rank][ii]]
             topology = file['classes']['topology']
             progress_bar.set_description(f"Worker {self.rank}:")
             progress_bar.set_postfix_str(f"")
@@ -302,6 +373,8 @@ class Arrakis:
 
     @profiler
     def run_arrakis_nd(self):
+        """_summary_
+        """
         """
         Loop over each file
             Load file to determine unique events and indices for each array type

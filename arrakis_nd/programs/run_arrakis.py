@@ -10,6 +10,8 @@ from arrakis_nd.arrakis.arrakis import Arrakis
 
 
 def run():
+    """_summary_
+    """
     """
     Arrakis main program.
     """
@@ -57,4 +59,6 @@ def run():
 
 
 if __name__ == "__main__":
+    """_summary_
+    """
     run()

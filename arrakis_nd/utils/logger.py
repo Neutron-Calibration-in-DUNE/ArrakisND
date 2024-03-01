@@ -164,6 +164,14 @@ class Logger:
         self,
         message: str,
     ):
+        """_summary_
+
+        Args:
+            message (str): _description_
+
+        Returns:
+            _type_: _description_
+        """
         """Output to the standard logger "info" """
         return self.logger.info(message)
 
@@ -171,6 +179,14 @@ class Logger:
         self,
         message: str,
     ):
+        """_summary_
+
+        Args:
+            message (str): _description_
+
+        Returns:
+            _type_: _description_
+        """
         """Output to the standard logger "debug" """
         return self.debug_logger.debug(message)
 
@@ -178,6 +194,14 @@ class Logger:
         self,
         message: str,
     ):
+        """_summary_
+
+        Args:
+            message (str): _description_
+
+        Returns:
+            _type_: _description_
+        """
         """Output to the standard logger "warning" """
         return self.logger.warning(message)
 
@@ -186,6 +210,15 @@ class Logger:
         message: str,
         warning_type: str = "user",
     ):
+        """_summary_
+
+        Args:
+            message (str): _description_
+            warning_type (str, optional): _description_. Defaults to "user".
+
+        Returns:
+            _type_: _description_
+        """
         """Output to the standard logger "warning" """
         formatted_lines = traceback.format_stack()[-2]
         if warning_type not in warning_list.keys():
@@ -206,6 +239,15 @@ class Logger:
         message: str,
         error_type: str = "value",
     ):
+        """_summary_
+
+        Args:
+            message (str): _description_
+            error_type (str, optional): _description_. Defaults to "value".
+
+        Raises:
+            error_list: _description_
+        """
         """Output to the standard logger "error" """
         formatted_lines = str(traceback.format_stack()[-1][0])
         if error_type not in error_list.keys():

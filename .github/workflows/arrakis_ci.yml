@@ -1,0 +1,50 @@
+# Production runs for 2x2: https://portal.nersc.gov/project/dune/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW/
+name: ARRAKIS CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run-docker:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Pull Docker image
+      run: docker pull infophysics/nersc:latest
+
+    - name: Download data
+      run: |
+        mkdir -p data
+        for i in $(seq -f "%05g" 0 9); do
+          wget -O "data/MiniRun4_1E19_RHC.flow.$i.FLOW.h5" \
+          "https://portal.nersc.gov/project/dune/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW/MiniRun4_1E19_RHC.flow.$i.FLOW.h5"
+        done
+
+    - name: Determine number of cores
+      id: ncores
+      run: echo "::set-output name=num_cores::$(nproc)"
+
+    - name: Run Python script inside Docker container
+      run: |
+        docker run --gpus all \
+          -v ${{ github.workspace }}/arrakis_nd:/workspace/arrakis_nd \
+          -v ${{ github.workspace }}/config:/workspace/config \
+          -v ${{ github.workspace }}/data:/workspace/data \
+          infophysics/nersc:latest \
+          /bin/bash -c "\
+          export OMPI_ALLOW_RUN_AS_ROOT=1 && \
+          export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 && \
+          pip install /workspace/arrakis_nd && \
+          mpirun -np ${NUM_CORES} python /workspace/arrakis_nd/programs/run_arrakis.py /workspace/config/ci_config.yaml"
+      env:
+        NUM_CORES: ${{ steps.ncores.outputs.num_cores }}

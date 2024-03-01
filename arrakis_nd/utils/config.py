@@ -16,7 +16,10 @@ class ConfigParser:
         self,
         config_file: str,
     ):
-        """
+        """_summary_
+
+        Args:
+            config_file (str): _description_
         """
         self.config_file = config_file
         self.nested_config_files = [config_file]
@@ -26,7 +29,7 @@ class ConfigParser:
 
     @profiler
     def parse_config(self):
-        """
+        """_summary_
         """
         self.collect_nested_configs(self.config_file)
         self.nested_config_files.reverse()
