@@ -1,6 +1,14 @@
 name: Trigger External Workflow
 
-on: [push] # Or any other event that suits your needs
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 jobs:
   trigger-workflow-in-second-repo:
