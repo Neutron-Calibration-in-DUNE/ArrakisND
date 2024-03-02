@@ -1,6 +1,6 @@
 # ArrakisND
 
-[![Pytest](https://github.com/Neutron-Calibration-in-DUNE/ArrakisND/actions/workflows/test_package.yml/badge.svg?branch=master)](https://github.com/Neutron-Calibration-in-DUNE/ArrakisND/actions/workflows/test.yml)
+[![ArrakisCI](https://github.com/BlipDev/ArrakisCI/actions/workflows/arrakis-ci.yml/badge.svg?branch=master)](https://github.com/BlipDev/ArrakisCI/actions/workflows/arrakis-ci.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/neutron-calibration-in-dune/arrakisnd/badge)](https://www.codefactor.io/repository/github/neutron-calibration-in-dune/arrakisnd)
 [![Flake8 Status](./.reports/flake8/flake8-badge.svg?dummy=8484744)](./.reports/flake8/index.html)
 [![Coverage Status](./.reports/coverage/coverage-badge.svg?dummy=8484744)](./.reports/coverage/index.html)
