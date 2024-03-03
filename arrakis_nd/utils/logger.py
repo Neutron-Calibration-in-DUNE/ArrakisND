@@ -12,6 +12,13 @@ import psutil
 import os
 
 
+class ArrakisError(Exception):
+    """Custom default error for Arrakis"""
+    def __init__(self, message="An error occurred"):
+        self.message = message
+        super().__init__(self.message)
+
+
 logging_level = {
     "debug": logging.DEBUG,
     "info": logging.INFO,
@@ -35,21 +42,26 @@ warning_list = {
 
 error_list = {
     "attribute": AttributeError,
+    "arrakis": ArrakisError,
     "index": IndexError,
     "file": FileExistsError,
     "memory": MemoryError,
+    "runtime": RuntimeError,
+    "type": TypeError,
     "value": ValueError,
 }
 
 
 class LoggingFormatter(logging.Formatter):
-    """_summary_
+    """
+    Formatting for Arrakis logging.
 
     Args:
-        logging (_type_): _description_
+        logging (_logging.Formatter_): The formatter
+        to be edited.
 
     Returns:
-        _type_: _description_
+        _logging.Formatter_: The edited formatter
     """
     console_extra = " [%(name)s]: %(message)s"
     grey = "\x1b[38;20m"
@@ -74,7 +86,12 @@ class LoggingFormatter(logging.Formatter):
 
 
 class Logger:
-    """_summary_
+    """
+    Custom logging wrapper for Arrakis programs.
+    The logger writes to three different streams:
+        (1) console
+        (2) file
+        (3) debug
     """
 
     def __init__(
@@ -82,17 +99,23 @@ class Logger:
         name: str = "default",
         level: str = "debug",
         output: str = "file",
-        output_file: str = "",
+        output_file: str = "log",
         file_mode: str = "a",
     ):
-        """_summary_
+        """
+        Initializer for the logger
 
         Args:
-            name (str, optional): _description_. Defaults to "default".
+            name (str, optional): name for this logger (will appear
+            after the log message type [ERROR] [name]). Defaults to "default".
+
             level (str, optional): _description_. Defaults to "debug".
-            output (str, optional): _description_. Defaults to "file".
-            output_file (str, optional): _description_. Defaults to "".
-            file_mode (str, optional): _description_. Defaults to "a".
+            output (str, optional): whether to log to console, file
+            or both. Defaults to "file".
+
+            output_file (str, optional): name of the output file. Defaults to "log".
+            file_mode (str, optional): whether to append, or rewrite
+            log files for this run. Defaults to "a".
 
         Raises:
             ValueError: _description_
@@ -116,10 +139,7 @@ class Logger:
         self.name = name
         self.level = logging_level[level]
         self.output = output
-        if output_file == "":
-            self.output_file = "log"
-        else:
-            self.output_file = output_file
+        self.output_file = output_file
         self.file_mode = file_mode
 
         # create logger
@@ -237,7 +257,7 @@ class Logger:
     def error(
         self,
         message: str,
-        error_type: str = "value",
+        error_type: str = "arrakis",
     ):
         """_summary_
 
@@ -251,17 +271,22 @@ class Logger:
         """Output to the standard logger "error" """
         formatted_lines = str(traceback.format_stack()[-1][0])
         if error_type not in error_list.keys():
-            error_type = "value"
+            error_type = "arrakis"
         if self.output == "file":
             self.logger.error(f"traceback: {formatted_lines}\nerror: {message}")
         self.logger.error(message)
         raise error_list[error_type](f"traceback: {formatted_lines}\nerror: {message}")
 
-    def get_system_info(self):
-        """_summary_
+    def get_system_info(
+        self
+    ) -> dict:
+        """
+        Attempt to get system info using various
+        python packages.  If this fails, return
+        an empty dictionary.
 
         Returns:
-            _type_: _description_
+            _dict_: dictionary containing system info.
         """
         info = {}
         try:
@@ -277,5 +302,5 @@ class Logger:
                 str(round(psutil.virtual_memory().total / (1024.0**3))) + " GB"
             )
         except Exception as e:
-            self.logger.error(f"Unable to obtain system information: {e}.")
+            self.logger.warning(f"Unable to obtain system information: {e}.")
         return info

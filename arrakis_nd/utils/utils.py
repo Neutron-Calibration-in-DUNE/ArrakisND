@@ -78,7 +78,6 @@ def profiler(func):
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        # Redirect stdout to a StringIO object to capture the memory_profiler output
         process = psutil.Process(os.getpid())
         mem_before = process.memory_info().rss / 1024 ** 2  # Convert bytes to MB
 
@@ -88,7 +87,6 @@ def profiler(func):
         end_time = time.time()
         elapsed_time = end_time - start_time
 
-        # Get the process after the function execution
         mem_after = process.memory_info().rss / 1024 ** 2  # Convert bytes to MB
         mem_used = mem_after - mem_before
 
@@ -96,7 +94,7 @@ def profiler(func):
         try:
             memory_manager.record_memory(func.__qualname__, mem_used)
             timing_manager.record_timing(func.__qualname__, elapsed_time)
-        finally:
+        except Exception:
             memory_manager.record_memory(func.__name__, mem_used)
             timing_manager.record_timing(func.__name__, elapsed_time)
 

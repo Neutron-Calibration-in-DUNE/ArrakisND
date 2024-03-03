@@ -9,6 +9,16 @@ from arrakis_nd.utils.utils import profiler
 
 class ConfigParser:
     """
+    Config file parser for Arrakis.  This class simply
+    wraps the pyyaml class with some added functionality,
+    such as being able to load nested configs which refer
+    to each other.  This can be done by putting
+
+        load_config:    "config_file.yaml"
+
+    in the input config file.  The parameters will be chosen
+    in a hierarchical manner (i.e., the parameters can be
+    overwritten by respecifying them in higher up configs)
     """
 
     @profiler
@@ -16,10 +26,12 @@ class ConfigParser:
         self,
         config_file: str,
     ):
-        """_summary_
+        """
+        Config file parser for Arrakis initializer
 
         Args:
-            config_file (str): _description_
+            config_file (str): The location of the config
+            file to be loaded.
         """
         self.config_file = config_file
         self.nested_config_files = [config_file]
@@ -29,7 +41,8 @@ class ConfigParser:
 
     @profiler
     def parse_config(self):
-        """_summary_
+        """
+        Main function of the config parser.
         """
         self.collect_nested_configs(self.config_file)
         self.nested_config_files.reverse()
@@ -40,12 +53,15 @@ class ConfigParser:
     @profiler
     def collect_nested_configs(
         self,
-        config_file
+        config_file: str,
     ):
-        """_summary_
+        """
+        Load configs in a hierarchical manner, replacing
+        parameters with ones which occur at higher levels.
 
         Args:
-            config_file (_type_): _description_
+            config_file (_str_): The location of the config
+            file to be loaded.
         """
         with open(config_file, 'r') as file:
             temp_data = yaml.safe_load(file)
@@ -57,14 +73,20 @@ class ConfigParser:
     @profiler
     def save_config(
         self,
-        config_dictionary,
-        output_file
+        config_dictionary: str,
+        output_file: str,
     ):
-        """_summary_
+        """
+        Save a dictionary to a config file.
 
         Args:
-            config_dictionary (_type_): _description_
-            output_file (_type_): _description_
+            config_dictionary (_str_): The location of the config
+            file to be loaded.
+            output_file (_str_): The location and name of the output
+            yaml file.
         """
-        with open(output_file, 'w') as file:
-            yaml.dump(config_dictionary, file)
+        try:
+            with open(output_file, 'w') as file:
+                yaml.dump(config_dictionary, file)
+        except Exception as e:
+            raise RuntimeError(f"Failed to save config dictionary {config_dictionary} to output file {output_file}: {e}")
