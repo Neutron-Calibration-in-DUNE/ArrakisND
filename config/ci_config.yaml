@@ -4,5 +4,7 @@ arrakis_nd:
   flow_folder:  '/local_data/minirun4_data/'
   flow_files:   'all'
   skip_files: []
+  plugin_locations: []
 
 plugins:
+  DaughterPlugin:

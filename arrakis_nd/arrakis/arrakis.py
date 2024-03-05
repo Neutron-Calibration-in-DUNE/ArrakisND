@@ -3,6 +3,9 @@
 from mpi4py import MPI
 import h5py
 import os
+import importlib.util
+import sys
+import inspect
 import glob
 from tqdm import tqdm
 import torch
@@ -15,6 +18,7 @@ from arrakis_nd.utils.utils import (
     timing_manager,
     memory_manager
 )
+from arrakis_nd.plugins.plugin import Plugin
 
 
 class Arrakis:
@@ -68,6 +72,7 @@ class Arrakis:
         self.barrier()
 
         """Construct plugins"""
+        self.plugins = {}
         try:
             self.construct_plugins()
         except Exception as e:
@@ -179,6 +184,128 @@ class Arrakis:
                 self.error_status = str(e)
 
     @profiler
+    def construct_plugins(self):
+        """
+        Construct all plugin objects.  First, we look for all associated
+        classes which inherit from plugins.  These include both the standard
+        plugins which are merged into the plugins/ folder, as well as
+        any which are specified by the user at run time.
+        """
+        """First collect all available plugins"""
+        self.collect_plugins()
+
+        """Check that plugins section exists and has some actual plugins in it"""
+        if 'plugins' not in self.config.keys():
+            self.logger.error('no plugins section specified in config!')
+        plugins_config = self.config['plugins']
+        if plugins_config is None:
+            self.logger.error('no plugins specified in config!')
+
+        """Iterate over specified plugins and check that they exist"""
+        for plugin, config in plugins_config.items():
+            if plugin not in self.available_plugins.keys():
+                self.logger.error(f'specified plugin "{plugin}" not available!')
+            try:
+                self.plugins[plugin] = self.available_plugins[plugin](config)
+            except Exception as e:
+                self.logger.error(f'failed to construct plugin {plugin} with config {config}: {e}')
+
+        """Check that intermediate products are set up correctly"""
+        for ii, plugin_name in enumerate(self.plugins.keys()):
+            running_output_products = []
+            if ii == 0:
+                if self.plugins[plugin_name].input_products is not None:
+                    self.logger.error(
+                        f'first specfied plugin "{plugin_name}" should have input_products == None, \
+                        but has input_products == "{self.plugins[plugin_name].input_products}"!'
+                    )
+            else:
+                if (
+                    (self.plugins[plugin_name].input_products is None) or
+                    (self.plugins[plugin_name].input_products == [])
+                ):
+                    continue
+                else:
+                    if isinstance(self.plugins[plugin_name].input_products, str):
+                        if self.plugins[plugin_name].input_products not in running_output_products:
+                            self.logger.error(
+                                f'specified plugin "{plugin_name}" at location "{ii}" expects input_products \
+                                "{self.plugins[plugin_name].input_products}" but current products only contain \
+                                {running_output_products}!'
+                            )
+                    elif isinstance(self.plugins[plugin_name].input_products, list):
+                        for input_product in self.plugins[plugin_name].input_products:
+                            if input_product not in running_output_products:
+                                self.logger.error(
+                                    f'specified plugin "{plugin_name}" at location "{ii}" expects input_products \
+                                    "{self.plugins[plugin_name].input_products}" but current products only contain \
+                                    {running_output_products}!'
+                                )
+            running_output_products.append(self.plugins[plugin_name].output_product)
+
+    @profiler
+    def collect_plugins(self):
+        """
+        This function collects all available plugins from the ArrakisND
+        plugins folder, as well as any plugin locations specified in the
+        config file.
+        """
+        self.available_plugins = {}
+        self.plugin_files = [
+            os.path.dirname(__file__) + '/../plugins/' + file
+            for file in os.listdir(path=os.path.dirname(__file__) + '/../plugins/')
+        ]
+        if 'plugin_locations' in self.config.keys():
+            if (
+                (not isinstance(self.config['plugin_locations'], list)) and
+                (self.config['plugin_locations'] is not None)
+            ):
+                self.logger.error(
+                    f"plugin_locations specified in config is of type {type(self.config['plugin_locations'])}, \
+                    but must be a list or none!"
+                )
+            self.plugin_files.extend(self.config['plugin_locations'])
+
+        """Iterate over found plugin files and attempt to load them"""
+        for plugin_file in self.plugin_files:
+            if (
+                ("__init__.py" in plugin_file) or
+                ("__pycache__.py" in plugin_file) or
+                ("__pycache__" in plugin_file) or
+                (".py" not in plugin_file)
+            ):
+                continue
+            try:
+                self.load_plugin_function(plugin_file)
+            except Exception as e:
+                self.logger.warn(f'problem loading plugin from file: {plugin_file}: {e}')
+
+    @profiler
+    def load_plugin_function(
+        self,
+        plugin_file: str
+    ):
+        """
+        This function attempts to load a plugin which inherits from
+        the Plugin class.
+
+        Args:
+            plugin_file (str): _description_
+        """
+        spec = importlib.util.spec_from_file_location(
+            f'{plugin_file.removesuffix(".py")}.name',
+            plugin_file
+        )
+        custom_plugin_file = importlib.util.module_from_spec(spec)
+        sys.modules[f'{plugin_file.removesuffix(".py")}.name'] = custom_plugin_file
+        spec.loader.exec_module(custom_plugin_file)
+        for name, obj in inspect.getmembers(sys.modules[f'{plugin_file.removesuffix(".py")}.name']):
+            if inspect.isclass(obj):
+                custom_class = getattr(custom_plugin_file, name)
+                if issubclass(custom_class, Plugin):
+                    self.available_plugins[name] = custom_class
+
+    @profiler
     def set_up_input_files(self):
         """
         Iterate over flow_folder directory and determine
@@ -219,13 +346,13 @@ class Arrakis:
                     """
                     if arrakis_dict["flow_files"] == "all":
                         self.logger.info(
-                            f"searching {flow_folder} recursively for all .h5 files."
+                            f"searching {flow_folder} recursively for all .h5 FLOW files."
                         )
                         flow_files = [
                             os.path.basename(input_file) for input_file in glob.glob(
                                 f"{flow_folder}*.h5", recursive=True
                             )
-                            if input_file not in arrakis_dict["skip_files"]
+                            if 'FLOW' in input_file and input_file not in arrakis_dict["skip_files"]
                         ]
                     else:
                         try:
@@ -262,13 +389,6 @@ class Arrakis:
                 self.error_status = str(e)
 
     @profiler
-    def construct_plugins(self):
-        """
-        Construct all plugin objects.
-        """
-        pass
-
-    @profiler
     def run_begin_of_file(
         self,
         file_name: str
@@ -278,7 +398,7 @@ class Arrakis:
         which act on the entire file.
 
         Args:
-            file_name (_str_): _description_
+            file_name (_str_): name of the input flow file
         """
         pass
 
@@ -289,23 +409,272 @@ class Arrakis:
     ):
         """
         Construct output arrays for various data objects.
+        This will take the flow file and create a new .h5 file
+        replacing the words "FLOW" with "ARRAKIS" and "flow"
+        with "arrakis".
 
         Args:
-            file_name (str): _description_
+            file_name (str): name of the input flow file
         """
-        with h5py.File(file_name, 'r+') as f:
-            charge = f['charge/calib_final_hits/data']
-            # Define the compound data type with named fields
-            data_type = np.dtype([
-                ('topology', 'i4'),  # Example: 4-byte integer
-                ('physics_micro', 'i4'),  # Example: 8-byte float
-                ('physics_meso', 'i4')  # Example: String of up to 10 characters
+
+        """Determine the arrakis file name"""
+        arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
+
+        """Open the flow file and determine the output array shapes"""
+        with h5py.File(file_name, 'r+') as flow_file, h5py.File(arrakis_file_name, 'a') as arrakis_file:
+            """
+            First we make the labels for the charge dataset.  These consist of six
+            main labels that we wish to generate with various plugins:
+                (1) topology - a descriptor of basic shapes
+                (2) physics_micro - a descriptor of local physics
+                (3) physics_macro - a descriptor of larger scale physics objects
+                (4) unique_topology - unique labels for instances of topology
+                (5) unique_physics_micro - unique labels for instances of physics_micro
+                (6) unique_physics_macro - unique labels for instances of physics_macro
+
+            These labels are assigned to each reconstructed charge hit and
+            written in the corresponding ARRAKIS file.
+            """
+            charge_name = 'charge/calib_final_hits/data'
+
+            num_charge = len(flow_file[charge_name]['x'])
+
+            new_charge_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('topology', 'i4'),
+                ('physics_micro', 'i4'),
+                ('physics_macro', 'i4'),
+                ('unique_topology', 'i4'),
+                ('unique_physics_micro', 'i4'),
+                ('unique_physics_macro', 'i4'),
             ])
-            N = len(charge['x'])
-            self.data = np.full(N, -1, dtype=data_type)
-            if 'classes' in f:
-                del f['classes']  # Delete the existing dataset
-            f.create_dataset('classes', data=self.data)
+
+            new_charge_data = np.full(num_charge, -1, dtype=new_charge_data_type)
+
+            if charge_name in arrakis_file:
+                del arrakis_file[charge_name]
+
+            arrakis_file.create_dataset(charge_name, data=new_charge_data)
+
+            """
+            Second, we set up arrays for CAF-like reco objects which consist
+            of the following types:
+                (1) tracklettes - pieces of contiguous track like objects.
+                    (a) start (x,y,z) - track start point
+                    (b) end (x,y,z) - track end point
+                    (c) dir (u_x,u_y,u_z) - estimate of track direction taken from start point
+                    (d) enddir (u_x,u_y,u_z) - estimate of track direction takend from end point
+                    (e) Evis - visible energy in voxels corresponding to this track
+                    (f) qual - reco specific quality metric
+                    (g) len_gcm2 - track length in g/cm2
+                    (h) len_cm - track length in centimeter
+                    (i) E - track energy estimate in MeV
+                    (j) truth - associated true particle in flow file (if relevant) (i.e. track_id)
+                    (k) truthOverlap - fractional overlap between this track and true particle
+                (2) tracks - collections of tracklettes which define a complete track.
+                (3) fragments - pieces of contiguous shower like objects.
+                    (a) start (x,y,z) - shower start point
+                    (b) dir (u_x,u_y,u_z) - shower direction
+                    (c) Evis - visible energy in voxels corresponding to this shower
+                    (d) qual - reco specific quality metric
+                    (e) len_gcm2 - track length in g/cm2
+                    (f) len_cm - track length in centimeter
+                    (g) E - track energy estimate in MeV
+                    (h) truth - associated true particle in flow file (if relevant) (i.e. track_id)
+                    (i) truthOverlap - fractional overlap between this shower and true particle
+                (4) showers - collections of fragments which define a complete shower.
+                (5) blips - collections of points associated to blip-like activity.
+                    (a) start (x,y,z) - start position of this blip object
+                    (b) Evis - visible energy in voxels corresponding to this blip
+                    (c) E - reconstructed energy (GeV)
+                    (d) bliphyp - hypothesis for this blip's identity
+                    (e) truth - associated true particle in flow file (if relevant) (i.e track_id)
+                    (f) truthOverlap - fractional overlap between this blip and true particle
+                (6) particles - particles within an event that are associated to tracks/showers/blips.
+                    (a) primary - is this reco particle a primary one (i.e. eminates directly from vertex)?
+                    (b) pdg - pdg code inferred for this particle
+                    (c) tgtA - atomic number of nucleus this particle was reconstructed in
+                    (d) score - PID score for this particle
+                    (e) E - reconstructed energy (GeV)
+                    (f) E_method - method used to determine energy for the particle
+                    (g) p (p_x,p_y,p_z) - reconstructed momentum for this particle
+                    (h) start (x,y,z) - reconstructed start point of this particle
+                    (i) end (x,y,z) - reconstructed end point of this particle
+                    (j) contained - contained in LAr TPC?
+                    (k) truth - associated true particle in flow file (if relevant) (i.e. track_id)
+                    (l) truthOverlap - fractional overlap between this reco particle and true particle
+                (7) interactions - collections of tracks/showers/blips which define interactions of interest.
+                    (a) vtx (x,y,z) - reconstructed vertex location
+                    (b) dir (u_x,u_y,u_z) - hypothesis for this interaction's parent particle direction
+                        (b.i) lngtrk - direction using longest track
+                        (b.ii) heshw - direction using highest energy shower
+                    (c) nuhyp - hypothesis for this interaction's neutrino identity
+                        (c.i) isnubar
+                        (c.ii) nue
+                        (c.iii) numu
+                        (c.iv) nutau
+                        (c.v) nc
+                        (c.vi) protons0
+                        (c.vii) protons1
+                        (c.viii) protons2
+                        (c.ix) protonsN
+                        (c.x) chgpi0
+                        (c.xi) chgpi1
+                        (c.xii) chgpi2
+                        (c.xiii) chgpiN
+                        (c.xiv) pizero0
+                        (c.xv) pizero1
+                        (c.xvi) pizero2
+                        (c.xvii) pizeroN
+                        (c.xviii) neutron0
+                        (c.xix) neutron1
+                        (c.xx) neutron2
+                        (c.xxi) neutronN
+                    (d) Enu - hypothesis for this interaction's neutrino energy
+                    (e) part - collections of reconstructed particles
+                    (f) truth - indicies of true_interactions in flow file (if relevant)
+                    (g) truthOverlap - fractional overlap between this reco interaction and each true interaction
+            """
+
+            """Construct track data types"""
+            tracklette_name = 'standard_record/tracklette'
+            track_name = 'standard_record/track'
+            tracklette_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('tracklette_id', 'i4'),
+                ('start', 'f4', (1, 3)),
+                ('end', 'f4', (1, 3)),
+                ('dir', 'f4', (1, 3)),
+                ('enddir', 'f4', (1, 3)),
+                ('Evis', 'f4'),
+                ('qual', 'f4'),
+                ('len_gcm2', 'f4'),
+                ('len_cm', 'f4'),
+                ('E', 'f4'),
+                ('truth', 'i4', (1, 20)),
+                ('truthOverlap', 'f4', (1, 20)),
+            ])
+            track_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('track_id', 'i4'),
+                ('tracklette_ids', 'i4', (1, 20)),
+                ('start', 'f4', (1, 3)),
+                ('end', 'f4', (1, 3)),
+                ('dir', 'f4', (1, 3)),
+                ('enddir', 'f4', (1, 3)),
+                ('Evis', 'f4'),
+                ('qual', 'f4'),
+                ('len_gcm2', 'f4'),
+                ('len_cm', 'f4'),
+                ('E', 'f4'),
+                ('truth', 'i4', (1, 20)),
+                ('truthOverlap', 'f4', (1, 20)),
+            ])
+            if tracklette_name in arrakis_file:
+                del arrakis_file[tracklette_name]
+            if track_name in arrakis_file:
+                del arrakis_file[track_name]
+
+            arrakis_file.create_dataset(tracklette_name, shape=(0,), maxshape=(None,), dtype=tracklette_data_type)
+            arrakis_file.create_dataset(track_name, shape=(0,), maxshape=(None,), dtype=track_data_type)
+
+            """Construct shower data types"""
+            fragment_name = 'standard_record/fragment'
+            shower_name = 'standard_record/shower'
+            fragment_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('fragment_id', 'i4'),
+                ('start', 'f4', (1, 3)),
+                ('dir', 'f4', (1, 3)),
+                ('Evis', 'f4'),
+                ('qual', 'f4'),
+                ('len_gcm2', 'f4'),
+                ('len_cm', 'f4'),
+                ('E', 'f4'),
+                ('truth', 'i4', (1, 20)),
+                ('truthOverlap', 'f4', (1, 20)),
+            ])
+            shower_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('shower_id', 'i4'),
+                ('fragment_ids', 'i4', (1, 20)),
+                ('start', 'f4', (1, 3)),
+                ('dir', 'f4', (1, 3)),
+                ('Evis', 'f4'),
+                ('qual', 'f4'),
+                ('len_gcm2', 'f4'),
+                ('len_cm', 'f4'),
+                ('E', 'f4'),
+                ('truth', 'i4', (1, 20)),
+                ('truthOverlap', 'f4', (1, 20)),
+            ])
+            if fragment_name in arrakis_file:
+                del arrakis_file[fragment_name]
+            if shower_name in arrakis_file:
+                del arrakis_file[shower_name]
+
+            arrakis_file.create_dataset(fragment_name, shape=(0,), maxshape=(None,), dtype=fragment_data_type)
+            arrakis_file.create_dataset(shower_name, shape=(0,), maxshape=(None,), dtype=shower_data_type)
+
+            """Construct blip data types"""
+            blip_name = 'standard_record/blip'
+            blip_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('blip_id', 'i4'),
+                ('start', 'f4', (1, 3)),
+                ('Evis', 'f4'),
+                ('E', 'f4'),
+                ('bliphyp', 'i4'),
+                ('truth', 'i4', (1, 20)),
+                ('truthOverlap', 'f4', (1, 20)),
+            ])
+            if blip_name in arrakis_file:
+                del arrakis_file[blip_name]
+
+            arrakis_file.create_dataset(blip_name, shape=(0,), maxshape=(None,), dtype=blip_data_type)
+
+            """Construct particle data types"""
+            particle_name = 'standard_record/particle'
+            particle_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('particle_id', 'i4'),
+                ('primary', 'bool'),
+                ('pdg', 'i4'),
+                ('tgtA', 'i4'),
+                ('score', 'f4'),
+                ('E', 'f4'),
+                ('E_method', 'i4'),
+                ('p', 'f4', (1, 3)),
+                ('start', 'f4', (1, 3)),
+                ('end', 'f4', (1, 3)),
+                ('contained', 'bool'),
+                ('truth', 'i4', (1, 20)),
+                ('truthOverlap', 'f4', (1, 20)),
+            ])
+            if particle_name in arrakis_file:
+                del arrakis_file[particle_name]
+
+            arrakis_file.create_dataset(particle_name, shape=(0,), maxshape=(None,), dtype=particle_data_type)
+
+            """Construct interaction data types"""
+            interaction_name = 'standard_record/interaction'
+            interaction_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('interaction_id', 'i4'),
+                ('vtx', 'f4', (1, 3)),
+                ('dir_lngtrk', 'f4', (1, 3)),
+                ('dir_heshw', 'f4', (1, 3)),
+                ('nuhyp', 'f4', (1, 20)),
+                ('Enu', 'f4'),
+                ('E_method', 'i4'),
+                ('part', 'i4', (1, 20)),
+                ('truth', 'i4', (1, 20)),
+                ('truthOverlap', 'f4', (1, 20)),
+            ])
+            if interaction_name in arrakis_file:
+                del arrakis_file[interaction_name]
+
+            arrakis_file.create_dataset(interaction_name, shape=(0,), maxshape=(None,), dtype=interaction_data_type)
 
     @profiler
     def distribute_tasks(
@@ -334,6 +703,7 @@ class Arrakis:
 
                 """Determine unique events and distribute among workers"""
                 unique_events = np.unique(trajectories_events)
+                self.num_events = len(unique_events)
                 self.distributed_events.clear()
                 self.distributed_interactions_indices.clear()
                 self.distributed_segments_indices.clear()
@@ -393,7 +763,8 @@ class Arrakis:
     @profiler
     def process_events_master(
         self,
-        file: h5py.File
+        flow_file: h5py.File,
+        arrakis_file: h5py.File,
     ):
         """
         Special code run by the master node on an event,
@@ -402,29 +773,42 @@ class Arrakis:
         needed by the other plugins.
 
         Args:
-            file (_h5py.File_): _description_
+            flow_file (_h5py.File_): input flow_file
         """
         pass
 
     @profiler
     def process_events_worker(
         self,
-        file: h5py.File
+        flow_file: h5py.File,
+        arrakis_file: h5py.File,
     ):
-        """_summary_
+        """
+        This function loops over all plugins and hands off the flow_file,
+        arrakis_file and the associated indices for each that correspond
+        to this workers event.
 
         Args:
-            file (_h5py.File_): _description_
+            flow_file (_h5py.File_): input flow_file
         """
-        progress_bar = tqdm(
-            enumerate(self.distributed_events[self.rank], 0),
-            total=len(self.distributed_events[self.rank]),
-        )
-        for ii, event in progress_bar:
-            trajectories = file['mc_truth/trajectories/data'][self.distributed_trajectories_indices[self.rank][ii]]
-            topology = file['classes']['topology']
-            progress_bar.set_description(f"Worker {self.rank}:")
-            progress_bar.set_postfix_str(f"")
+        for ii, event in enumerate(self.distributed_events[self.rank]):
+            """Grab event index information"""
+            event_indices = {
+                'interactions': self.distributed_interactions_indices[self.rank][ii],
+                'segments': self.distributed_segments_indices[self.rank][ii],
+                'stack': self.distributed_stack_indices[self.rank][ii],
+                'trajectories': self.distributed_trajectories_indices[self.rank][ii],
+                'charge': self.distributed_charge_indices[self.rank][ii]
+            }
+            event_products = {}
+            """Iterate over plugins"""
+            for plugin_name, plugin in self.plugins.items():
+                plugin.process_event(
+                    flow_file=flow_file,
+                    arrakis_file=arrakis_file,
+                    event_indices=event_indices,
+                    event_products=event_products,
+                )
 
     @profiler
     def run_end_of_file(
@@ -432,8 +816,12 @@ class Arrakis:
         file_name: str
     ):
         """
-        Plugins to be run on the entire file after all 
-        events have been evaluated.
+        Plugins to be run on the entire file after all
+        events have been evaluated within the file.
+
+        One required task is for the master node to gather up all
+        reco object information and append it to the arrays in the
+        ARRAKIS file.
 
         Args:
             file_name (_type_): _description_
@@ -582,18 +970,35 @@ class Arrakis:
             self.error_status = str(e)
         self.barrier()
 
+        """Set up progress bar"""
+        if self.rank == 0:
+            self.logger.info(f'running Arrakis with {self.size} workers.')
+            self.progress_bar = tqdm(
+                total=len(self.flow_files),
+                ncols=100,
+                colour='MAGENTA',
+                leave=True,
+            )
+        self.barrier()
+
         """Loop over files and call master/worker methods for each."""
-        for file_name in self.flow_files:
-            """First set up output data and prepare indices for workers"""
+        for ii, file_name in enumerate(self.flow_files):
+            """First run begin of file"""
             if self.rank == 0:
                 try:
+                    self.progress_bar.set_description_str(f'File [{ii+1}/{len(self.flow_files)}]')
                     self.run_begin_of_file(file_name)
                 except Exception as e:
                     self.error_status = str(e)
+            self.barrier()
+
+            """Set up output arrays in ARRAKIS file"""
+            if self.rank == 0:
                 try:
                     self.set_up_output_arrays(file_name)
                 except Exception as e:
                     self.error_status = str(e)
+            self.barrier()
 
             """Prepare indices for workers"""
             try:
@@ -604,12 +1009,15 @@ class Arrakis:
 
             """Now process the file"""
             try:
-                with h5py.File(file_name, 'r+', driver='mpio', comm=self.comm) as file:
+                arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
+                with h5py.File(file_name, 'r+', driver='mpio', comm=self.comm) as flow_file, \
+                     h5py.File(arrakis_file_name, 'r+', driver='mpio', comm=self.comm) as arrakis_file:
                     self.barrier()
                     if self.rank == 0:
                         """Process event in master node"""
                         try:
-                            self.process_events_master(file)
+                            self.progress_bar.set_postfix_str(f'# Events: [{self.num_events}]')
+                            self.process_events_master(flow_file, arrakis_file)
                         except Exception as e:
                             self.error_status = str(e)
                         self.barrier()
@@ -617,7 +1025,7 @@ class Arrakis:
                         """Process event in worker node"""
                         self.barrier()
                         try:
-                            self.process_events_worker(file)
+                            self.process_events_worker(flow_file, arrakis_file)
                         except Exception as e:
                             self.error_status = str(e)
             except Exception as e:
@@ -628,9 +1036,12 @@ class Arrakis:
             if self.rank == 0:
                 try:
                     self.run_end_of_file(file_name)
+                    self.progress_bar.update(1)
                 except Exception as e:
                     self.error_status = str(e)
             self.barrier()
 
         """Run end of program functions"""
+        if self.rank == 0:
+            self.progress_bar.close()
         self.run_end_of_arrakis()
