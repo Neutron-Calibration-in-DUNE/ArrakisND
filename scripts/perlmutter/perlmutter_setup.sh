@@ -9,7 +9,7 @@
 #SBATCH -c 1                    # number of cores per task, '--cpus-per-task', '-c'
 
 LOCAL_SCRATCH=/pscratch/sd/${USER:0:1}/${USER}
-LOCAL_BLIP=/global/cfs/cdirs/dune/users/${USER}
+LOCAL_ARRAKIS=/global/cfs/cdirs/dune/users/${USER}
 LOCAL_DATA=/global/cfs/cdirs/dune/users/${USER}
 
 setfacl -m u:nobody:x /global/cfs/cdirs/dune/users/${USER}

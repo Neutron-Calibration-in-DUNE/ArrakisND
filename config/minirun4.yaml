@@ -1,0 +1,12 @@
+# Test config for ArrakisND
+arrakis_nd:
+  verbose:   true
+  flow_folder:  '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW'
+  flow_files:   'all'
+  skip_files: []
+  plugin_locations: []
+
+plugins:
+  DaughterPlugin:
+  TrackIDHitMapPlugin:
+  MuonPlugin:

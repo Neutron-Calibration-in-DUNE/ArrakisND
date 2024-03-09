@@ -321,6 +321,14 @@ class Arrakis:
                 arrakis_dict = self.config['arrakis_nd']
                 flow_folder = arrakis_dict['flow_folder']
                 flow_files = arrakis_dict["flow_files"]
+                
+                """Check that flow folder exists"""
+                if not os.path.isdir(flow_folder):
+                    self.logger.error(f'specified flow_folder {flow_folder} does not exist!')
+                    
+                """Check that flow folder has a '/' at the end"""
+                if flow_folder[-1] != '/':
+                    flow_folder += '/'
 
                 if isinstance(arrakis_dict["flow_files"], list):
                     """
@@ -364,7 +372,7 @@ class Arrakis:
                             )
                             flow_files = [
                                 os.path.basename(input_file) for input_file in glob.glob(
-                                    f'{flow_folder}{arrakis_dict["flow_files"]}',
+                                    f'{flow_folder}/{arrakis_dict["flow_files"]}',
                                     recursive=True,
                                 )
                                 if input_file not in arrakis_dict["skip_files"]
@@ -381,6 +389,7 @@ class Arrakis:
                 self.flow_files = [flow_folder + flow_file for flow_file in flow_files]
                 for ii in range(1, self.comm.size):
                     self.comm.send(self.flow_files, dest=ii, tag=1)
+                self.logger.info(f'found {len(self.flow_files)} flow files for processing.')
             except Exception as e:
                 self.error_status = str(e)
             self.barrier()
@@ -424,7 +433,7 @@ class Arrakis:
         arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
 
         """Open the flow file and determine the output array shapes"""
-        with h5py.File(file_name, 'r+') as flow_file, h5py.File(arrakis_file_name, 'a') as arrakis_file:
+        with h5py.File(file_name, 'r') as flow_file, h5py.File(arrakis_file_name, 'a') as arrakis_file:
             """
             First we make the labels for the charge dataset.  These consist of six
             main labels that we wish to generate with various plugins:
@@ -704,7 +713,7 @@ class Arrakis:
         Args:
             file_name (_str_): _description_
         """
-        with h5py.File(file_name, 'r+', driver='mpio', comm=self.comm) as file:
+        with h5py.File(file_name, 'r', driver='mpio', comm=self.comm) as file:
             if self.rank == 0:
                 """Collect event ids from mc_truth and charge/light data"""
                 interactions_events = file['mc_truth/interactions/data']['event_id']
@@ -1091,7 +1100,7 @@ class Arrakis:
             """Now process the file"""
             try:
                 arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
-                with h5py.File(file_name, 'r+', driver='mpio', comm=self.comm) as flow_file, \
+                with h5py.File(file_name, 'r', driver='mpio', comm=self.comm) as flow_file, \
                      h5py.File(arrakis_file_name, 'r+', driver='mpio', comm=self.comm) as arrakis_file:
                     self.barrier()
                     if self.rank == 0:
