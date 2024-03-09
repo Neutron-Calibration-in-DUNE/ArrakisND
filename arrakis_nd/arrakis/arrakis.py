@@ -26,6 +26,8 @@ class Arrakis:
     Main Arrakis class for running jobs. Arrakis is designed
     to work with MPI and H5.  The user must run Arrakis using mpirun
     with at least two processes (one master and N-1 workers).
+    
+    
     """
     @profiler
     def __init__(
@@ -87,6 +89,7 @@ class Arrakis:
         self.distributed_stack_indices = {}
         self.distributed_trajectories_indices = {}
         self.distributed_charge_indices = {}
+        self.distributed_light_indices = {}
 
     @profiler
     def barrier(self):
@@ -211,8 +214,8 @@ class Arrakis:
                 self.logger.error(f'failed to construct plugin {plugin} with config {config}: {e}')
 
         """Check that intermediate products are set up correctly"""
+        running_output_products = []
         for ii, plugin_name in enumerate(self.plugins.keys()):
-            running_output_products = []
             if ii == 0:
                 if self.plugins[plugin_name].input_products is not None:
                     self.logger.error(
@@ -224,7 +227,7 @@ class Arrakis:
                     (self.plugins[plugin_name].input_products is None) or
                     (self.plugins[plugin_name].input_products == [])
                 ):
-                    continue
+                    pass
                 else:
                     if isinstance(self.plugins[plugin_name].input_products, str):
                         if self.plugins[plugin_name].input_products not in running_output_products:
@@ -431,6 +434,12 @@ class Arrakis:
                 (4) unique_topology - unique labels for instances of topology
                 (5) unique_physics_micro - unique labels for instances of physics_micro
                 (6) unique_physics_macro - unique labels for instances of physics_macro
+                (7) vertex - binary variable denoting whether a vertex is at this hit
+                (8) tracklette_begin - binary variable denoting whether a track beginning is at this hit
+                (9) tracklette_end - binary variable denoting whether a track end is at this hit
+                (10) fragment_begin - binary variable denoting whether a fragment beginning is at this hit
+                (11) fragment_end - binary variable denoting whether a fragment end is at this hit
+                (12) shower_begin - binary variable denoting whether a shower beginning is at this hit
 
             These labels are assigned to each reconstructed charge hit and
             written in the corresponding ARRAKIS file.
@@ -447,6 +456,12 @@ class Arrakis:
                 ('unique_topology', 'i4'),
                 ('unique_physics_micro', 'i4'),
                 ('unique_physics_macro', 'i4'),
+                ('vertex', 'bool'),
+                ('tracklette_begin', 'bool'),
+                ('tracklette_end', 'bool'),
+                ('fragment_begin', 'bool'),
+                ('fragment_end', 'bool'),
+                ('shower_begin', 'bool')
             ])
 
             new_charge_data = np.full(num_charge, -1, dtype=new_charge_data_type)
@@ -710,6 +725,7 @@ class Arrakis:
                 self.distributed_stack_indices.clear()
                 self.distributed_trajectories_indices.clear()
                 self.distributed_charge_indices.clear()
+                self.distributed_light_indices.clear()
 
                 self.distributed_events = {i: [] for i in range(1, self.size)}
                 self.distributed_interactions_indices = {i: [] for i in range(1, self.size)}
@@ -717,6 +733,7 @@ class Arrakis:
                 self.distributed_stack_indices = {i: [] for i in range(1, self.size)}
                 self.distributed_trajectories_indices = {i: [] for i in range(1, self.size)}
                 self.distributed_charge_indices = {i: [] for i in range(1, self.size)}
+                self.distributed_light_indices = {i: [] for i in range(1, self.size)}
 
                 """Determine indices for mc_truth and charge/light data"""
                 for i, event_id in enumerate(unique_events):
@@ -743,6 +760,8 @@ class Arrakis:
                             axis=1,
                         )
                     )
+                    """Likewise for light data, we must backtrack through segments"""
+                    self.distributed_light_indices[worker_rank].append([])
 
                 """Distribute indices for events among workers"""
                 for ii in range(1, self.comm.size):
@@ -752,6 +771,7 @@ class Arrakis:
                     self.comm.send(self.distributed_stack_indices[ii], dest=ii, tag=5)
                     self.comm.send(self.distributed_trajectories_indices[ii], dest=ii, tag=6)
                     self.comm.send(self.distributed_charge_indices[ii], dest=ii, tag=7)
+                    self.comm.send(self.distributed_light_indices[ii], dest=ii, tag=8)
             else:
                 self.distributed_events[self.rank] = self.comm.recv(source=0, tag=2)
                 self.distributed_interactions_indices[self.rank] = self.comm.recv(source=0, tag=3)
@@ -759,6 +779,7 @@ class Arrakis:
                 self.distributed_stack_indices[self.rank] = self.comm.recv(source=0, tag=5)
                 self.distributed_trajectories_indices[self.rank] = self.comm.recv(source=0, tag=6)
                 self.distributed_charge_indices[self.rank] = self.comm.recv(source=0, tag=7)
+                self.distributed_light_indices[self.rank] = self.comm.recv(source=0, tag=8)
 
     @profiler
     def process_events_master(
@@ -798,12 +819,14 @@ class Arrakis:
                 'segments': self.distributed_segments_indices[self.rank][ii],
                 'stack': self.distributed_stack_indices[self.rank][ii],
                 'trajectories': self.distributed_trajectories_indices[self.rank][ii],
-                'charge': self.distributed_charge_indices[self.rank][ii]
+                'charge': self.distributed_charge_indices[self.rank][ii],
+                'light': self.distributed_light_indices[self.rank][ii]
             }
             event_products = {}
             """Iterate over plugins"""
             for plugin_name, plugin in self.plugins.items():
                 plugin.process_event(
+                    event=event,
                     flow_file=flow_file,
                     arrakis_file=arrakis_file,
                     event_indices=event_indices,
@@ -885,55 +908,113 @@ class Arrakis:
                     timing_averages[item] = np.mean(timings[item])
                     timing_stds[item] = np.std(timings[item])
 
-                fig, axs = plt.subplots(figsize=(15, 10))
-                box_values = []
-                labels = []
+                """Separate plugin timings from Arrakis timings"""
+                arrakis_fig, arrakis_axs = plt.subplots(figsize=(15, 10))
+                arrakis_box_values = []
+                arrakis_labels = []
                 for item in timings.keys():
-                    box_values.append(timings[item])
-                    axs.plot(
-                        [],
-                        [],
-                        marker="",
-                        linestyle="-",
-                        label=f'{item}\n({timing_averages[item]:.2f} +/- {timing_stds[item]:.2f})',
-                    )
-                    labels.append(item)
-                axs.boxplot(box_values, vert=True, patch_artist=True, labels=labels)
-                axs.set_ylabel(r"$\langle\Delta t\rangle$ (ms)")
-                axs.set_xticklabels(labels, rotation=45, ha="right")
-                axs.set_yscale("log")
-                plt.title(r"$\langle\Delta t\rangle$ (ms) vs. function")
+                    if 'Plugin' in item:
+                        continue
+                    else:
+                        arrakis_box_values.append(timings[item])
+                        arrakis_axs.plot(
+                            [],
+                            [],
+                            marker="",
+                            linestyle="-",
+                            label=f'{item}\n({timing_averages[item]:.2f} +/- {timing_stds[item]:.2f})',
+                        )
+                        arrakis_labels.append(item)
+                arrakis_axs.boxplot(arrakis_box_values, vert=True, patch_artist=True, labels=arrakis_labels)
+                arrakis_axs.set_ylabel(r"$\langle\Delta t\rangle$ (ms)")
+                arrakis_axs.set_xticklabels(arrakis_labels, rotation=45, ha="right")
+                arrakis_axs.set_yscale("log")
+                plt.title(r"Arrakis $\langle\Delta t\rangle$ (ms) vs. function")
                 plt.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
                 plt.tight_layout()
                 plt.savefig("/local_scratch/arrakis_nd_timing_avg.png")
 
+                plugin_fig, plugin_axs = plt.subplots(figsize=(15, 10))
+                plugin_box_values = []
+                plugin_labels = []
+                for item in timings.keys():
+                    if 'Plugin' in item:
+                        plugin_box_values.append(timings[item])
+                        plugin_axs.plot(
+                            [],
+                            [],
+                            marker="",
+                            linestyle="-",
+                            label=f'{item}\n({timing_averages[item]:.2f} +/- {timing_stds[item]:.2f})',
+                        )
+                        plugin_labels.append(item)
+                    else:
+                        continue
+                plugin_axs.boxplot(plugin_box_values, vert=True, patch_artist=True, labels=plugin_labels)
+                plugin_axs.set_ylabel(r"$\langle\Delta t\rangle$ (ms)")
+                plugin_axs.set_xticklabels(plugin_labels, rotation=45, ha="right")
+                plugin_axs.set_yscale("log")
+                plt.title(r"Plugin $\langle\Delta t\rangle$ (ms) vs. function")
+                plt.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
+                plt.tight_layout()
+                plt.savefig("/local_scratch/arrakis_nd_plugin_timing_avg.png")
+
+                """Separate plugin memory from Arrakis memory"""
                 memory_averages = {}
                 memory_stds = {}
                 for item in memory.keys():
                     memory_averages[item] = np.mean(memory[item])
                     memory_stds[item] = np.std(memory[item])
 
-                fig, axs = plt.subplots(figsize=(15, 10))
-                box_values = []
-                labels = []
+                arrakis_fig, arrakis_axs = plt.subplots(figsize=(15, 10))
+                arrakis_box_values = []
+                arrakis_labels = []
                 for item in memory.keys():
-                    box_values.append(memory[item])
-                    axs.plot(
-                        [],
-                        [],
-                        marker="",
-                        linestyle="-",
-                        label=f'{item}\n({memory_averages[item]:.2f} +/- {memory_stds[item]:.2f})',
-                    )
-                    labels.append(item)
-                axs.boxplot(box_values, vert=True, patch_artist=True, labels=labels)
-                axs.set_ylabel(r"$\langle\Delta m\rangle$ (Mb)")
-                axs.set_xticklabels(labels, rotation=45, ha="right")
-                axs.set_yscale("log")
-                plt.title(r"$\langle\Delta m\rangle$ (Mb) vs. function")
+                    if 'Plugin' in item:
+                        continue
+                    else:
+                        arrakis_box_values.append(memory[item])
+                        arrakis_axs.plot(
+                            [],
+                            [],
+                            marker="",
+                            linestyle="-",
+                            label=f'{item}\n({memory_averages[item]:.2f} +/- {memory_stds[item]:.2f})',
+                        )
+                        arrakis_labels.append(item)
+                arrakis_axs.boxplot(arrakis_box_values, vert=True, patch_artist=True, labels=arrakis_labels)
+                arrakis_axs.set_ylabel(r"$\langle\Delta m\rangle$ (Mb)")
+                arrakis_axs.set_xticklabels(arrakis_labels, rotation=45, ha="right")
+                arrakis_axs.set_yscale("log")
+                plt.title(r"Arrakis $\langle\Delta m\rangle$ (Mb) vs. function")
                 plt.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
                 plt.tight_layout()
                 plt.savefig("/local_scratch/arrakis_nd_memory_avg.png")
+
+                plugin_fig, plugin_axs = plt.subplots(figsize=(15, 10))
+                plugin_box_values = []
+                plugin_labels = []
+                for item in memory.keys():
+                    if 'Plugin' in item:
+                        plugin_box_values.append(memory[item])
+                        plugin_axs.plot(
+                            [],
+                            [],
+                            marker="",
+                            linestyle="-",
+                            label=f'{item}\n({memory_averages[item]:.2f} +/- {memory_stds[item]:.2f})',
+                        )
+                        plugin_labels.append(item)
+                    else:
+                        continue
+                plugin_axs.boxplot(plugin_box_values, vert=True, patch_artist=True, labels=plugin_labels)
+                plugin_axs.set_ylabel(r"$\langle\Delta m\rangle$ (Mb)")
+                plugin_axs.set_xticklabels(plugin_labels, rotation=45, ha="right")
+                plugin_axs.set_yscale("log")
+                plt.title(r"Plugin $\langle\Delta m\rangle$ (Mb) vs. function")
+                plt.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
+                plt.tight_layout()
+                plt.savefig("/local_scratch/arrakis_nd_plugin_memory_avg.png")
             except Exception as e:
                 self.error_status = str(e)
             self.barrier()

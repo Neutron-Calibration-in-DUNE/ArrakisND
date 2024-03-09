@@ -8,3 +8,5 @@ arrakis_nd:
 
 plugins:
   DaughterPlugin:
+  TrackIDHitMapPlugin:
+  MuonPlugin:

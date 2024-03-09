@@ -30,6 +30,7 @@ class Plugin:
 
     def process_event(
         self,
+        event: int,
         flow_file: h5py.File,
         arrakis_file: h5py.File,
         event_indices: dict,

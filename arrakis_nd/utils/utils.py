@@ -3,9 +3,23 @@ Utilities for ArrakisND
 """
 from collections import defaultdict
 import functools
+from datetime import datetime
 import psutil
 import time
 import os
+
+
+def get_datetime():
+    """
+    Returns a datetime in the format of:
+    YYYY.MM.DD.HH.MM.SS
+
+    Returns:
+        _type_: _description_
+    """
+    time = datetime.now()
+    now = f"{time.year}.{time.month}.{time.day}.{time.hour}.{time.minute}.{time.second}"
+    return now
 
 
 class ResetableIterator:
