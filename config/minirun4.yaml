@@ -4,6 +4,7 @@ arrakis_nd:
   flow_folder:  '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW'
   flow_files:   'all'
   skip_files: []
+  arrakis_folder: '/local_scratch/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW'
   plugin_locations: []
 
 plugins:

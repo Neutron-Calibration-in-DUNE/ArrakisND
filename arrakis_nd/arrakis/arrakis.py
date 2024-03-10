@@ -4,13 +4,16 @@ from mpi4py import MPI
 import h5py
 import os
 import importlib.util
+import traceback
 import sys
 import inspect
 import glob
 from tqdm import tqdm
 import torch
 import numpy as np
+from datetime import datetime
 from matplotlib import pyplot as plt
+from importlib.metadata import version
 
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.utils.utils import (
@@ -70,7 +73,7 @@ class Arrakis:
         try:
             self.parse_config()
         except Exception as e:
-            self.error_status = str(e)
+            self.error_status = e
         self.barrier()
 
         """Construct plugins"""
@@ -78,7 +81,7 @@ class Arrakis:
         try:
             self.construct_plugins()
         except Exception as e:
-            self.error_status = str(e)
+            self.error_status = e
         self.barrier()
 
         self.flow_files = []
@@ -95,8 +98,14 @@ class Arrakis:
     def barrier(self):
         errors = self.comm.allgather(self.error_status)
         if any(errors):
-            self.logger.error(f"errors encountered in Arrakis run: {errors}")
-            self.comm.Abort(1)
+            if self.rank == 0:
+                errors_count = sum(1 for error in errors if error is not None)
+                errors_indices = [index for index, error in enumerate(errors) if error is not None]
+                self.logger.critical(f"{errors_count} errors encountered in Arrakis program")
+                for index in errors_indices:
+                    self.logger.critical(f"error encountered in worker {index}: ")
+                    self.logger.critical(errors[index])
+                self.comm.Abort(1)
         else:
             self.comm.Barrier()
 
@@ -107,6 +116,9 @@ class Arrakis:
         """
         if self.rank == 0:
             try:
+                """Startup main arrakis program"""
+                self.logger.info(f'############################ ARRAKIS  v. [{version("arrakis-nd")}] ############################')
+                
                 """Check for main arrakis_nd parameters"""
                 if "arrakis_nd" not in self.config.keys():
                     self.logger.error("arrakis_nd section not in config!")
@@ -114,6 +126,9 @@ class Arrakis:
 
                 """Try to grab system info and display to the logger"""
                 system_info = self.logger.get_system_info()
+                time = datetime.now()
+                now = f"{time.hour}:{time.minute}:{time.second} [{time.day}/{time.month}/{time.year}]"
+                self.logger.info(f'system_info - local time: {now}')
                 for key, value in system_info.items():
                     self.logger.info(f"system_info - {key}: {value}")
 
@@ -127,29 +142,27 @@ class Arrakis:
                 else:
                     self.meta["verbose"] = False
 
-                """Check for GPU devices and configure them"""
-                if "gpu" not in arrakis_nd_config.keys():
-                    self.logger.warn('"arrakis_nd:gpu" not specified in config!')
-                    gpu = None
-                else:
-                    gpu = arrakis_nd_config["gpu"]
-                if "gpu_device" not in arrakis_nd_config.keys():
-                    self.logger.warn('"arrakis_nd:gpu_device" not specified in config!')
-                    gpu_device = None
-                else:
-                    gpu_device = arrakis_nd_config["gpu_device"]
-
                 """See if any CUDA devices are available on the system"""
                 if torch.cuda.is_available():
                     self.logger.info("CUDA is available with devices:")
                     for ii in range(torch.cuda.device_count()):
                         device_properties = torch.cuda.get_device_properties(ii)
-                        cuda_stats = f"name: {device_properties.name}, "
-                        cuda_stats += (
-                            f"compute: {device_properties.major}.{device_properties.minor}, "
-                        )
-                        cuda_stats += f"memory: {device_properties.total_memory}"
-                        self.logger.info(f" -- device: {ii} - " + cuda_stats)
+                        self.logger.info(f" -- device: {ii}")
+                        self.logger.info(f" {' ':<{5}} name: {device_properties.name}")
+                        self.logger.info(f" {' ':<{5}} compute: {device_properties.major}.{device_properties.minor}")
+                        self.logger.info(f" {' ':<{5}} memory: {round(device_properties.total_memory / (1024**3))} GB")
+
+                """Check for GPU devices and configure them"""
+                if "gpu" not in arrakis_nd_config.keys():
+                    self.logger.info('"arrakis_nd:gpu" not specified in config')
+                    gpu = None
+                else:
+                    gpu = arrakis_nd_config["gpu"]
+                if "gpu_device" not in arrakis_nd_config.keys():
+                    self.logger.info('"arrakis_nd:gpu_device" not specified in config')
+                    gpu_device = None
+                else:
+                    gpu_device = arrakis_nd_config["gpu_device"]
 
                 """Set the GPU parameters"""
                 if gpu:
@@ -177,14 +190,14 @@ class Arrakis:
                 for ii in range(1, self.comm.size):
                     self.comm.send(self.meta, dest=ii, tag=0)
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
             self.barrier()
         else:
             self.barrier()
             try:
                 self.meta = self.comm.recv(source=0, tag=0)
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
 
     @profiler
     def construct_plugins(self):
@@ -319,9 +332,22 @@ class Arrakis:
         if self.rank == 0:
             try:
                 arrakis_dict = self.config['arrakis_nd']
+                
+                """Check for parameters"""
+                if 'flow_folder' not in arrakis_dict.keys():
+                    self.logger.error(f'flow_folder not specified in config!')
+                if 'flow_files' not in arrakis_dict.keys():
+                    self.logger.error(f'flow_files not specified in config!')
+                    
                 flow_folder = arrakis_dict['flow_folder']
                 flow_files = arrakis_dict["flow_files"]
                 
+                """Check for arrakis folder"""
+                if 'arrakis_folder' not in arrakis_dict.keys():
+                    self.logger.warn(f'arrakis_folder not specified in config! setting to "/local_scratch"')
+                    arrakis_dict['arrakis_folder'] = '/local_scratch'
+                arrakis_folder = arrakis_dict['arrakis_folder'].replace('flow', 'arrakis').replace('FLOW', 'ARRAKIS')
+                                
                 """Check that flow folder exists"""
                 if not os.path.isdir(flow_folder):
                     self.logger.error(f'specified flow_folder {flow_folder} does not exist!')
@@ -329,6 +355,14 @@ class Arrakis:
                 """Check that flow folder has a '/' at the end"""
                 if flow_folder[-1] != '/':
                     flow_folder += '/'
+                    
+                """Check that arrakis folder has a '/' at the end"""
+                if arrakis_folder[-1] != '/':
+                    arrakis_folder += '/'
+                    
+                """Check that arrakis folder exists"""
+                if not os.path.isdir(arrakis_folder):
+                    os.makedirs(arrakis_folder)
 
                 if isinstance(arrakis_dict["flow_files"], list):
                     """
@@ -386,19 +420,26 @@ class Arrakis:
                     self.logger.error(
                         f'specified "flow_files" parameter: {arrakis_dict["flow_files"]} incompatible!'
                     )
-                self.flow_files = [flow_folder + flow_file for flow_file in flow_files]
+                self.flow_folder = flow_folder
+                self.flow_files = flow_files
+                self.arrakis_folder = arrakis_folder
+                self.logger.info(f'setting arrakis_folder to {self.arrakis_folder}.')
                 for ii in range(1, self.comm.size):
-                    self.comm.send(self.flow_files, dest=ii, tag=1)
+                    self.comm.send(self.flow_folder, dest=ii, tag=80)
+                    self.comm.send(self.flow_files, dest=ii, tag=81)
+                    self.comm.send(self.arrakis_folder, dest=ii, tag=82)
                 self.logger.info(f'found {len(self.flow_files)} flow files for processing.')
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
             self.barrier()
         else:
             self.barrier()
             try:
-                self.flow_files = self.comm.recv(source=0, tag=1)
+                self.flow_folder = self.comm.recv(source=0, tag=80)
+                self.flow_files = self.comm.recv(source=0, tag=81)
+                self.arrakis_folder = self.comm.recv(source=0, tag=82)
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
 
     @profiler
     def run_begin_of_file(
@@ -433,7 +474,8 @@ class Arrakis:
         arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
 
         """Open the flow file and determine the output array shapes"""
-        with h5py.File(file_name, 'r') as flow_file, h5py.File(arrakis_file_name, 'a') as arrakis_file:
+        with h5py.File(self.flow_folder + file_name, 'r') as flow_file, \
+            h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
             """
             First we make the labels for the charge dataset.  These consist of six
             main labels that we wish to generate with various plugins:
@@ -713,7 +755,7 @@ class Arrakis:
         Args:
             file_name (_str_): _description_
         """
-        with h5py.File(file_name, 'r', driver='mpio', comm=self.comm) as file:
+        with h5py.File(self.flow_folder + file_name, 'r', driver='mpio', comm=self.comm) as file:
             if self.rank == 0:
                 """Collect event ids from mc_truth and charge/light data"""
                 interactions_events = file['mc_truth/interactions/data']['event_id']
@@ -746,7 +788,7 @@ class Arrakis:
 
                 """Determine indices for mc_truth and charge/light data"""
                 for i, event_id in enumerate(unique_events):
-                    worker_rank = 1 + i % (self.size - 1)  # Distribute round-robin among workers
+                    worker_rank = 1 + i % (self.size - 1)  # Distribute round-robin among wor
                     self.distributed_events[worker_rank].append(event_id)
                     self.distributed_interactions_indices[worker_rank].append(
                         np.where(interactions_events == event_id)[0]
@@ -872,7 +914,7 @@ class Arrakis:
             try:
                 self.logger.info("Arrakis program ran successfully. Closing out.")
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
         else:
             pass
 
@@ -884,14 +926,14 @@ class Arrakis:
                 collected_timings = {ii: self.comm.recv(source=ii, tag=100) for ii in range(1, self.size)}
                 collected_memory = {ii: self.comm.recv(source=ii, tag=101) for ii in range(1, self.size)}
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
             self.barrier()
         else:
             try:
                 self.comm.send(timing_manager.timings, dest=0, tag=100)
                 self.comm.send(memory_manager.memory, dest=0, tag=101)
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
             self.barrier()
 
         """Generate timing and memory plots"""
@@ -1025,7 +1067,7 @@ class Arrakis:
                 plt.tight_layout()
                 plt.savefig("/local_scratch/arrakis_nd_plugin_memory_avg.png")
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
             self.barrier()
         else:
             self.barrier()
@@ -1057,7 +1099,7 @@ class Arrakis:
         try:
             self.set_up_input_files()
         except Exception as e:
-            self.error_status = str(e)
+            self.error_status = e
         self.barrier()
 
         """Set up progress bar"""
@@ -1079,7 +1121,7 @@ class Arrakis:
                     self.progress_bar.set_description_str(f'File [{ii+1}/{len(self.flow_files)}]')
                     self.run_begin_of_file(file_name)
                 except Exception as e:
-                    self.error_status = str(e)
+                    self.error_status = e
             self.barrier()
 
             """Set up output arrays in ARRAKIS file"""
@@ -1087,21 +1129,21 @@ class Arrakis:
                 try:
                     self.set_up_output_arrays(file_name)
                 except Exception as e:
-                    self.error_status = str(e)
+                    self.error_status = e
             self.barrier()
 
             """Prepare indices for workers"""
             try:
                 self.distribute_tasks(file_name)
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
             self.barrier()
 
             """Now process the file"""
             try:
                 arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
-                with h5py.File(file_name, 'r', driver='mpio', comm=self.comm) as flow_file, \
-                     h5py.File(arrakis_file_name, 'r+', driver='mpio', comm=self.comm) as arrakis_file:
+                with h5py.File(self.flow_folder + file_name, 'r', driver='mpio', comm=self.comm) as flow_file, \
+                     h5py.File(self.arrakis_folder + arrakis_file_name, 'r+', driver='mpio', comm=self.comm) as arrakis_file:
                     self.barrier()
                     if self.rank == 0:
                         """Process event in master node"""
@@ -1109,7 +1151,7 @@ class Arrakis:
                             self.progress_bar.set_postfix_str(f'# Events: [{self.num_events}]')
                             self.process_events_master(flow_file, arrakis_file)
                         except Exception as e:
-                            self.error_status = str(e)
+                            self.error_status = e
                         self.barrier()
                     else:
                         """Process event in worker node"""
@@ -1117,9 +1159,9 @@ class Arrakis:
                         try:
                             self.process_events_worker(flow_file, arrakis_file)
                         except Exception as e:
-                            self.error_status = str(e)
+                            self.error_status = e
             except Exception as e:
-                self.error_status = str(e)
+                self.error_status = e
             self.barrier()
 
             """Run end of file plugins"""
@@ -1128,7 +1170,7 @@ class Arrakis:
                     self.run_end_of_file(file_name)
                     self.progress_bar.update(1)
                 except Exception as e:
-                    self.error_status = str(e)
+                    self.error_status = e
             self.barrier()
 
         """Run end of program functions"""

@@ -4,6 +4,11 @@ from setuptools import setup
 with open("README.md", "r") as file:
     long_description = file.read()
 
+# Function to read the list of requirements from requirements.txt
+def read_requirements():
+    with open('requirements.txt') as req:
+        return req.read().splitlines()
+
 setup(
     # name
     name="arrakis_nd",
@@ -23,7 +28,7 @@ setup(
     # where to find the source
     url="https://github.com/Neutron-Calibration-in-DUNE/ArrakisND",
     # requirements
-    install_reqs=[],
+    install_requires=read_requirements(),
     # packages
     packages=find_packages(
         # where='pointnet',
@@ -33,8 +38,8 @@ setup(
     # classifiers
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "Intended Audience :: Experimental Physics",
-        "License :: GNU",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: GNU General Public License (GPL)",
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",

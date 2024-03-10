@@ -269,13 +269,23 @@ class Logger:
             error_list: _description_
         """
         """Output to the standard logger "error" """
-        formatted_lines = str(traceback.format_stack()[-1][0])
+        formatted_traceback = ''.join(traceback.format_stack())
         if error_type not in error_list.keys():
             error_type = "arrakis"
+        log_message = f"Traceback: \n{formatted_traceback}\nError: {message}"
         if self.output == "file":
-            self.logger.error(f"traceback: {formatted_lines}\nerror: {message}")
-        self.logger.error(message)
-        raise error_list[error_type](f"traceback: {formatted_lines}\nerror: {message}")
+            self.logger.error(log_message)
+        else:
+            self.logger.error(message)
+        raise error_list[error_type](log_message)
+
+    def critical(
+        self,
+        message: str
+    ):
+        """
+        """
+        return self.logger.critical(message)
 
     def get_system_info(
         self
@@ -298,9 +308,11 @@ class Logger:
             info["ip-address"] = socket.gethostbyname(socket.gethostname())
             info["mac-address"] = ":".join(re.findall("..", "%012x" % uuid.getnode()))
             info["processor"] = platform.processor()
-            info["ram"] = (
-                str(round(psutil.virtual_memory().total / (1024.0**3))) + " GB"
-            )
+            info["physical_cores"] = psutil.cpu_count(logical=False)
+            info["logical_cores"] = psutil.cpu_count(logical=True)
+            info["local_scratch"] = str(round(psutil.disk_usage('/local_scratch').free / (1024.0**3))) + " GB"
+            info["local_data"] = str(round(psutil.disk_usage('/local_data').free / (1024.0**3))) + " GB"
+            info["RAM"] = str(round(psutil.virtual_memory().total / (1024.0**3))) + " GB"
         except Exception as e:
             self.logger.warning(f"Unable to obtain system information: {e}.")
         return info

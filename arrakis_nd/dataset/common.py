@@ -4,6 +4,9 @@ from enum import Enum
 
 
 class ProcessType(Enum):
+    """
+    Geant4 process identifications.
+    """
     Undefined = -1
     NotDefined = 0
     Transportation = 1
@@ -21,6 +24,9 @@ class ProcessType(Enum):
 
 
 class SubProcessType(Enum):
+    """
+    Geant4 subprocess identifications.
+    """
     Undefined = -1
     Primary = 0
     CoulombScattering = 1
@@ -97,16 +103,3 @@ class SubProcessType(Enum):
     Meesungnoen2002eSolvation = 11003
     Kreipl2009eSolvation = 11004
     Meesungnoensolid2002eSolvation = 11005
-
-
-class TopologyLabel(Enum):
-    """
-    High-level description of the shape of certain
-    event types.
-    """
-
-    Undefined = -1
-    Noise = 0
-    Blip = 1
-    Track = 2
-    Shower = 3
