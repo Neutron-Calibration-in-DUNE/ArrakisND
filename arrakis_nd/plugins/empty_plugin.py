@@ -63,7 +63,7 @@ class EmptyPlugin(Plugin):
         super(EmptyPlugin, self).__init__(config)
 
         self.input_products = None
-        self.output_product = None
+        self.output_products = None
 
     @profiler
     def process_event(

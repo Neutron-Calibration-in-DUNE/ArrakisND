@@ -14,7 +14,20 @@ import os
 
 class ArrakisError(Exception):
     """Custom default error for Arrakis"""
-    def __init__(self, message="An error occurred"):
+    def __init__(
+        self, 
+        message="An error occurred"
+    ):
+        self.message = message
+        super().__init__(self.message)
+
+
+class EventError(Exception):
+    """Custom default error for an event"""
+    def __init__(
+        self, 
+        message="An error occurred"
+    ):
         self.message = message
         super().__init__(self.message)
 
@@ -27,12 +40,6 @@ logging_level = {
     "critical": logging.CRITICAL,
 }
 
-logging_output = [
-    "console",
-    "file",
-    "both",
-]
-
 warning_list = {
     "deprecation": DeprecationWarning,
     "import": ImportWarning,
@@ -43,6 +50,7 @@ warning_list = {
 error_list = {
     "attribute": AttributeError,
     "arrakis": ArrakisError,
+    "event": EventError,
     "index": IndexError,
     "file": FileExistsError,
     "memory": MemoryError,
@@ -98,9 +106,6 @@ class Logger:
         self,
         name: str = "default",
         level: str = "debug",
-        output: str = "file",
-        output_file: str = "log",
-        file_mode: str = "a",
     ):
         """
         Initializer for the logger
@@ -119,13 +124,10 @@ class Logger:
 
         Raises:
             ValueError: _description_
-            ValueError: _description_
         """
         # check for mistakes
         if level not in logging_level.keys():
             raise ValueError(f"Logging level {level} not in {logging_level}.")
-        if output not in logging_output:
-            raise ValueError(f"Logging handler {output} not in {logging_output}.")
 
         # create the logging directory
         if "LOCAL_SCRATCH" in os.environ.keys():
@@ -138,9 +140,8 @@ class Logger:
         # use the name as the default output file name
         self.name = name
         self.level = logging_level[level]
-        self.output = output
-        self.output_file = output_file
-        self.file_mode = file_mode
+        self.output_file = "arrakis"
+        self.file_mode = "a"
 
         # create logger
         self.logger = logging.getLogger(self.name)
@@ -164,18 +165,16 @@ class Logger:
         self.debug.setLevel(self.level)
 
         # create handler
-        if self.output == "console" or self.output == "both":
-            self.console = logging.StreamHandler()
-            self.console.setLevel(self.level)
-            self.console.setFormatter(self.console_formatter)
-            self.logger.addHandler(self.console)
-        if self.output == "file" or self.output == "both":
-            self.file = logging.FileHandler(
-                self.local_log_dir + "/" + self.output_file + ".log", mode="a"
-            )
-            self.file.setLevel(logging.DEBUG)
-            self.file.setFormatter(self.file_formatter)
-            self.logger.addHandler(self.file)
+        self.console = logging.StreamHandler()
+        self.console.setLevel(self.level)
+        self.console.setFormatter(self.console_formatter)
+        self.logger.addHandler(self.console)
+        self.file = logging.FileHandler(
+            self.local_log_dir + "/" + self.output_file + ".log", mode="a"
+        )
+        self.file.setLevel(logging.DEBUG)
+        self.file.setFormatter(self.file_formatter)
+        self.logger.addHandler(self.file)
         self.debug.setFormatter(self.file)
         self.debug_logger.addHandler(self.debug)
         self.logger.propagate = False
@@ -248,10 +247,6 @@ class Logger:
             f"traceback: {formatted_lines}\nerror: {message}",
             warning_list[warning_type],
         )
-        if self.output == "file":
-            return self.logger.warning(
-                f"traceback: {formatted_lines}\nerror: {message}"
-            )
         return
 
     def error(
@@ -273,10 +268,7 @@ class Logger:
         if error_type not in error_list.keys():
             error_type = "arrakis"
         log_message = f"Traceback: \n{formatted_traceback}\nError: {message}"
-        if self.output == "file":
-            self.logger.error(log_message)
-        else:
-            self.logger.error(message)
+        self.logger.error(message)
         raise error_list[error_type](log_message)
 
     def critical(

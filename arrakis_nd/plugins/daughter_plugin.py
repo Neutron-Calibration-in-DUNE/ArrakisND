@@ -64,7 +64,7 @@ class DaughterPlugin(Plugin):
         super(DaughterPlugin, self).__init__(config)
 
         self.input_products = None
-        self.output_product = 'daughters'
+        self.output_products = 'daughters'
 
     @profiler
     def process_event(

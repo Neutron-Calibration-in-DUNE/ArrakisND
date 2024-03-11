@@ -42,8 +42,8 @@ class MuonPlugin(Plugin):
         """
         super(MuonPlugin, self).__init__(config)
 
-        self.input_products = ['daughters', 'track_id_hit_map']
-        self.output_product = None
+        self.input_products = ['daughters', 'track_id_hit_map', 'track_id_hit_segment_map']
+        self.output_products = None
 
     @profiler
     def process_event(
@@ -57,6 +57,17 @@ class MuonPlugin(Plugin):
         """
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
-        charge = flow_file['charge/calib_final_hits/data']
+        arrakis_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
+        track_id_hit_map = event_products['track_id_hit_map']
+        track_id_hit_segment_map = event_products['track_id_hit_segment_map']
 
-        muons = abs(trajectories['pdg_id']) == 13
+        trajectories_traj_ids = trajectories['traj_id']
+        trajectories_vertex_ids = trajectories['vertex_id']
+        trajctories_pdg_ids = trajectories['pdg_id']
+
+        muon_mask = (abs(trajctories_pdg_ids) == 13)
+
+        for (muon_id, vertex_id) in zip(trajectories_traj_ids[muon_mask], trajectories_vertex_ids[muon_mask]):
+            muon_hits = track_id_hit_map[(muon_id, vertex_id)]
+            muon_segments = track_id_hit_segment_map[(muon_id, vertex_id)]
+            arrakis_charge['topology'][muon_hits, muon_segments] = 1

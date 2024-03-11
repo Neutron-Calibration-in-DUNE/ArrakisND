@@ -37,7 +37,7 @@ class PhysicsMicro(Enum):
 
 class PhysicsMacro(Enum):
     """
-    Macro-lebel decsriptions of topological types.
+    Macro-level decsriptions of topological types.
     """
     Undefined = -1
     Noise = 0

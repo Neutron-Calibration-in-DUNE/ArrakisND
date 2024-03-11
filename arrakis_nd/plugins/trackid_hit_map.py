@@ -48,7 +48,7 @@ class TrackIDHitMapPlugin(Plugin):
         super(TrackIDHitMapPlugin, self).__init__(config)
 
         self.input_products = None
-        self.output_product = 'track_id_hit_map'
+        self.output_products = ['track_id_hit_map', 'track_id_hit_segment_map']
 
     @profiler
     def process_event(
@@ -81,6 +81,10 @@ class TrackIDHitMapPlugin(Plugin):
             (traj_id, vertex_id): []
             for (traj_id, vertex_id) in zip(trajectories_traj_ids, trajectories_vertex_ids)
         }
+        track_id_hit_segment_map = {
+            (traj_id, vertex_id): []
+            for (traj_id, vertex_id) in zip(trajectories_traj_ids, trajectories_vertex_ids)
+        }
 
         """Loop over segment ids"""
         for ii, segment_ids in enumerate(charge_segment_ids):
@@ -93,9 +97,13 @@ class TrackIDHitMapPlugin(Plugin):
                 for segment_id in segment_ids
             ])
             """Associate this hit to the (traj_id, vertex_id) pairs"""
-            for segment_index in segment_indices:
+            for jj, segment_index in enumerate(segment_indices):
                 track_id_hit_map[
                     (segments_traj_ids[segment_index], segments_vertex_ids[segment_index])
                 ].append(ii)
+                track_id_hit_segment_map[
+                    (segments_traj_ids[segment_index], segments_vertex_ids[segment_index])
+                ].append(jj)
 
         event_products['track_id_hit_map'] = track_id_hit_map
+        event_products['track_id_hit_segment_map'] = track_id_hit_segment_map

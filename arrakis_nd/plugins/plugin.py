@@ -26,7 +26,7 @@ class Plugin:
 
         """These should be set by the creator of the custom plugin"""
         self.input_products = None
-        self.output_product = None
+        self.output_products = None
 
     def process_event(
         self,

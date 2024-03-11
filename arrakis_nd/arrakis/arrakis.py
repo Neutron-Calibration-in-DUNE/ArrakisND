@@ -4,7 +4,6 @@ from mpi4py import MPI
 import h5py
 import os
 import importlib.util
-import traceback
 import sys
 import inspect
 import glob
@@ -29,8 +28,6 @@ class Arrakis:
     Main Arrakis class for running jobs. Arrakis is designed
     to work with MPI and H5.  The user must run Arrakis using mpirun
     with at least two processes (one master and N-1 workers).
-    
-    
     """
     @profiler
     def __init__(
@@ -57,9 +54,9 @@ class Arrakis:
         """Set input parameters and set up loggers"""
         try:
             if self.rank == 0:
-                self.logger = Logger(f"master: {self.rank}", output="both")
+                self.logger = Logger(f"master: {self.rank}")
             else:
-                self.logger = Logger(f"worker: {self.rank}", output="both")
+                self.logger = Logger(f"worker: {self.rank}")
         except Exception as e:
             raise RuntimeError(f"unable to set up logging system: {e}")
 
@@ -68,6 +65,9 @@ class Arrakis:
 
         """Setting error status for this node"""
         self.error_status = None
+        self.event_errors = []
+        self.plugin_errors = []
+        self.event_plugin_errors = []
 
         """Parse config"""
         try:
@@ -117,8 +117,10 @@ class Arrakis:
         if self.rank == 0:
             try:
                 """Startup main arrakis program"""
-                self.logger.info(f'############################ ARRAKIS  v. [{version("arrakis-nd")}] ############################')
-                
+                self.logger.info(
+                    f'############################ ARRAKIS  v. [{version("arrakis-nd")}] ############################'
+                )
+
                 """Check for main arrakis_nd parameters"""
                 if "arrakis_nd" not in self.config.keys():
                     self.logger.error("arrakis_nd section not in config!")
@@ -257,7 +259,17 @@ class Arrakis:
                                     "{self.plugins[plugin_name].input_products}" but current products only contain \
                                     {running_output_products}!'
                                 )
-            running_output_products.append(self.plugins[plugin_name].output_product)
+            if isinstance(self.plugins[plugin_name].output_products, str):
+                running_output_products.append(self.plugins[plugin_name].output_products)
+            elif isinstance(self.plugins[plugin_name].output_products, list):
+                running_output_products += self.plugins[plugin_name].output_products
+            else:
+                if self.plugins[plugin_name].output_products is not None:
+                    self.logger.error(
+                        f'specified plugin "{plugin_name}" at location "{ii}" should have output_products == None, \
+                        or output_products == str, or output_products == list(str), but has type \
+                        "{type(self.plugins[plugin_name].output_products)}"!'
+                    )
 
     @profiler
     def collect_plugins(self):
@@ -332,34 +344,34 @@ class Arrakis:
         if self.rank == 0:
             try:
                 arrakis_dict = self.config['arrakis_nd']
-                
+
                 """Check for parameters"""
                 if 'flow_folder' not in arrakis_dict.keys():
-                    self.logger.error(f'flow_folder not specified in config!')
+                    self.logger.error('flow_folder not specified in config!')
                 if 'flow_files' not in arrakis_dict.keys():
-                    self.logger.error(f'flow_files not specified in config!')
-                    
+                    self.logger.error('flow_files not specified in config!')
+
                 flow_folder = arrakis_dict['flow_folder']
                 flow_files = arrakis_dict["flow_files"]
-                
+
                 """Check for arrakis folder"""
                 if 'arrakis_folder' not in arrakis_dict.keys():
-                    self.logger.warn(f'arrakis_folder not specified in config! setting to "/local_scratch"')
+                    self.logger.warn('arrakis_folder not specified in config! setting to "/local_scratch"')
                     arrakis_dict['arrakis_folder'] = '/local_scratch'
                 arrakis_folder = arrakis_dict['arrakis_folder'].replace('flow', 'arrakis').replace('FLOW', 'ARRAKIS')
-                                
+
                 """Check that flow folder exists"""
                 if not os.path.isdir(flow_folder):
                     self.logger.error(f'specified flow_folder {flow_folder} does not exist!')
-                    
+
                 """Check that flow folder has a '/' at the end"""
                 if flow_folder[-1] != '/':
                     flow_folder += '/'
-                    
+
                 """Check that arrakis folder has a '/' at the end"""
                 if arrakis_folder[-1] != '/':
                     arrakis_folder += '/'
-                    
+
                 """Check that arrakis folder exists"""
                 if not os.path.isdir(arrakis_folder):
                     os.makedirs(arrakis_folder)
@@ -442,6 +454,39 @@ class Arrakis:
                 self.error_status = e
 
     @profiler
+    def reset_event_errors(self):
+        self.event_errors = []
+        self.plugin_errors = []
+        self.event_plugin_errors = []
+
+    @profiler
+    def report_event_errors(
+        self,
+        file_name: str
+    ):
+        """
+        Report any event/plugin errors that have occurred during
+        this file.  These errors, if there are any, are reported
+        and saved to the corresponding ARRAKIS file in the meta
+        information.
+        """
+        event_errors = np.concatenate(self.comm.allgather(self.event_errors))
+        plugin_errors = np.concatenate(self.comm.allgather(self.plugin_errors))
+        event_plugin_errors = np.concatenate(self.comm.allgather(self.event_plugin_errors))
+        if self.rank == 0:
+            if len(event_errors) > 0:
+                self.logger.warn(f"event/plugin errors occurred when processing file {file_name}")
+            """Display error information"""
+            for ii, event_error in enumerate(event_errors):
+                self.logger.warn(
+                    f"event: {event_error} / plugin: {plugin_errors[ii]} - error: {event_plugin_errors[ii]}"
+                )
+            "Report error information to ARRAKIS file"
+            arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
+        else:
+            pass
+
+    @profiler
     def run_begin_of_file(
         self,
         file_name: str
@@ -475,7 +520,7 @@ class Arrakis:
 
         """Open the flow file and determine the output array shapes"""
         with h5py.File(self.flow_folder + file_name, 'r') as flow_file, \
-            h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
+             h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
             """
             First we make the labels for the charge dataset.  These consist of six
             main labels that we wish to generate with various plugins:
@@ -496,8 +541,39 @@ class Arrakis:
             written in the corresponding ARRAKIS file.
             """
             charge_name = 'charge/calib_final_hits/data'
-
+            charge_segment_name = 'charge_segment/calib_final_hits/data'
+            charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_id']
+            charge_segments_fraction = flow_file['mc_truth/calib_final_hit_backtrack/data']['fraction']
+            non_zero_charge_segments = [row[row != 0] for row in charge_segments]
+            max_length = len(max(non_zero_charge_segments, key=len))
             num_charge = len(flow_file[charge_name]['x'])
+
+            new_charge_segment_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('segment_id', 'i4', (max_length,)),
+                ('segment_fraction', 'f4', (max_length,)),
+                ('topology', 'i4', (max_length,)),
+                ('physics_micro', 'i4', (max_length,)),
+                ('physics_macro', 'i4', (max_length,)),
+                ('unique_topology', 'i4', (max_length,)),
+                ('unique_physics_micro', 'i4', (max_length,)),
+                ('unique_physics_macro', 'i4', (max_length,)),
+                ('vertex', 'bool', (max_length,)),
+                ('tracklette_begin', 'bool', (max_length,)),
+                ('tracklette_end', 'bool', (max_length,)),
+                ('fragment_begin', 'bool', (max_length,)),
+                ('fragment_end', 'bool', (max_length,)),
+                ('shower_begin', 'bool', (max_length,))
+            ])
+
+            new_charge_segment_data = np.full(num_charge, -1, dtype=new_charge_segment_data_type)
+            new_charge_segment_data['segment_id'] = charge_segments[:, :max_length]
+            new_charge_segment_data['segment_fraction'] = charge_segments_fraction[:, :max_length]
+
+            if charge_segment_name in arrakis_file:
+                del arrakis_file[charge_segment_name]
+
+            arrakis_file.create_dataset(charge_segment_name, data=new_charge_segment_data)
 
             new_charge_data_type = np.dtype([
                 ('event_id', 'i4'),
@@ -755,7 +831,12 @@ class Arrakis:
         Args:
             file_name (_str_): _description_
         """
-        with h5py.File(self.flow_folder + file_name, 'r', driver='mpio', comm=self.comm) as file:
+
+        """Determine the arrakis file name"""
+        arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
+
+        with h5py.File(self.flow_folder + file_name, 'r', driver='mpio', comm=self.comm) as file, \
+             h5py.File(self.arrakis_folder + arrakis_file_name, 'r+', driver='mpio', comm=self.comm) as arrakis_file:
             if self.rank == 0:
                 """Collect event ids from mc_truth and charge/light data"""
                 interactions_events = file['mc_truth/interactions/data']['event_id']
@@ -787,8 +868,8 @@ class Arrakis:
                 self.distributed_light_indices = {i: [] for i in range(1, self.size)}
 
                 """Determine indices for mc_truth and charge/light data"""
-                for i, event_id in enumerate(unique_events):
-                    worker_rank = 1 + i % (self.size - 1)  # Distribute round-robin among wor
+                for ii, event_id in enumerate(unique_events):
+                    worker_rank = 1 + ii % (self.size - 1)  # Distribute round-robin among wor
                     self.distributed_events[worker_rank].append(event_id)
                     self.distributed_interactions_indices[worker_rank].append(
                         np.where(interactions_events == event_id)[0]
@@ -803,13 +884,14 @@ class Arrakis:
                         np.where(trajectories_events == event_id)[0]
                     )
                     """For charge data we must backtrack through segments"""
+                    hits_to_segments = np.any(
+                        np.isin(
+                            charge_segments[:, :max_length], segments_ids[(segments_events == event_id)]
+                        ),
+                        axis=1,
+                    )
                     self.distributed_charge_indices[worker_rank].append(
-                        np.any(
-                            np.isin(
-                                charge_segments[:, :max_length], segments_ids[(segments_events == event_id)]
-                            ),
-                            axis=1,
-                        )
+                        hits_to_segments
                     )
                     """Likewise for light data, we must backtrack through segments"""
                     self.distributed_light_indices[worker_rank].append([])
@@ -876,13 +958,18 @@ class Arrakis:
             event_products = {}
             """Iterate over plugins"""
             for plugin_name, plugin in self.plugins.items():
-                plugin.process_event(
-                    event=event,
-                    flow_file=flow_file,
-                    arrakis_file=arrakis_file,
-                    event_indices=event_indices,
-                    event_products=event_products,
-                )
+                try:
+                    plugin.process_event(
+                        event=event,
+                        flow_file=flow_file,
+                        arrakis_file=arrakis_file,
+                        event_indices=event_indices,
+                        event_products=event_products,
+                    )
+                except Exception as e:
+                    self.event_errors.append(event)
+                    self.plugin_errors.append(plugin_name)
+                    self.event_plugin_errors.append(e)
 
     @profiler
     def run_end_of_file(
@@ -1124,6 +1211,10 @@ class Arrakis:
                     self.error_status = e
             self.barrier()
 
+            """Reset event/plugin errors"""
+            self.reset_event_errors()
+            self.barrier()
+
             """Set up output arrays in ARRAKIS file"""
             if self.rank == 0:
                 try:
@@ -1160,6 +1251,7 @@ class Arrakis:
                             self.process_events_worker(flow_file, arrakis_file)
                         except Exception as e:
                             self.error_status = e
+                    arrakis_file.flush()
             except Exception as e:
                 self.error_status = e
             self.barrier()
@@ -1171,6 +1263,10 @@ class Arrakis:
                     self.progress_bar.update(1)
                 except Exception as e:
                     self.error_status = e
+            self.barrier()
+
+            """Report any event errors"""
+            self.report_event_errors(file_name)
             self.barrier()
 
         """Run end of program functions"""
