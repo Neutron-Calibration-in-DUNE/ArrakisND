@@ -95,6 +95,16 @@ class Arrakis:
         self.distributed_light_indices = {}
 
     @profiler
+    def clear_indices(self):
+        self.distributed_events.clear()
+        self.distributed_interactions_indices.clear()
+        self.distributed_segments_indices.clear()
+        self.distributed_stack_indices.clear()
+        self.distributed_trajectories_indices.clear()
+        self.distributed_charge_indices.clear()
+        self.distributed_light_indices.clear()
+
+    @profiler
     def barrier(self):
         errors = self.comm.allgather(self.error_status)
         if any(errors):
@@ -340,6 +350,11 @@ class Arrakis:
         if listed input files exist, or if "all" is selected for
         input files, construct the list of all .h5 files in the
         flow_folder.
+
+        We create the data members
+            self.flow_folder - location of the flow files specified in config
+            self.flow_files - names of all the flow files to process
+            self.arrakis_folder - location to put the arrakis files
         """
         if self.rank == 0:
             try:
@@ -528,8 +543,6 @@ class Arrakis:
                 (2) physics_micro - a descriptor of local physics
                 (3) physics_macro - a descriptor of larger scale physics objects
                 (4) unique_topology - unique labels for instances of topology
-                (5) unique_physics_micro - unique labels for instances of physics_micro
-                (6) unique_physics_macro - unique labels for instances of physics_macro
                 (7) vertex - binary variable denoting whether a vertex is at this hit
                 (8) tracklette_begin - binary variable denoting whether a track beginning is at this hit
                 (9) tracklette_end - binary variable denoting whether a track end is at this hit
@@ -556,19 +569,23 @@ class Arrakis:
                 ('physics_micro', 'i4', (max_length,)),
                 ('physics_macro', 'i4', (max_length,)),
                 ('unique_topology', 'i4', (max_length,)),
-                ('unique_physics_micro', 'i4', (max_length,)),
-                ('unique_physics_macro', 'i4', (max_length,)),
-                ('vertex', 'bool', (max_length,)),
-                ('tracklette_begin', 'bool', (max_length,)),
-                ('tracklette_end', 'bool', (max_length,)),
-                ('fragment_begin', 'bool', (max_length,)),
-                ('fragment_end', 'bool', (max_length,)),
-                ('shower_begin', 'bool', (max_length,))
+                ('vertex', 'i4', (max_length,)),
+                ('tracklette_begin', 'i4', (max_length,)),
+                ('tracklette_end', 'i4', (max_length,)),
+                ('fragment_begin', 'i4', (max_length,)),
+                ('fragment_end', 'i4', (max_length,)),
+                ('shower_begin', 'i4', (max_length,))
             ])
 
             new_charge_segment_data = np.full(num_charge, -1, dtype=new_charge_segment_data_type)
             new_charge_segment_data['segment_id'] = charge_segments[:, :max_length]
             new_charge_segment_data['segment_fraction'] = charge_segments_fraction[:, :max_length]
+            new_charge_segment_data['vertex'][:, :max_length] = 0
+            new_charge_segment_data['tracklette_begin'][:, :max_length] = 0
+            new_charge_segment_data['tracklette_end'][:, :max_length] = 0
+            new_charge_segment_data['fragment_begin'][:, :max_length] = 0
+            new_charge_segment_data['fragment_end'][:, :max_length] = 0
+            new_charge_segment_data['shower_begin'][:, :max_length] = 0
 
             if charge_segment_name in arrakis_file:
                 del arrakis_file[charge_segment_name]
@@ -581,17 +598,21 @@ class Arrakis:
                 ('physics_micro', 'i4'),
                 ('physics_macro', 'i4'),
                 ('unique_topology', 'i4'),
-                ('unique_physics_micro', 'i4'),
-                ('unique_physics_macro', 'i4'),
-                ('vertex', 'bool'),
-                ('tracklette_begin', 'bool'),
-                ('tracklette_end', 'bool'),
-                ('fragment_begin', 'bool'),
-                ('fragment_end', 'bool'),
-                ('shower_begin', 'bool')
+                ('vertex', 'i4'),
+                ('tracklette_begin', 'i4'),
+                ('tracklette_end', 'i4'),
+                ('fragment_begin', 'i4'),
+                ('fragment_end', 'i4'),
+                ('shower_begin', 'i4')
             ])
 
             new_charge_data = np.full(num_charge, -1, dtype=new_charge_data_type)
+            new_charge_data['vertex'][:] = 0
+            new_charge_data['tracklette_begin'][:] = 0
+            new_charge_data['tracklette_end'][:] = 0
+            new_charge_data['fragment_begin'][:] = 0
+            new_charge_data['fragment_end'][:] = 0
+            new_charge_data['shower_begin'][:] = 0
 
             if charge_name in arrakis_file:
                 del arrakis_file[charge_name]
@@ -780,7 +801,7 @@ class Arrakis:
             particle_data_type = np.dtype([
                 ('event_id', 'i4'),
                 ('particle_id', 'i4'),
-                ('primary', 'bool'),
+                ('primary', 'i4'),
                 ('pdg', 'i4'),
                 ('tgtA', 'i4'),
                 ('score', 'f4'),
@@ -789,7 +810,7 @@ class Arrakis:
                 ('p', 'f4', (1, 3)),
                 ('start', 'f4', (1, 3)),
                 ('end', 'f4', (1, 3)),
-                ('contained', 'bool'),
+                ('contained', 'i4'),
                 ('truth', 'i4', (1, 20)),
                 ('truthOverlap', 'f4', (1, 20)),
             ])
@@ -828,15 +849,15 @@ class Arrakis:
         events in the FLOW output files and distribute
         those indices among the workers.
 
+        The slowest part of this code is backtracking through hits->segments,
+        which must be done in order to create the reverse map from segments->hits.
+        This must be done since there is no way to determine what hits go
+        with what events with only the calib_final_hits data alone.
+
         Args:
             file_name (_str_): _description_
         """
-
-        """Determine the arrakis file name"""
-        arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
-
-        with h5py.File(self.flow_folder + file_name, 'r', driver='mpio', comm=self.comm) as file, \
-             h5py.File(self.arrakis_folder + arrakis_file_name, 'r+', driver='mpio', comm=self.comm) as arrakis_file:
+        with h5py.File(self.flow_folder + file_name, 'r', driver='mpio', comm=self.comm) as file:
             if self.rank == 0:
                 """Collect event ids from mc_truth and charge/light data"""
                 interactions_events = file['mc_truth/interactions/data']['event_id']
@@ -929,7 +950,8 @@ class Arrakis:
         Args:
             flow_file (_h5py.File_): input flow_file
         """
-        pass
+        """Clear event indices so that file closes properly!"""
+        self.clear_indices()
 
     @profiler
     def process_events_worker(
@@ -970,6 +992,9 @@ class Arrakis:
                     self.event_errors.append(event)
                     self.plugin_errors.append(plugin_name)
                     self.event_plugin_errors.append(e)
+
+        """Clear event indices so that file closes properly!"""
+        self.clear_indices()
 
     @profiler
     def run_end_of_file(
@@ -1251,6 +1276,8 @@ class Arrakis:
                             self.process_events_worker(flow_file, arrakis_file)
                         except Exception as e:
                             self.error_status = e
+                    """Ensure that changes are pushed to the arrakis file"""
+                    self.barrier()
                     arrakis_file.flush()
             except Exception as e:
                 self.error_status = e

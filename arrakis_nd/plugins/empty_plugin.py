@@ -35,6 +35,7 @@ class EmptyPlugin(Plugin):
         'stack':        indices of the "event" in the 'mc_truth/stack/data' array
         'trajectories': indices of the "event" in the 'mc_truth/trajectories/data' array
         'charge':       indices of the "event" in the 'charge/calib_final_hits/data' array
+        'light':        indices of the "event" in the 'light/sipm_hits/data' array
     }
     """
     def __init__(
@@ -50,15 +51,22 @@ class EmptyPlugin(Plugin):
         The 'input_products' and 'output_produces' must be configured!
         The 'input_products' should be either 'None', 'str' or a list of 'str'.  The
         'str's tell Arrakis what plugin output_products that this plugin needs in
-        order to work properly.  For example, the 'daughter_plugin' creates the 
+        order to work properly.  For example, the 'daughter_plugin' creates the
         'daughters' output_product, which contains the indices of the daughters
         for each traj_id in trajectories.  To specify that this plugin needs
         that product, we would write,
 
             self.input_products = 'daughters'   -  or  -  self.input_products = ['daughters']
 
-        The 'output_product' should give the name of the intermediate product (if any)
+        The 'output_products' should give the name of the intermediate product (if any)
         that this plugin produces and appends to the "event_products" dictionary.
+
+        NB! Note that any changes one wishes to make to the arrakis_file happen
+            in a subtle way.  For example, if you index any dataset from the arrakis_file,
+            that will create a new numpy array and will NOT give you a reference
+            to the original dataset.  Therefore, any changes you make must be sent back to
+            the original arrakis_file in the end!  See the particle examples in the plugin
+            folder.
         """
         super(EmptyPlugin, self).__init__(config)
 

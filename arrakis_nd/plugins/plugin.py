@@ -47,6 +47,13 @@ class Plugin:
 
         This function must be overriden by the inherited class.
 
+        NB! Note that any changes one wishes to make to the arrakis_file happen
+            in a subtle way.  For example, if you index any dataset from the arrakis_file,
+            that will create a new numpy array and will NOT give you a reference
+            to the original dataset.  Therefore, any changes you make must be sent back to
+            the original arrakis_file in the end!  See the particle examples in the plugin
+            folder.
+
         Args:
             flow_file (h5py.File): _description_
             arrakis_file (h5py.File): _description_
