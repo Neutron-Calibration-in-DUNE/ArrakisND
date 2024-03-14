@@ -58,9 +58,38 @@ def run():
     config_parser = ConfigParser(config_file)
     config = config_parser.data
 
-    arrakis_dict = config["arrakis_nd"]
-    flow_folder = arrakis_dict["flow_folder"]
+    arrakis_dict = config['arrakis_nd']
+
+    """Check for parameters"""
+    if 'flow_folder' not in arrakis_dict.keys():
+        logger.error('flow_folder not specified in config!')
+    if 'flow_files' not in arrakis_dict.keys():
+        logger.error('flow_files not specified in config!')
+
+    flow_folder = arrakis_dict['flow_folder']
     flow_files = arrakis_dict["flow_files"]
+
+    """Check for arrakis folder"""
+    if 'arrakis_folder' not in arrakis_dict.keys():
+        logger.warn('arrakis_folder not specified in config! setting to "/local_scratch"')
+        arrakis_dict['arrakis_folder'] = '/local_scratch'
+    arrakis_folder = arrakis_dict['arrakis_folder'].replace('flow', 'arrakis').replace('FLOW', 'ARRAKIS')
+
+    """Check that flow folder exists"""
+    if not os.path.isdir(flow_folder):
+        logger.error(f'specified flow_folder {flow_folder} does not exist!')
+
+    """Check that flow folder has a '/' at the end"""
+    if flow_folder[-1] != '/':
+        flow_folder += '/'
+
+    """Check that arrakis folder has a '/' at the end"""
+    if arrakis_folder[-1] != '/':
+        arrakis_folder += '/'
+
+    """Check that arrakis folder exists"""
+    if not os.path.isdir(arrakis_folder):
+        os.makedirs(arrakis_folder)
 
     if isinstance(arrakis_dict["flow_files"], list):
         """
@@ -123,24 +152,14 @@ def run():
     file_chunk_size = int(np.ceil(len(flow_files) / number_of_processes))
     file_chunks = [flow_files[i:i+file_chunk_size] for i in range(0, len(flow_files), file_chunk_size)]
 
-    arrakis_folders = []
-
     """Generate the corresponding config files for each job"""
     for ii in range(len(file_chunks)):
-        random_config = config.copy()
-        random_config['arrakis_nd']['flow_files'] = file_chunks[ii]
-        if not os.path.isdir(f'{os.path.abspath(arrakis_config_location)}/arrakis_config_iteration_{ii}'):
-            os.makedirs(f'{os.path.abspath(arrakis_config_location)}/arrakis_config_iteration_{ii}')
-        arrakis_folders.append([f'{os.path.abspath(arrakis_config_location)}/arrakis_config_iteration_{ii}'])
+        config_iteration = config.copy()
+        config_iteration['arrakis_nd']['flow_files'] = file_chunks[ii]
         config_parser.save_config(
-            random_config,
-            f'{os.path.abspath(arrakis_config_location)}/arrakis_config_iteration_{ii}/arrakis_config.yaml'
+            config_iteration,
+            f'{os.path.abspath(arrakis_config_location)}/arrakis_config_{ii}.yaml'
         )
-
-    """Save config file information so that the job distribution script knows where to look"""
-    with open(f'{os.path.abspath(arrakis_config_location)}/arrakis_data.csv', "w") as file:
-        writer = csv.writer(file, delimiter=",")
-        writer.writerows(arrakis_folders)
 
 
 if __name__ == "__main__":
