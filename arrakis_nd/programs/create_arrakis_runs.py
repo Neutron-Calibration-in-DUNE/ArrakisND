@@ -147,10 +147,23 @@ def run():
         logger.error(
             f'specified "flow_files" parameter: {arrakis_dict["flow_files"]} incompatible!'
         )
+    if len(flow_files) == 0:
+        logger.error(f"found no flow files in {flow_folder}!")
+    logger.info(f"found {len(flow_files)} flow files")
 
     """Split up flow files among the jobs"""
-    file_chunk_size = int(np.ceil(len(flow_files) / number_of_processes))
-    file_chunks = [flow_files[i:i+file_chunk_size] for i in range(0, len(flow_files), file_chunk_size)]
+    file_chunk_size = len(flow_files) // number_of_processes
+    larger_file_chunk_size = len(flow_files) % number_of_processes
+    logger.info(f"file_chunk_size is {file_chunk_size}")
+    logger.info(f"remainder size is {larger_file_chunk_size}")
+
+    file_chunks = []
+    start = 0
+    for ii in range(number_of_processes):
+        end = start + file_chunk_size + (1 if ii < larger_file_chunk_size else 0)
+        file_chunks.append(flow_files[start:end])
+        start = end
+    logger.info(f"split up {len(flow_files)} into {number_of_processes}")
 
     """Generate the corresponding config files for each job"""
     for ii in range(len(file_chunks)):
@@ -160,6 +173,8 @@ def run():
             config_iteration,
             f'{os.path.abspath(arrakis_config_location)}/arrakis_config_{ii}.yaml'
         )
+    logger.info(f"saving split configs into {arrakis_config_location}")
+    logger.info("create_arrakis_runs job complete. closing out")
 
 
 if __name__ == "__main__":

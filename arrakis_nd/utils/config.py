@@ -2,6 +2,7 @@
 Tools for parsing config files
 """
 import yaml
+from ruamel.yaml import YAML
 
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.utils.utils import profiler
@@ -87,6 +88,8 @@ class ConfigParser:
         """
         try:
             with open(output_file, 'w') as file:
-                yaml.dump(config_dictionary, file)
+                yaml.dump(config_dictionary, file, sort_keys=False)
         except Exception as e:
-            raise RuntimeError(f"Failed to save config dictionary {config_dictionary} to output file {output_file}: {e}")
+            raise RuntimeError(
+                f"Failed to save config dictionary {config_dictionary} to output file {output_file}: {e}"
+            )
