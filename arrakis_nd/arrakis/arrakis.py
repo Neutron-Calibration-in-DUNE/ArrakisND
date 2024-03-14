@@ -402,7 +402,7 @@ class Arrakis:
                         if input_file not in arrakis_dict["skip_files"]
                     ]
                     for flow_file in flow_files:
-                        if not os.path.isfile(flow_file):
+                        if not os.path.isfile(flow_folder + flow_file):
                             self.logger.error(
                                 f"specified file {flow_file} does not exist in directory {flow_folder}!"
                             )

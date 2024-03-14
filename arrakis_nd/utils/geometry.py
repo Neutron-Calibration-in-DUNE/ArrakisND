@@ -15,13 +15,31 @@
             self.config = config
 
             """Configuration for 2x2 geometry"""
-            self.active_tpc_widths_2x2 = []
-
+            self.active_tpc_widths_2x2 = [30.6, 130., 64.]
+            self.tpcs_relative_to_module_2x2=[
+                [-15.7, 0., 0.],
+                [15.7,  0., 0.]
+            ]
+            self.modules_relative_to_2x2=[
+                [-33.5,0., -33.5],
+                [33.5,0.,  -33.5],
+                [-33.5,0., 33.5],
+                [33.5,0.,  33.5]
+            ]
+            self.detector_center_2x2=[0., -268, 1300]
+            
+            """Set up detector geometry"""
             self.parse_config()
 
-        
         def parse_config(self):
+            """
+            Here we determine what the various detector variables should be,
+            and then construct other variables relative to them.
+            """
             self.active_tpc_widths = self.active_tpc_widths_2x2
+            self.tpcs_relative_to_module = self.tpcs_relative_to_module_2x2
+            self.modules_relative_to = self.modules_relative_to_2x2
+            self.detector_center = self.detector_center_2x2
         
         def determine_tpc_bounds(i):
             active_tpc_widths=[30.6, 130., 64.] # cm
