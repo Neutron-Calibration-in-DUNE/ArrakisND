@@ -2,6 +2,9 @@ import os, dash, yaml
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
+import numpy as np
+import h5py
+import glob
 
 from arrakis_nd.utils.display.set_server import SetServer
 from arrakis_nd.utils.display.vis_event import create_3d_scatter
@@ -30,7 +33,10 @@ class ArrakisDisplay:
         self.jupyter_mode = config['jupyter_mode']
 
         
-
+        self.flow_folder = ''
+        self.arrakis_folder = ''
+        self.flow_files = []
+        self.arrakis_files = []
         self.available_events = []
         self.event = -1
 
@@ -97,42 +103,51 @@ class ArrakisDisplay:
         # )
 
         # Define the sidebar
-        self.sidebar = html.Div([html.H3("ARRAKIS DISPLAY"),
-                html.Hr(),
-                html.P("🔍 Folders & Files "),
-                html.Hr(),
-                dbc.Label("flow_folder"),
-                dbc.Input(placeholder="Enter your flow_folder",
-                            type="text", id='flow_folder_input'),
-                dbc.Label("arrakis_folder"),
-                dbc.Input(placeholder="Enter your arrakis_folder",
-                            type="text", id='arrakis_folder_input'),
-
-                html.H2(),
-                dbc.Button("Load files", color="primary", 
-                                className="me-1", id='update_files'),
-                html.H2(),
-                html.Label('flow_file'),
-                dcc.Dropdown(id='flow_dropdown'),
-                html.Label('arrakis_file'),
-                dcc.Dropdown(id='arrakis_dropdown'),
-
-                html.H2(),
-                dbc.Label("Choose one"),
-                dbc.RadioItems(
-                    options=
-                    [
-                        {"label": "Flow", "value": "flow_file"},
-                        {"label": "Arrakis", "value": "arrakis_file"},
-                    ],
-                    value=None,
-                    id="radioitems_file",
-                    inline=True,
+        self.sidebar = html.Div(
+            [
+                html.H3("ARRAKIS DISPLAY"),
+                html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
+                
+                html.P("🔍 FLOW/ARRAKIS Folders & Files "),
+                html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
+                dbc.Label("FLOW folder"),
+                dbc.Input(
+                    placeholder="Enter the FLOW folder",
+                    type="text", 
+                    id='flow_folder_input',
+                    size='sm',
+                    value=''
                 ),
-                dcc.Dropdown(id='event_dropdown',options=self.available_events),
+                dbc.Label("ARRAKIS folder"),
+                dbc.Input(
+                    placeholder="Enter the ARRAKIS folder",
+                    type="text", 
+                    id='arrakis_folder_input',
+                    size='sm',
+                    value=''
+                ),
                 html.H2(),
-                dbc.Button("Load event", color="primary", 
-                        className="me-1", id='update_event'),
+                
+                html.Label('FLOW files'),
+                dcc.Dropdown(
+                    id='flow_dropdown',
+                    style={'color': "#000000"}
+                ),
+                html.Label('ARRAKIS files'),
+                dcc.Dropdown(
+                    id='arrakis_dropdown',
+                    style={'color': "#000000"}
+                ),
+
+                html.H2(),
+                html.H2(),
+                html.Label('Event (spill)'),
+                dcc.Dropdown(
+                    id='event_dropdown',
+                    options=self.available_events,
+                    style={'color': "#000000"}
+                ),
+                html.H2(),
                 html.Div(id='event_output'),
 
                 html.H2(),
@@ -196,45 +211,83 @@ class ArrakisDisplay:
 
         # Callback to update dropdown options
         @self.app.callback(
-            [Output('flow_dropdown', 'options'), Output('arrakis_dropdown', 'options')],
-            [Input('update_files', 'n_clicks')],
-            [dash.dependencies.State('flow_folder_input', 'value'),
-            dash.dependencies.State('arrakis_folder_input', 'value')]
+            Output('flow_dropdown', 'options'),
+            Input('flow_folder_input', 'value'),
         )
-        def update_dropdown(n_clicks, flow_folder, arrakis_folder):
-            if n_clicks is not None:
-                flow_options = []
-                arrakis_options = []
-                if flow_folder and os.path.isdir(flow_folder):
-                    flow_files = os.listdir(flow_folder)
-                    # print(f"Flow Files: {flow_files}")  # Print the list of flow files
-                    flow_options = [{'label': file, 'value': file} for file in flow_files]
-                if arrakis_folder and os.path.isdir(arrakis_folder):
-                    arrakis_files = os.listdir(arrakis_folder)
-                    # print(f"Arrakis Files: {arrakis_files}")  # Print the list of arrakis files
-                    arrakis_options = [{'label': file, 'value': file} for file in arrakis_files]
-                return flow_options, arrakis_options
-            return [], []
+        def update_flow_folder_files(
+            flow_folder
+        ):
+            """Check that flow folder has a '/' at the end"""
+            if flow_folder:
+                if flow_folder[-1] != '/':
+                    flow_folder += '/'
+                    
+            self.flow_folder = flow_folder
+                
+            flow_options = []
+            if flow_folder and os.path.isdir(flow_folder):
+                self.flow_files = sorted([
+                    os.path.basename(input_file) for input_file in glob.glob(
+                        f"{flow_folder}*.h5", recursive=True
+                    )
+                    if 'FLOW' in input_file
+                ])
+                flow_options = [
+                    {'label': file, 'value': file} 
+                    for file in self.flow_files
+                ]
+                return flow_options
+            return []
+    
+        # Callback to update dropdown options
+        @self.app.callback(
+            Output('arrakis_dropdown', 'options'),
+            Input('arrakis_folder_input', 'value'),
+        )
+        def update_arrakis_folder_files(
+            arrakis_folder
+        ):
+            """Check that arrakis folder has a '/' at the end"""
+            if arrakis_folder:
+                if arrakis_folder[-1] != '/':
+                    arrakis_folder += '/'
+            
+            self.arrakis_folder = arrakis_folder
+            
+            arrakis_options = []
+            if arrakis_folder and os.path.isdir(arrakis_folder):
+                self.arrakis_files = sorted([
+                    os.path.basename(input_file) for input_file in glob.glob(
+                        f"{arrakis_folder}*.h5", recursive=True
+                    )
+                    if 'ARRAKIS' in input_file
+                ])
+                arrakis_options = [
+                    {'label': file, 'value': file} 
+                    for file in self.arrakis_files
+                ]
+                return arrakis_options
+            return []
         
         @self.app.callback(
             Output('event_dropdown','options'),
-            [Input('radioitems_file', 'value')],
-            [dash.dependencies.State('flow_dropdown', 'value'),
-            dash.dependencies.State('arrakis_dropdown', 'value')]
+            [Input('flow_dropdown', 'value'), Input('arrakis_dropdown', 'value')],
         )
-        def update_dropdown(radio_value, flow_file, arrakis_file):
+        def update_available_events(flow_file, arrakis_file):
             self.available_events = []
-            print(f"Radio Value: {radio_value}")  # Print the selected radio item
-            if radio_value == 'flow_file':
-                print(f"Flow File: {flow_file}")  # Print the selected flow file
-                # Load events from the selected flow file
-                self.available_events = [{'label': 'Event 1', 'value': 1}, {'label': 'Event 2', 'value': 2}]
-            elif radio_value == 'arrakis_file':
-                print(f"Arrakis File: {arrakis_file}")  # Print the selected arrakis file
-                # Load events from the selected arrakis file
-                self.available_events = [{'label': 'Event 1', 'value': 1}, {'label': 'Event 2', 'value': 2}]
+            if flow_file is not None:
+                try:
+                    flow_file = h5py.File(self.flow_folder + flow_file, "r")
+                    trajectories = flow_file['mc_truth/trajectories/data']
+                    events = trajectories['event_id']
+                    unique_events = np.unique(events)
+                    self.available_events = [
+                        {'label': event, 'value': event}
+                        for event in unique_events
+                    ]
+                except Exception:
+                    pass
             return self.available_events
-        #TODO: UPDATE WITH AN EVENT LOADER FUNCTION TO GET THE EVENTS FROM THE FILES
 
         @self.app.callback(
             Output('event_output', 'children'),

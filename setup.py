@@ -49,6 +49,7 @@ setup(
     entry_points={
         "console_scripts": [
             "arrakis_nd = arrakis_nd.programs.run_arrakis:run",
+            "arrakis_display = arrakis_nd.programs.run_arrakis_display:run",
             "create_arrakis_runs = arrakis_nd.programs.create_arrakis_runs:run",
             'create_plugin = arrakis_nd.programs.plugin_creator:run',
         ],
