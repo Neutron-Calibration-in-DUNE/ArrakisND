@@ -171,6 +171,48 @@ class MuonPlugin(Plugin):
             """Set track beginning and ending points"""
             arrakis_charge['tracklette_begin'][muon_start_index] = 1
             arrakis_charge['tracklette_end'][muon_end_index] = 1
+            
+            """Parameterize the trajectory of this track using t0"""
+            combined = sorted(zip(muon_hit_t0s, muon_charge_xyz), key=lambda x: x[0])
+            sorted_t0, sorted_xyz = zip(*combined)
+            sorted_t0 = np.array(sorted_t0)
+            sorted_xyz = np.array(sorted_xyz)
+
+            try:
+                """Try to fit a spline curve to the xyz data"""
+                t_param = np.arange(len(sorted_xyz))
+                tck, u = splprep(
+                    [sorted_xyz[:,0], sorted_xyz[:,1], sorted_xyz[:,2]], 
+                    s=0
+                )
+                
+                """Try to integrate this curve"""
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", IntegrationWarning)
+                    try:
+                        curve_length, _ = quad(integrand, 0, 1, args=(tck,))
+                    except Exception as e:
+                        curve_length = 0
+                    
+                """Get the derivatives at the beginning and ending points"""
+                dxdt_start, dydt_start, dzdt_start = splev(0, tck, der=1)
+                dxdt_end, dydt_end, dzdt_end = splev(1, tck, der=1)
+                dx_start = np.array([dxdt_start, dydt_start, dzdt_start])
+                dx_end = np.array([dxdt_end, dydt_end, dzdt_end])
+                dx_start_magnitude = np.linalg.norm(dx_start)
+                dx_end_magnitude = np.linalg.norm(dx_end)
+                
+                """Fill the values"""
+                track_dir = [dxdt_start, dydt_start, dzdt_start] / dx_start_magnitude
+                track_enddir = [dxdt_end, dydt_end, dzdt_end] / dx_end_magnitude
+                track_len_gcm2 = 0
+                track_len_cm = curve_length
+            except Exception as e:
+                """Otherwise, these values are undefined"""
+                track_dir = [0, 0, 0]
+                track_enddir = [0, 0, 0]
+                track_len_gcm2 = 0
+                track_len_cm = 0
 
             """
             Now we must determine if the track is broken along its
@@ -203,19 +245,19 @@ class MuonPlugin(Plugin):
                 """Find the closest points to track begin/end for this io_group"""
                 io_group_start_distances = muon_start_distances[io_group_mask]
                 io_group_end_distances = muon_end_distances[io_group_mask]
-                closest_start_index = np.argmin(io_group_start_distances)
-                closest_end_index = np.argmin(io_group_end_distances)
+                tracklette_start_index = np.argmin(io_group_start_distances)
+                tracklette_end_index = np.argmin(io_group_end_distances)
 
                 io_group_start_index = (
-                    io_group_hits[closest_start_index],
-                    io_group_segments[closest_start_index]
+                    io_group_hits[tracklette_start_index],
+                    io_group_segments[tracklette_start_index]
                 )
                 io_group_end_index = (
-                    io_group_hits[closest_end_index],
-                    io_group_segments[closest_end_index]
+                    io_group_hits[tracklette_end_index],
+                    io_group_segments[tracklette_end_index]
                 )
                 
-                if closest_start_index == closest_end_index:
+                if tracklette_start_index == tracklette_end_index:
                     continue
                 
                 arrakis_charge['tracklette_begin'][io_group_start_index] = 1
@@ -256,7 +298,7 @@ class MuonPlugin(Plugin):
                     tracklette_dir = [dxdt_start, dydt_start, dzdt_start] / dx_start_magnitude
                     tracklette_enddir = [dxdt_end, dydt_end, dzdt_end] / dx_end_magnitude
                     tracklette_len_gcm2 = 0
-                    tracklette_len_cm = 0
+                    tracklette_len_cm = curve_length
                 except Exception as e:
                     """Otherwise, these values are undefined"""
                     tracklette_dir = [0, 0, 0]
@@ -310,8 +352,8 @@ class MuonPlugin(Plugin):
                 tracklette_data = np.array([(
                     event, 
                     io_group_end_index[0], 
-                    [io_group_xyz[closest_start_index]], 
-                    [io_group_xyz[closest_end_index]], 
+                    [io_group_xyz[tracklette_start_index]], 
+                    [io_group_xyz[tracklette_end_index]], 
                     [tracklette_dir], 
                     [tracklette_enddir], 
                     sum(muon_charge_E[io_group_mask]), 
@@ -326,6 +368,70 @@ class MuonPlugin(Plugin):
 
                 """Add the new tracklette to the CAF objects"""
                 event_products['tracklette'].append(tracklette_data)
+            
+            """Now generate the associated tracklette CAF object"""
+            """
+            The track data object has the following entries
+            that must be filled.
+            
+                track_data_type = np.dtype([
+                    ('event_id', 'i4'),
+                    ('track_id', 'i4'),
+                    ('tracklette_ids', 'i4', (1, 20)),
+                    ('start', 'f4', (1, 3)),
+                    ('end', 'f4', (1, 3)),
+                    ('dir', 'f4', (1, 3)),
+                    ('enddir', 'f4', (1, 3)),
+                    ('Evis', 'f4'),
+                    ('qual', 'f4'),
+                    ('len_gcm2', 'f4'),
+                    ('len_cm', 'f4'),
+                    ('E', 'f4'),
+                    ('truth', 'i4', (1, 20)),
+                    ('truthOverlap', 'f4', (1, 20)),
+                ])
+            """
+            io_group_xyz = muon_charge_xyz[io_group_mask]
+            
+            track_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('track_id', 'i4'),
+                ('tracklette_ids', 'i4', (1, 20)),
+                ('start', 'f4', (1, 3)),
+                ('end', 'f4', (1, 3)),
+                ('dir', 'f4', (1, 3)),
+                ('enddir', 'f4', (1, 3)),
+                ('Evis', 'f4'),
+                ('qual', 'f4'),
+                ('len_gcm2', 'f4'),
+                ('len_cm', 'f4'),
+                ('E', 'f4'),
+                ('truth', 'i4', (1, 20)),
+                ('truthOverlap', 'f4', (1, 20)),
+            ])
+                        
+            """Create the CAF object for this track"""
+            muon_tracklette_ids += [0] * (20 - len(muon_tracklette_ids))
+            track_data = np.array([(
+                event, 
+                traj_index, 
+                muon_tracklette_ids,
+                [muon_charge_xyz[closest_start_index]], 
+                [muon_charge_xyz[closest_end_index]], 
+                [track_dir], 
+                [track_enddir], 
+                sum(muon_charge_E), 
+                1, 
+                track_len_gcm2, 
+                track_len_cm, 
+                muon_E, 
+                [[traj_index]+[0]*19], 
+                [[1]+[0]*19])], 
+                dtype=track_data_type
+            )
+
+            """Add the new track to the CAF objects"""
+            event_products['track'].append(track_data)
                 
         """Write changes to arrakis_file"""
         arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']] = arrakis_charge
