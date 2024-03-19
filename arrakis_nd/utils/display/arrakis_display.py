@@ -7,7 +7,8 @@ import h5py
 import glob
 
 from arrakis_nd.utils.display.set_server import SetServer
-from arrakis_nd.utils.display.vis_event import create_3d_scatter
+from arrakis_nd.utils.display.vis_event import VisEvent
+# from arrakis_nd.utils.display.marjolein_2x2_display import get_layout,add_callbacks
 
 class ArrakisDisplay:
     """
@@ -32,13 +33,14 @@ class ArrakisDisplay:
         self.port = config['port']
         self.jupyter_mode = config['jupyter_mode']
 
-        
         self.flow_folder = ''
         self.arrakis_folder = ''
         self.flow_files = []
+        self.file = ''
         self.arrakis_files = []
         self.available_events = []
-        self.event = -1
+        self.event = {"label":-1, "id":-1}
+        self.unique_events = []
 
         self.construct_app()
         self.construct_widgets()
@@ -158,9 +160,9 @@ class ArrakisDisplay:
                 
                 dbc.Nav(
                     [
-                        dbc.NavLink("Event", href="/tab-1", id="tab-1-link", active="exact"),
-                        dbc.NavLink("3d & tree", href="/tab-2", id="tab-2-link", active="exact"),
-                        dbc.NavLink("Tab 3", href="/tab-3", id="tab-3-link", active="exact"),
+                        dbc.NavLink("Event", href="/tab-1", id="tab-1-link", active="exact",style={'color': 'white'}),
+                        dbc.NavLink("3d & tree", href="/tab-2", id="tab-2-link", active="exact",style={'color': 'white'}),
+                        dbc.NavLink("Tab 3", href="/tab-3", id="tab-3-link", active="exact",style={'color': 'white'}),
                     ],
                     vertical=True,
                     pills=True,
@@ -180,9 +182,6 @@ class ArrakisDisplay:
             self.content,
         ])
 
-    def load_event(self, event):
-        pass
-
     def construct_widgets(self):
         # Callbacks to update the content based on which tab is selected
         @self.app.callback(
@@ -193,7 +192,13 @@ class ArrakisDisplay:
             if pathname == "/":
                 return html.P("This is the content of the home page!")
             if pathname == "/tab-1":
-                return create_3d_scatter()
+                # evt_app = DashProxy(__name__, title="2x2 event display")
+                # evt_app.layout = get_layout()
+                # add_callbacks(evt_app)
+                # return get_layout()
+                vis_event = VisEvent(self.file,self.event)
+                return vis_event.get_layout()
+                # return create_vis_event()
             elif pathname == "/tab-2":
                 return html.P("This is the content of page 2. Yay!")
             elif pathname == "/tab-3":
@@ -221,14 +226,13 @@ class ArrakisDisplay:
             if flow_folder:
                 if flow_folder[-1] != '/':
                     flow_folder += '/'
-                    
             self.flow_folder = flow_folder
                 
             flow_options = []
             if flow_folder and os.path.isdir(flow_folder):
                 self.flow_files = sorted([
                     os.path.basename(input_file) for input_file in glob.glob(
-                        f"{flow_folder}*.h5", recursive=True
+                        f"{flow_folder}*.hdf5", recursive=True
                     )
                     if 'FLOW' in input_file
                 ])
@@ -258,7 +262,7 @@ class ArrakisDisplay:
             if arrakis_folder and os.path.isdir(arrakis_folder):
                 self.arrakis_files = sorted([
                     os.path.basename(input_file) for input_file in glob.glob(
-                        f"{arrakis_folder}*.h5", recursive=True
+                        f"{arrakis_folder}*.hdf5", recursive=True
                     )
                     if 'ARRAKIS' in input_file
                 ])
@@ -278,12 +282,13 @@ class ArrakisDisplay:
             if flow_file is not None:
                 try:
                     flow_file = h5py.File(self.flow_folder + flow_file, "r")
+                    # self.flow_file = h5flow.data.H5FlowDataManager(self.flow_folder + flow_file, "r")
                     trajectories = flow_file['mc_truth/trajectories/data']
                     events = trajectories['event_id']
-                    unique_events = np.unique(events)
+                    self.unique_events = np.unique(events)
                     self.available_events = [
                         {'label': event, 'value': event}
-                        for event in unique_events
+                        for event in self.unique_events
                     ]
                 except Exception:
                     pass
@@ -291,15 +296,14 @@ class ArrakisDisplay:
 
         @self.app.callback(
             Output('event_output', 'children'),
-            [Input('update_event', 'n_clicks')],
-            dash.dependencies.State('event_dropdown', 'value'),
+            [Input('event_dropdown', 'value')],
         )
-        def update_dropdown(n_clicks, event_file):
+        def load_event(event_file):
             print_output = ''
-            if n_clicks is not None:
+            if event_file is not None:
                 print(f"Event: {event_file}")
                 print_output = f"Event: {event_file} Loaded!"
-                # self.event = event_file
+                self.event = {"label":event_file, "id":int(np.where(self.unique_events == event_file)[0])}
             return print_output
 
     def run_app(self):
