@@ -48,7 +48,11 @@ class TrackIDHitMapPlugin(Plugin):
         super(TrackIDHitMapPlugin, self).__init__(config)
 
         self.input_products = None
-        self.output_products = ['track_id_hit_map', 'track_id_hit_segment_map']
+        self.output_products = [
+            'track_id_hit_map', 
+            'track_id_hit_segment_map',
+            'track_id_hit_t0_map'
+        ]
 
     @profiler
     def process_event(
@@ -74,6 +78,7 @@ class TrackIDHitMapPlugin(Plugin):
         segments_traj_ids = segments['traj_id']
         segments_vertex_ids = segments['vertex_id']
         segments_segment_ids = segments['segment_id']
+        segments_t0s = segments['t0']
         charge_segment_ids = charge_back_track['segment_id']
 
         """Create empty map with (traj_id, vertex_id) as keys"""
@@ -82,6 +87,10 @@ class TrackIDHitMapPlugin(Plugin):
             for (traj_id, vertex_id) in zip(trajectories_traj_ids, trajectories_vertex_ids)
         }
         track_id_hit_segment_map = {
+            (traj_id, vertex_id): []
+            for (traj_id, vertex_id) in zip(trajectories_traj_ids, trajectories_vertex_ids)
+        }
+        track_id_hit_t0_map = {
             (traj_id, vertex_id): []
             for (traj_id, vertex_id) in zip(trajectories_traj_ids, trajectories_vertex_ids)
         }
@@ -104,6 +113,10 @@ class TrackIDHitMapPlugin(Plugin):
                 track_id_hit_segment_map[
                     (segments_traj_ids[segment_index], segments_vertex_ids[segment_index])
                 ].append(jj)
+                track_id_hit_t0_map[
+                    (segments_traj_ids[segment_index], segments_vertex_ids[segment_index])
+                ].append(segments_t0s[segment_index])
 
         event_products['track_id_hit_map'] = track_id_hit_map
         event_products['track_id_hit_segment_map'] = track_id_hit_segment_map
+        event_products['track_id_hit_t0_map'] = track_id_hit_t0_map

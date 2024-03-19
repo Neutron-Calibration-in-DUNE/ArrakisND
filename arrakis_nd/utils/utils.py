@@ -7,7 +7,8 @@ from datetime import datetime
 import psutil
 import time
 import os
-
+import numpy as np
+from scipy.interpolate import splev
 
 def get_datetime():
     """
@@ -21,6 +22,10 @@ def get_datetime():
     now = f"{time.year}.{time.month}.{time.day}.{time.hour}.{time.minute}.{time.second}"
     return now
 
+
+def integrand(t, tck):
+    dxdt, dydt, dzdt = splev(t, tck, der=1)
+    return np.sqrt(dxdt**2 + dydt**2 + dzdt**2)
 
 class ResetableIterator:
     """_summary_

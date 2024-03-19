@@ -1,7 +1,7 @@
 # Test config for ArrakisND
 arrakis_nd:
   verbose:   true
-  flow_folder:  '/local_data/minirun4_data/'
+  flow_folder:  '/local_data/'
   flow_files:   'all'
   skip_files: []
   plugin_locations: []

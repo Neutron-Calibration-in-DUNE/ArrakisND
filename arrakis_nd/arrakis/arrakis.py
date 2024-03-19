@@ -951,6 +951,15 @@ class Arrakis:
             flow_file (_h5py.File_): input flow_file
         """
         """Clear event indices so that file closes properly!"""
+        self.standard_record_objects = {
+            'tracklette': [],
+            'track': [],
+            'fragment': [],
+            'shower': [],
+            'blip': [],
+            'particle': [],
+            'interaction': []
+        }
         self.clear_indices()
 
     @profiler
@@ -967,6 +976,15 @@ class Arrakis:
         Args:
             flow_file (_h5py.File_): input flow_file
         """
+        self.standard_record_objects = {
+            'tracklette': [],
+            'track': [],
+            'fragment': [],
+            'shower': [],
+            'blip': [],
+            'particle': [],
+            'interaction': []
+        }
         for ii, event in enumerate(self.distributed_events[self.rank]):
             """Grab event index information"""
             event_indices = {
@@ -977,7 +995,15 @@ class Arrakis:
                 'charge': self.distributed_charge_indices[self.rank][ii],
                 'light': self.distributed_light_indices[self.rank][ii]
             }
-            event_products = {}
+            self.event_products = {
+                'tracklette': [],
+                'track': [],
+                'fragment': [],
+                'shower': [],
+                'blip': [],
+                'particle': [],
+                'interaction': []
+            }
             """Iterate over plugins"""
             for plugin_name, plugin in self.plugins.items():
                 try:
@@ -986,13 +1012,14 @@ class Arrakis:
                         flow_file=flow_file,
                         arrakis_file=arrakis_file,
                         event_indices=event_indices,
-                        event_products=event_products,
+                        event_products=self.event_products,
                     )
                 except Exception as e:
                     self.event_errors.append(event)
                     self.plugin_errors.append(plugin_name)
                     self.event_plugin_errors.append(e)
-
+            for object in self.standard_record_objects.keys():
+                self.standard_record_objects[object] += self.event_products[object]
         """Clear event indices so that file closes properly!"""
         self.clear_indices()
 
@@ -1012,7 +1039,119 @@ class Arrakis:
         Args:
             file_name (_type_): _description_
         """
-        pass
+        standard_record_objects = self.comm.allgather(self.standard_record_objects)
+        if self.rank == 0:
+            """Gather up all standard record objects"""
+            tracklettes = [
+                standard_record_objects[ii]['tracklette']
+                for ii in range(self.size) 
+                if len(standard_record_objects[ii]['tracklette']) != 0
+            ]
+            tracks = [
+                standard_record_objects[ii]['track']
+                for ii in range(self.size) 
+                if len(standard_record_objects[ii]['track']) != 0
+            ]
+            fragments = [
+                standard_record_objects[ii]['fragment']
+                for ii in range(self.size) 
+                if len(standard_record_objects[ii]['fragment']) != 0
+            ]
+            showers = [
+                standard_record_objects[ii]['shower']
+                for ii in range(self.size) 
+                if len(standard_record_objects[ii]['shower']) != 0
+            ]
+            particles = [
+                standard_record_objects[ii]['particle']
+                for ii in range(self.size) 
+                if len(standard_record_objects[ii]['particle']) != 0
+            ]
+            interactions = [
+                standard_record_objects[ii]['interaction']
+                for ii in range(self.size) 
+                if len(standard_record_objects[ii]['interaction']) != 0
+            ]
+
+            """Add those standard record objects to the ARRAKIS file"""
+            arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
+
+            """Open the flow file and determine the output array shapes"""
+            with h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
+                if len(tracklettes):
+                    """Flatten the tracklettes array"""
+                    flat_tracklettes_list = [
+                        item for sublist in tracklettes for item in sublist
+                    ]
+                    tracklettes = np.concatenate(flat_tracklettes_list)
+                    original_size = arrakis_file['standard_record/tracklette'].shape[0]
+                    additional_size = len(tracklettes)
+                    new_size = original_size + additional_size
+                    """Insert the tracklettes into the array"""
+                    arrakis_file['standard_record/tracklette'].resize((new_size,))
+                    arrakis_file['standard_record/tracklette'][original_size:new_size] = tracklettes
+                if len(tracks):
+                    """Flatten the tracks array"""
+                    flat_tracks_list = [
+                        item for sublist in tracks for item in sublist
+                    ]
+                    tracks = np.concatenate(flat_tracks_list)
+                    original_size = arrakis_file['standard_record/track'].shape[0]
+                    additional_size = len(tracks)
+                    new_size = original_size + additional_size
+                    """Insert the tracks into the array"""
+                    arrakis_file['standard_record/track'].resize((new_size,))
+                    arrakis_file['standard_record/track'][original_size:new_size] = tracks
+                if len(fragments):
+                    """Flatten the fragments array"""
+                    flat_fragments_list = [
+                        item for sublist in fragments for item in sublist
+                    ]
+                    fragments = np.concatenate(flat_fragments_list)
+                    original_size = arrakis_file['standard_record/fragment'].shape[0]
+                    additional_size = len(fragments)
+                    new_size = original_size + additional_size
+                    """Insert the fragments into the array"""
+                    arrakis_file['standard_record/fragment'].resize((new_size,))
+                    arrakis_file['standard_record/fragment'][original_size:new_size] = fragments
+                if len(showers):
+                    """Flatten the showers array"""
+                    flat_showers_list = [
+                        item for sublist in showers for item in sublist
+                    ]
+                    showers = np.concatenate(flat_showers_list)
+                    original_size = arrakis_file['standard_record/shower'].shape[0]
+                    additional_size = len(showers)
+                    new_size = original_size + additional_size
+                    """Insert the showers into the array"""
+                    arrakis_file['standard_record/shower'].resize((new_size,))
+                    arrakis_file['standard_record/shower'][original_size:new_size] = showers
+                if len(particles):
+                    """Flatten the particles array"""
+                    flat_particles_list = [
+                        item for sublist in particles for item in sublist
+                    ]
+                    particles = np.concatenate(flat_particles_list)
+                    original_size = arrakis_file['standard_record/particle'].shape[0]
+                    additional_size = len(particles)
+                    new_size = original_size + additional_size
+                    """Insert the particles into the array"""
+                    arrakis_file['standard_record/particle'].resize((new_size,))
+                    arrakis_file['standard_record/particle'][original_size:new_size] = particles
+                if len(interactions):
+                    """Flatten the interactions array"""
+                    flat_interactions_list = [
+                        item for sublist in interactions for item in sublist
+                    ]
+                    interactions = np.concatenate(flat_interactions_list)
+                    original_size = arrakis_file['standard_record/interaction'].shape[0]
+                    additional_size = len(interactions)
+                    new_size = original_size + additional_size
+                    """Insert the interactions into the array"""
+                    arrakis_file['standard_record/interaction'].resize((new_size,))
+                    arrakis_file['standard_record/interaction'][original_size:new_size] = interactions
+        else:
+            pass
 
     @profiler
     def run_end_of_arrakis(self):
@@ -1284,9 +1423,15 @@ class Arrakis:
             self.barrier()
 
             """Run end of file plugins"""
+            try:
+                self.run_end_of_file(file_name)
+            except Exception as e:
+                self.error_status = e
+            self.barrier()
+            
+            """Update progress bar"""
             if self.rank == 0:
                 try:
-                    self.run_end_of_file(file_name)
                     self.progress_bar.update(1)
                 except Exception as e:
                     self.error_status = e
