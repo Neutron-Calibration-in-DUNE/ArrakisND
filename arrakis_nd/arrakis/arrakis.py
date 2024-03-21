@@ -433,7 +433,7 @@ class Arrakis:
                             )
                             flow_files = [
                                 os.path.basename(input_file) for input_file in glob.glob(
-                                    f'{flow_folder}/{arrakis_dict["flow_files"]}',
+                                    f'{flow_folder}/*.{arrakis_dict["flow_files"]}',
                                     recursive=True,
                                 )
                                 if input_file not in arrakis_dict["skip_files"]
@@ -491,13 +491,29 @@ class Arrakis:
         if self.rank == 0:
             if len(event_errors) > 0:
                 self.logger.warn(f"event/plugin errors occurred when processing file {file_name}")
-            """Display error information"""
-            for ii, event_error in enumerate(event_errors):
-                self.logger.warn(
-                    f"event: {event_error} / plugin: {plugin_errors[ii]} - error: {event_plugin_errors[ii]}"
-                )
-            "Report error information to ARRAKIS file"
-            arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
+                """Display error information"""
+                for ii, event_error in enumerate(event_errors):
+                    self.logger.warn(
+                        f"event: {event_error} / plugin: {plugin_errors[ii]} - error: {event_plugin_errors[ii]}"
+                    )
+                output_error_data_type = np.dtype([
+                    ('event_id', 'i4'),
+                    ('plugin_name', 'S50'),
+                    ('plugin_error', 'S500'),
+                ])
+                errors = np.empty(len(event_errors), dtype=output_error_data_type)
+                errors['event_id'] = event_errors.astype('i4')
+                errors['plugin_name'] = plugin_errors.astype('S50')
+                errors['plugin_error'] = event_plugin_errors.astype('S500')
+                "Report error information to ARRAKIS file"
+                arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
+                with h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
+                    original_size = arrakis_file['arrakis/errors'].shape[0]
+                    additional_size = len(errors)
+                    new_size = original_size + additional_size
+                    """Insert the objects into the array"""
+                    arrakis_file['arrakis/errors'].resize((new_size,))
+                    arrakis_file['arrakis/errors'][original_size:new_size] = errors
         else:
             pass
 
@@ -658,14 +674,15 @@ class Arrakis:
                     (b) pdg - pdg code inferred for this particle
                     (c) tgtA - atomic number of nucleus this particle was reconstructed in
                     (d) score - PID score for this particle
-                    (e) E - reconstructed energy (GeV)
-                    (f) E_method - method used to determine energy for the particle
-                    (g) p (p_x,p_y,p_z) - reconstructed momentum for this particle
-                    (h) start (x,y,z) - reconstructed start point of this particle
-                    (i) end (x,y,z) - reconstructed end point of this particle
-                    (j) contained - contained in LAr TPC?
-                    (k) truth - associated true particle in flow file (if relevant) (i.e. track_id)
-                    (l) truthOverlap - fractional overlap between this reco particle and true particle
+                    (e) Evis - visible energy in voxels corresponding to this particle
+                    (f) E - reconstructed energy (GeV)
+                    (g) E_method - method used to determine energy for the particle
+                    (h) p (p_x,p_y,p_z) - reconstructed momentum for this particle
+                    (i) start (x,y,z) - reconstructed start point of this particle
+                    (j) end (x,y,z) - reconstructed end point of this particle
+                    (k) contained - contained in LAr TPC?
+                    (l) truth - associated true particle in flow file (if relevant) (i.e. track_id)
+                    (m) truthOverlap - fractional overlap between this reco particle and true particle
                 (7) interactions - collections of tracks/showers/blips which define interactions of interest.
                     (a) vtx (x,y,z) - reconstructed vertex location
                     (b) dir (u_x,u_y,u_z) - hypothesis for this interaction's parent particle direction
@@ -805,6 +822,7 @@ class Arrakis:
                 ('pdg', 'i4'),
                 ('tgtA', 'i4'),
                 ('score', 'f4'),
+                ('Evis', 'f4'),
                 ('E', 'f4'),
                 ('E_method', 'i4'),
                 ('p', 'f4', (1, 3)),
@@ -838,6 +856,18 @@ class Arrakis:
                 del arrakis_file[interaction_name]
 
             arrakis_file.create_dataset(interaction_name, shape=(0,), maxshape=(None,), dtype=interaction_data_type)
+
+            """Construct output error data types"""
+            output_error_name = 'arrakis/errors'
+            output_error_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('plugin_name', 'S50'),
+                ('plugin_error', 'S500'),
+            ])
+            if output_error_name in arrakis_file:
+                del arrakis_file[output_error_name]
+
+            arrakis_file.create_dataset(output_error_name, shape=(0,), maxshape=(None,), dtype=output_error_data_type)
 
     @profiler
     def distribute_tasks(
@@ -1040,116 +1070,32 @@ class Arrakis:
             file_name (_type_): _description_
         """
         standard_record_objects = self.comm.allgather(self.standard_record_objects)
-        if self.rank == 0:
-            """Gather up all standard record objects"""
-            tracklettes = [
-                standard_record_objects[ii]['tracklette']
-                for ii in range(self.size) 
-                if len(standard_record_objects[ii]['tracklette']) != 0
-            ]
-            tracks = [
-                standard_record_objects[ii]['track']
-                for ii in range(self.size) 
-                if len(standard_record_objects[ii]['track']) != 0
-            ]
-            fragments = [
-                standard_record_objects[ii]['fragment']
-                for ii in range(self.size) 
-                if len(standard_record_objects[ii]['fragment']) != 0
-            ]
-            showers = [
-                standard_record_objects[ii]['shower']
-                for ii in range(self.size) 
-                if len(standard_record_objects[ii]['shower']) != 0
-            ]
-            particles = [
-                standard_record_objects[ii]['particle']
-                for ii in range(self.size) 
-                if len(standard_record_objects[ii]['particle']) != 0
-            ]
-            interactions = [
-                standard_record_objects[ii]['interaction']
-                for ii in range(self.size) 
-                if len(standard_record_objects[ii]['interaction']) != 0
-            ]
 
+        if self.rank == 0:
             """Add those standard record objects to the ARRAKIS file"""
             arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
 
             """Open the flow file and determine the output array shapes"""
             with h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
-                if len(tracklettes):
-                    """Flatten the tracklettes array"""
-                    flat_tracklettes_list = [
-                        item for sublist in tracklettes for item in sublist
+                for object in self.standard_record_objects.keys():
+                    """Gather up all standard record objects"""
+                    objects = [
+                        standard_record_objects[ii][object]
+                        for ii in range(self.size)
+                        if len(standard_record_objects[ii][object]) != 0
                     ]
-                    tracklettes = np.concatenate(flat_tracklettes_list)
-                    original_size = arrakis_file['standard_record/tracklette'].shape[0]
-                    additional_size = len(tracklettes)
-                    new_size = original_size + additional_size
-                    """Insert the tracklettes into the array"""
-                    arrakis_file['standard_record/tracklette'].resize((new_size,))
-                    arrakis_file['standard_record/tracklette'][original_size:new_size] = tracklettes
-                if len(tracks):
-                    """Flatten the tracks array"""
-                    flat_tracks_list = [
-                        item for sublist in tracks for item in sublist
-                    ]
-                    tracks = np.concatenate(flat_tracks_list)
-                    original_size = arrakis_file['standard_record/track'].shape[0]
-                    additional_size = len(tracks)
-                    new_size = original_size + additional_size
-                    """Insert the tracks into the array"""
-                    arrakis_file['standard_record/track'].resize((new_size,))
-                    arrakis_file['standard_record/track'][original_size:new_size] = tracks
-                if len(fragments):
-                    """Flatten the fragments array"""
-                    flat_fragments_list = [
-                        item for sublist in fragments for item in sublist
-                    ]
-                    fragments = np.concatenate(flat_fragments_list)
-                    original_size = arrakis_file['standard_record/fragment'].shape[0]
-                    additional_size = len(fragments)
-                    new_size = original_size + additional_size
-                    """Insert the fragments into the array"""
-                    arrakis_file['standard_record/fragment'].resize((new_size,))
-                    arrakis_file['standard_record/fragment'][original_size:new_size] = fragments
-                if len(showers):
-                    """Flatten the showers array"""
-                    flat_showers_list = [
-                        item for sublist in showers for item in sublist
-                    ]
-                    showers = np.concatenate(flat_showers_list)
-                    original_size = arrakis_file['standard_record/shower'].shape[0]
-                    additional_size = len(showers)
-                    new_size = original_size + additional_size
-                    """Insert the showers into the array"""
-                    arrakis_file['standard_record/shower'].resize((new_size,))
-                    arrakis_file['standard_record/shower'][original_size:new_size] = showers
-                if len(particles):
-                    """Flatten the particles array"""
-                    flat_particles_list = [
-                        item for sublist in particles for item in sublist
-                    ]
-                    particles = np.concatenate(flat_particles_list)
-                    original_size = arrakis_file['standard_record/particle'].shape[0]
-                    additional_size = len(particles)
-                    new_size = original_size + additional_size
-                    """Insert the particles into the array"""
-                    arrakis_file['standard_record/particle'].resize((new_size,))
-                    arrakis_file['standard_record/particle'][original_size:new_size] = particles
-                if len(interactions):
-                    """Flatten the interactions array"""
-                    flat_interactions_list = [
-                        item for sublist in interactions for item in sublist
-                    ]
-                    interactions = np.concatenate(flat_interactions_list)
-                    original_size = arrakis_file['standard_record/interaction'].shape[0]
-                    additional_size = len(interactions)
-                    new_size = original_size + additional_size
-                    """Insert the interactions into the array"""
-                    arrakis_file['standard_record/interaction'].resize((new_size,))
-                    arrakis_file['standard_record/interaction'][original_size:new_size] = interactions
+                    if len(objects):
+                        """Flatten the objects array"""
+                        flat_objects_list = [
+                            item for sublist in objects for item in sublist
+                        ]
+                        objects = np.concatenate(flat_objects_list)
+                        original_size = arrakis_file[f'standard_record/{object}'].shape[0]
+                        additional_size = len(objects)
+                        new_size = original_size + additional_size
+                        """Insert the objects into the array"""
+                        arrakis_file[f'standard_record/{object}'].resize((new_size,))
+                        arrakis_file[f'standard_record/{object}'][original_size:new_size] = objects
         else:
             pass
 
@@ -1160,7 +1106,8 @@ class Arrakis:
         Arrakis job.  Some default operations are to create
         profiling plots.
         """
-        self.generate_timing_and_memory_plots()
+        if len(self.flow_files) != 0:
+            self.generate_timing_and_memory_plots()
         if self.rank == 0:
             try:
                 self.logger.info("Arrakis program ran successfully. Closing out.")
@@ -1428,7 +1375,7 @@ class Arrakis:
             except Exception as e:
                 self.error_status = e
             self.barrier()
-            
+
             """Update progress bar"""
             if self.rank == 0:
                 try:
@@ -1438,10 +1385,17 @@ class Arrakis:
             self.barrier()
 
             """Report any event errors"""
-            self.report_event_errors(file_name)
+            try:
+                self.report_event_errors(file_name)
+            except Exception as e:
+                self.error_status = e
             self.barrier()
 
         """Run end of program functions"""
         if self.rank == 0:
-            self.progress_bar.close()
+            try:
+                self.progress_bar.close()
+            except Exception as e:
+                self.error_status = e
+        self.barrier()
         self.run_end_of_arrakis()

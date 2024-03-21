@@ -133,7 +133,7 @@ def run():
                 )
                 flow_files = [
                     os.path.basename(input_file) for input_file in glob.glob(
-                        f'{flow_folder}/{arrakis_dict["flow_files"]}',
+                        f'{flow_folder}/*.{arrakis_dict["flow_files"]}',
                         recursive=True,
                     )
                     if input_file not in arrakis_dict["skip_files"]

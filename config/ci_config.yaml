@@ -2,7 +2,7 @@
 arrakis_nd:
   verbose:   true
   flow_folder:  '/local_data/'
-  flow_files:   'all'
+  flow_files:   'hdf5'
   skip_files: []
   plugin_locations: []
 
@@ -10,3 +10,4 @@ plugins:
   DaughterPlugin:
   TrackIDHitMapPlugin:
   MuonPlugin:
+  ParticlePlugin:
