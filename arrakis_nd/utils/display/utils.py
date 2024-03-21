@@ -1,3 +1,4 @@
+import numpy as np
 import plotly
 import plotly.graph_objects as go
 import plotly.graph_objects as go
@@ -88,9 +89,9 @@ def draw_anode_planes(x_boundaries, y_boundaries, z_boundaries, **kwargs):
     return traces
 
 
-def draw_light_detectors(self):
+def draw_light_detectors(data,event_id):
     try:
-        charge = data["charge/events", self.file["id"]][["id", "unix_ts"]]
+        charge = data["charge/events"][["id", "unix_ts"]][event_id]
         num_light = data["light/events/data"].shape[0]
         light = data["light/events", slice(0, num_light)][
             ["id", "utime_ms"]
@@ -99,11 +100,11 @@ def draw_light_detectors(self):
         print("No light information found, not plotting light detectors")
         return []
 
-    match_light = match_light_to_charge_event(charge, light, self.file["id"])
+    match_light = match_light_to_charge_event(charge, light, event_id)
 
     if match_light is None:
         print(
-            f"No light event matches found for charge event {self.file["id"]}, not plotting light detectors"
+            f"No light event matches found for charge event {event_id}, not plotting light detectors"
         )
         return []
 

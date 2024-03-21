@@ -1,65 +1,52 @@
 import plotly.graph_objects as go
 from dash import dcc,html
-import numpy as np
 from arrakis_nd.utils.display.utils import *
-import h5flow
+import h5py
 class VisEvent:
     '''
     This class is used to visualize the events in three different plots:
 
     '''
-    def __init__(self, file, event):
+    def __init__(self,folder,file,event):
         print("Creating a VisEvent object")
+
+        self.folder = folder
         self.file = file
         self.event = event
-        self.data = h5flow.data.H5FlowDataManager(self.file, "r")
-        self.num_events = self.data["charge/events/data"].shape[0]
-        print(self.data)
-        print("Data has been set")
+        self.data = h5py.File(self.folder + file, "r")
+        self.sim_version = ''
+        
+        print(f"Data has been set: EVENT {self.event['id']} ({self.event['label']})")
 
     def create_3d_figure(self):
         fig = go.Figure()
         print("here we go")
         # Select the hits for the current event
-        prompthits_ev = self.data["charge/events", "charge/calib_prompt_hits", self.event["id"]]
-        finalhits_ev = self.data["charge/events", "charge/calib_final_hits", self.event["id"]]
+        prompthits_ev = self.data["charge/calib_prompt_hits/data"]         
+        finalhits_ev = self.data["charge/calib_final_hits/data"]
         # select the segments (truth) for the current event
         try:
-            prompthits_segs = self.data[
-                "charge/events",
-                "charge/calib_prompt_hits",
-                "charge/packets",
-                "mc_truth/segments",  # called segments in minirun4
-                self.event["id"],
-            ]
-            sim_version = "minirun4"
+            prompthits_segs = self.data["mc_truth/segments"]
+            self.sim_version = "minirun4"
             print("Found truth info in minirun4 format")
         except:
             print("No truth info in minirun4 format found")
             try:
-                prompthits_segs = self.data[
-                    "charge/events",
-                    "charge/calib_prompt_hits",
-                    "charge/packets",
-                    "mc_truth/tracks",  # called tracks in minirun3
-                    self.event["id"],
-                ]
-                sim_version = "minirun3"
+                prompthits_segs = self.data["mc_truth/tracks"]
+                self.sim_version = "minirun3"
                 print("Found truth info in minirun3 format")
             except:
                 print("No truth info in minirun3 format found")
                 prompthits_segs = None
-
+        # TODO: understand/fix this
+                
         # Plot the prompt hits
         print("Plotting prompt hits")
-        print(prompthits_ev)
-        print(prompthits_ev["x"])
-        print(prompthits_ev.data["x"])
         prompthits_traces = go.Scatter3d(
-            x=prompthits_ev.data["x"].flatten(),
-            y=(prompthits_ev.data["y"].flatten()),
-            z=(prompthits_ev.data["z"].flatten()),
-            marker_color=prompthits_ev.data["E"].flatten()
+            x=prompthits_ev["x"].flatten(),
+            y=(prompthits_ev["y"].flatten()),
+            z=(prompthits_ev["z"].flatten()),
+            marker_color=prompthits_ev["E"].flatten()
             * 1000,  # convert to MeV from GeV for minirun4, not sure for minirun3
             marker={
                 "size": 1.75,
@@ -79,7 +66,7 @@ class VisEvent:
             mode="markers",
             showlegend=True,
             opacity=0.7,
-            customdata=prompthits_ev.data["E"].flatten() * 1000,
+            customdata=prompthits_ev["E"].flatten() * 1000,
             hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
         )
         print("Adding prompt hits to figure")
@@ -88,10 +75,10 @@ class VisEvent:
         # Plot the final hits
         print("Plotting final hits")
         finalhits_traces = go.Scatter3d(
-            x=finalhits_ev.data["x"].flatten(),
-            y=(finalhits_ev.data["y"].flatten()),
-            z=(finalhits_ev.data["z"].flatten()),
-            marker_color=finalhits_ev.data["E"].flatten() * 1000,
+            x=finalhits_ev["x"].flatten(),
+            y=(finalhits_ev["y"].flatten()),
+            z=(finalhits_ev["z"].flatten()),
+            marker_color=finalhits_ev["E"].flatten() * 1000,
             marker={
                 "size": 1.75,
                 "opacity": 0.7,
@@ -111,30 +98,31 @@ class VisEvent:
             visible="legendonly",
             showlegend=True,
             opacity=0.7,
-            customdata=finalhits_ev.data["E"].flatten() * 1000,
+            customdata=finalhits_ev["E"].flatten() * 1000,
             hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
         )
         print("Adding final hits to figure")
         fig.add_traces(finalhits_traces)
 
-        print("Plotting segments")
-        if prompthits_segs is not None:
-            segs_traces = plot_segs(
-                prompthits_segs[0, :, 0, 0],
-                sim_version=sim_version,
-                mode="lines",
-                name="edep segments",
-                visible="legendonly",
-                line_color="red",
-                showlegend=True,
-            )
-            print("Adding segments to figure")
-            fig.add_traces(segs_traces)
+        # print("Plotting segments")
+        # if prompthits_segs is not None:
+        #     segs_traces = plot_segs(
+        #         # prompthits_segs[0, :, 0, 0],
+        #         sim_version=self.sim_version,
+        #         mode="lines",
+        #         name="edep segments",
+        #         visible="legendonly",
+        #         line_color="red",
+        #         showlegend=True,
+        #     )
+        #     print("Adding segments to figure")
+        #     fig.add_traces(segs_traces)
+        # TODO: fix this
 
         # Draw the TPC
         print("Drawing TPC")
-        tpc_center, anodes, cathodes = draw_tpc(sim_version)
-        light_detectors = draw_light_detectors(self.file, self.file["id"])
+        tpc_center, anodes, cathodes = draw_tpc(self.sim_version)
+        light_detectors = draw_light_detectors(self.data,self.event["id"])
 
         print("Adding TPC to figure")
         fig.add_traces(tpc_center)
@@ -166,31 +154,3 @@ class VisEvent:
                 html.Div(dcc.Graph(id="another-graph", style={'height': '30vh', 'width': '35vw', 'float': 'right'})),
             ]
         )
-
-### Old code (works)
-    # def get_layout(self):
-    #     print("Creating the layout for the VisEvent object")
-    #     # Create a 3D scatter plot with self.data
-    #     fig = go.Figure(data=[go.Scatter3d(
-    #         x=np.array(self.data['x']),
-    #         y=np.array(self.data['y']),
-    #         z=np.array(self.data['z']),
-    #         mode='markers',
-    #         marker=dict(
-    #             size=12,
-    #             # color=self.data['color'],  # set color to an array/list of desired values
-    #             colorscale='Viridis',  # choose a colorscale
-    #             opacity=0.8
-    #         )
-    #     )])
-
-    #     # Set the layout of the plot
-    #     fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-
-    #     # Return a Div containing the plot
-    #     return html.Div([
-    #         dcc.Graph(
-    #             id='3d-scatter',
-    #             figure=fig
-    #         )
-    #     ])

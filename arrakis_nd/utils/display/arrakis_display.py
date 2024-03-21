@@ -36,7 +36,7 @@ class ArrakisDisplay:
         self.flow_folder = ''
         self.arrakis_folder = ''
         self.flow_files = []
-        self.file = ''
+        self.flow_file = ''
         self.arrakis_files = []
         self.available_events = []
         self.event = {"label":-1, "id":-1}
@@ -196,7 +196,7 @@ class ArrakisDisplay:
                 # evt_app.layout = get_layout()
                 # add_callbacks(evt_app)
                 # return get_layout()
-                vis_event = VisEvent(self.file,self.event)
+                vis_event = VisEvent(self.flow_folder,self.flow_file,self.event)
                 return vis_event.get_layout()
                 # return create_vis_event()
             elif pathname == "/tab-2":
@@ -281,6 +281,7 @@ class ArrakisDisplay:
             self.available_events = []
             if flow_file is not None:
                 try:
+                    self.flow_file = flow_file
                     flow_file = h5py.File(self.flow_folder + flow_file, "r")
                     # self.flow_file = h5flow.data.H5FlowDataManager(self.flow_folder + flow_file, "r")
                     trajectories = flow_file['mc_truth/trajectories/data']
