@@ -556,15 +556,16 @@ class Arrakis:
             First we make the labels for the charge dataset.  These consist of six
             main labels that we wish to generate with various plugins:
                 (1) topology - a descriptor of basic shapes
-                (2) physics_micro - a descriptor of local physics
-                (3) physics_macro - a descriptor of larger scale physics objects
-                (4) unique_topology - unique labels for instances of topology
-                (7) vertex - binary variable denoting whether a vertex is at this hit
-                (8) tracklette_begin - binary variable denoting whether a track beginning is at this hit
-                (9) tracklette_end - binary variable denoting whether a track end is at this hit
-                (10) fragment_begin - binary variable denoting whether a fragment beginning is at this hit
-                (11) fragment_end - binary variable denoting whether a fragment end is at this hit
-                (12) shower_begin - binary variable denoting whether a shower beginning is at this hit
+                (2) particle - the unique pdg of the particle
+                (3) physics_micro - a descriptor of local physics
+                (4) physics_macro - a descriptor of larger scale physics objects
+                (5) unique_topology - unique labels for instances of topology
+                (6) vertex - binary variable denoting whether a vertex is at this hit
+                (7) tracklette_begin - binary variable denoting whether a track beginning is at this hit
+                (8) tracklette_end - binary variable denoting whether a track end is at this hit
+                (9) fragment_begin - binary variable denoting whether a fragment beginning is at this hit
+                (10) fragment_end - binary variable denoting whether a fragment end is at this hit
+                (11) shower_begin - binary variable denoting whether a shower beginning is at this hit
 
             These labels are assigned to each reconstructed charge hit and
             written in the corresponding ARRAKIS file.
@@ -582,6 +583,7 @@ class Arrakis:
                 ('segment_id', 'i4', (max_length,)),
                 ('segment_fraction', 'f4', (max_length,)),
                 ('topology', 'i4', (max_length,)),
+                ('particle', 'i4', (max_length,)),
                 ('physics_micro', 'i4', (max_length,)),
                 ('physics_macro', 'i4', (max_length,)),
                 ('unique_topology', 'i4', (max_length,)),
@@ -611,6 +613,7 @@ class Arrakis:
             new_charge_data_type = np.dtype([
                 ('event_id', 'i4'),
                 ('topology', 'i4'),
+                ('particle', 'i4'),
                 ('physics_micro', 'i4'),
                 ('physics_macro', 'i4'),
                 ('unique_topology', 'i4'),
@@ -639,36 +642,43 @@ class Arrakis:
             Second, we set up arrays for CAF-like reco objects which consist
             of the following types:
                 (1) tracklettes - pieces of contiguous track like objects.
-                    (a) start (x,y,z) - track start point
-                    (b) end (x,y,z) - track end point
-                    (c) dir (u_x,u_y,u_z) - estimate of track direction taken from start point
-                    (d) enddir (u_x,u_y,u_z) - estimate of track direction takend from end point
-                    (e) Evis - visible energy in voxels corresponding to this track
+                    (a) start (x,y,z) - geant4 track start point
+                    (b) end (x,y,z) - geant4 track end point
+                    (c) start_hit (x,y,z) - corresponding hit start point
+                    (d) end_hit (x,y,z) - corresponding hit end point
+                    (e) dir (u_x,u_y,u_z) - geant4 track momentum start dir
+                    (f) enddir (u_x,u_y,u_z) - geant4 track momentum end dir
+                    (g) dir_hit (u_x,u_y,u_z) - estimate of track direction taken from start_hit point
+                    (h) enddir_hit (u_x,u_y,u_z) - estimate of track direction takend from end_hit point
+                    (i) Evis - visible energy in voxels corresponding to this track
+                    (j) qual - reco specific quality metric
+                    (k) len_gcm2 - track length in g/cm2
+                    (l) len_cm - track length in centimeter
+                    (m) E - track energy estimate in MeV
+                    (n) truth - associated true particle in flow file (if relevant) (i.e. track_id)
+                    (o) truthOverlap - fractional overlap between this track and true particle
+                (2) tracks - collections of tracklettes which define a complete track.
+                (3) fragments - pieces of contiguous shower like objects.
+                    (a) start (x,y,z) - geant4 shower start point
+                    (b) start_hit (x,y,z) - corresponding hit start point
+                    (c) dir (u_x,u_y,u_z) - geant4 shower direction
+                    (d) dir_hit (u_x,u_y,u_z) - estimate of shower direction taken from start_hit point
+                    (e) Evis - visible energy in voxels corresponding to this shower
                     (f) qual - reco specific quality metric
                     (g) len_gcm2 - track length in g/cm2
                     (h) len_cm - track length in centimeter
                     (i) E - track energy estimate in MeV
                     (j) truth - associated true particle in flow file (if relevant) (i.e. track_id)
-                    (k) truthOverlap - fractional overlap between this track and true particle
-                (2) tracks - collections of tracklettes which define a complete track.
-                (3) fragments - pieces of contiguous shower like objects.
-                    (a) start (x,y,z) - shower start point
-                    (b) dir (u_x,u_y,u_z) - shower direction
-                    (c) Evis - visible energy in voxels corresponding to this shower
-                    (d) qual - reco specific quality metric
-                    (e) len_gcm2 - track length in g/cm2
-                    (f) len_cm - track length in centimeter
-                    (g) E - track energy estimate in MeV
-                    (h) truth - associated true particle in flow file (if relevant) (i.e. track_id)
-                    (i) truthOverlap - fractional overlap between this shower and true particle
+                    (k) truthOverlap - fractional overlap between this shower and true particle
                 (4) showers - collections of fragments which define a complete shower.
                 (5) blips - collections of points associated to blip-like activity.
-                    (a) start (x,y,z) - start position of this blip object
-                    (b) Evis - visible energy in voxels corresponding to this blip
-                    (c) E - reconstructed energy (GeV)
-                    (d) bliphyp - hypothesis for this blip's identity
-                    (e) truth - associated true particle in flow file (if relevant) (i.e track_id)
-                    (f) truthOverlap - fractional overlap between this blip and true particle
+                    (a) start (x,y,z) - geant4 start position of this blip object
+                    (b) start_hit (x,y,z) - corresponding hit start point
+                    (c) Evis - visible energy in voxels corresponding to this blip
+                    (d) E - reconstructed energy (GeV)
+                    (e) bliphyp - hypothesis for this blip's identity
+                    (f) truth - associated true particle in flow file (if relevant) (i.e track_id)
+                    (g) truthOverlap - fractional overlap between this blip and true particle
                 (6) particles - particles within an event that are associated to tracks/showers/blips.
                     (a) primary - is this reco particle a primary one (i.e. eminates directly from vertex)?
                     (b) pdg - pdg code inferred for this particle
@@ -680,9 +690,11 @@ class Arrakis:
                     (h) p (p_x,p_y,p_z) - reconstructed momentum for this particle
                     (i) start (x,y,z) - reconstructed start point of this particle
                     (j) end (x,y,z) - reconstructed end point of this particle
-                    (k) contained - contained in LAr TPC?
-                    (l) truth - associated true particle in flow file (if relevant) (i.e. track_id)
-                    (m) truthOverlap - fractional overlap between this reco particle and true particle
+                    (k) start_hit (x,y,z) - reconstructed start hit of this particle
+                    (l) end_hit (x,y,z) - reconstructed end hit of this particle
+                    (m) contained - contained in LAr TPC?
+                    (n) truth - associated true particle in flow file (if relevant) (i.e. track_id)
+                    (o) truthOverlap - fractional overlap between this reco particle and true particle
                 (7) interactions - collections of tracks/showers/blips which define interactions of interest.
                     (a) vtx (x,y,z) - reconstructed vertex location
                     (b) dir (u_x,u_y,u_z) - hypothesis for this interaction's parent particle direction
@@ -724,8 +736,12 @@ class Arrakis:
                 ('tracklette_id', 'i4'),
                 ('start', 'f4', (1, 3)),
                 ('end', 'f4', (1, 3)),
+                ('start_hit', 'f4', (1, 3)),
+                ('end_hit', 'f4', (1, 3)),
                 ('dir', 'f4', (1, 3)),
                 ('enddir', 'f4', (1, 3)),
+                ('dir_hit', 'f4', (1, 3)),
+                ('enddir_hit', 'f4', (1, 3)),
                 ('Evis', 'f4'),
                 ('qual', 'f4'),
                 ('len_gcm2', 'f4'),
@@ -740,8 +756,12 @@ class Arrakis:
                 ('tracklette_ids', 'i4', (1, 20)),
                 ('start', 'f4', (1, 3)),
                 ('end', 'f4', (1, 3)),
+                ('start_hit', 'f4', (1, 3)),
+                ('end_hit', 'f4', (1, 3)),
                 ('dir', 'f4', (1, 3)),
                 ('enddir', 'f4', (1, 3)),
+                ('dir_hit', 'f4', (1, 3)),
+                ('enddir_hit', 'f4', (1, 3)),
                 ('Evis', 'f4'),
                 ('qual', 'f4'),
                 ('len_gcm2', 'f4'),
@@ -765,7 +785,9 @@ class Arrakis:
                 ('event_id', 'i4'),
                 ('fragment_id', 'i4'),
                 ('start', 'f4', (1, 3)),
+                ('start_hit', 'f4', (1, 3)),
                 ('dir', 'f4', (1, 3)),
+                ('dir_hit', 'f4', (1, 3)),
                 ('Evis', 'f4'),
                 ('qual', 'f4'),
                 ('len_gcm2', 'f4'),
@@ -779,7 +801,9 @@ class Arrakis:
                 ('shower_id', 'i4'),
                 ('fragment_ids', 'i4', (1, 20)),
                 ('start', 'f4', (1, 3)),
+                ('start_hit', 'f4', (1, 3)),
                 ('dir', 'f4', (1, 3)),
+                ('dir_hit', 'f4', (1, 3)),
                 ('Evis', 'f4'),
                 ('qual', 'f4'),
                 ('len_gcm2', 'f4'),
@@ -802,6 +826,7 @@ class Arrakis:
                 ('event_id', 'i4'),
                 ('blip_id', 'i4'),
                 ('start', 'f4', (1, 3)),
+                ('start_hit', 'f4', (1, 3)),
                 ('Evis', 'f4'),
                 ('E', 'f4'),
                 ('bliphyp', 'i4'),
@@ -826,8 +851,11 @@ class Arrakis:
                 ('E', 'f4'),
                 ('E_method', 'i4'),
                 ('p', 'f4', (1, 3)),
+                ('dir_hit', 'f4', (1, 3)),
                 ('start', 'f4', (1, 3)),
                 ('end', 'f4', (1, 3)),
+                ('start_hit', 'f4', (1, 3)),
+                ('end_hit', 'f4', (1, 3)),
                 ('contained', 'i4'),
                 ('truth', 'i4', (1, 20)),
                 ('truthOverlap', 'f4', (1, 20)),

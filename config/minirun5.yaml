@@ -10,4 +10,5 @@ arrakis_nd:
 plugins:
   DaughterPlugin:
   TrackIDHitMapPlugin:
-  MuonPlugin:
+  TrackPlugin:
+  ParticlePlugin:

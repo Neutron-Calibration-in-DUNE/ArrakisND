@@ -82,6 +82,7 @@ class ParticlePlugin(Plugin):
         trajectories_parent_ids = trajectories['parent_id']
         trajectories_xyz_start = trajectories['xyz_start']
         trajectories_xyz_end = trajectories['xyz_end']
+        trajectories_pxyz_start = trajectories['pxyz_start']
         trajectories_E = trajectories['E_start']
         charge_x = charge['x']
         charge_y = charge['y']
@@ -118,8 +119,11 @@ class ParticlePlugin(Plugin):
                     ('E', 'f4'),
                     ('E_method', 'i4'),
                     ('p', 'f4', (1, 3)),
+                    ('dir_hit', 'f4', (1, 3)),
                     ('start', 'f4', (1, 3)),
                     ('end', 'f4', (1, 3)),
+                    ('start_hit', 'f4', (1, 3)),
+                    ('end_hit', 'f4', (1, 3)),
                     ('contained', 'i4'),
                     ('truth', 'i4', (1, 20)),
                     ('truthOverlap', 'f4', (1, 20)),
@@ -141,6 +145,7 @@ class ParticlePlugin(Plugin):
             particle_charge_E = charge_E[particle_hits]
             particle_xyz_start = trajectories_xyz_start[ii]
             particle_xyz_end = trajectories_xyz_end[ii]
+            particle_pxyz_start = trajectories_pxyz_start[ii]
             particle_E = trajectories_E[ii]
 
             """
@@ -196,8 +201,11 @@ class ParticlePlugin(Plugin):
                 ('E', 'f4'),
                 ('E_method', 'i4'),
                 ('p', 'f4', (1, 3)),
+                ('dir_hit', 'f4', (1, 3)),
                 ('start', 'f4', (1, 3)),
                 ('end', 'f4', (1, 3)),
+                ('start_hit', 'f4', (1, 3)),
+                ('end_hit', 'f4', (1, 3)),
                 ('contained', 'i4'),
                 ('truth', 'i4', (1, 20)),
                 ('truthOverlap', 'f4', (1, 20)),
@@ -212,7 +220,10 @@ class ParticlePlugin(Plugin):
                 sum(particle_charge_E),
                 particle_E,
                 0,
+                particle_pxyz_start,
                 particle_dir,
+                particle_xyz_start,
+                particle_xyz_end,
                 closest_particle_xyz_start,
                 closest_particle_xyz_end,
                 0,

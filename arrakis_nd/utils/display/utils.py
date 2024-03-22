@@ -314,7 +314,7 @@ def plot_waveform(data, evid, opid):
 
     if match_light is None:
         print(
-            f"No light event matches found for charge event {self.file["id"]}, not plotting light waveform"
+            f"No light event matches found for charge event {self.file['id']}, not plotting light waveform"
         )
         return []
 

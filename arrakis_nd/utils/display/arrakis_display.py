@@ -7,6 +7,7 @@ import h5py
 import glob
 
 from arrakis_nd.utils.display.set_server import SetServer
+from arrakis_nd.utils.display.charge_light_display import ChargeLightDisplay
 from arrakis_nd.utils.display.vis_event import VisEvent
 # from arrakis_nd.utils.display.marjolein_2x2_display import get_layout,add_callbacks
 
@@ -37,11 +38,31 @@ class ArrakisDisplay:
         self.arrakis_folder = ''
         self.flow_files = []
         self.flow_file = ''
+        self.arrakis_file = ''
         self.arrakis_files = []
         self.available_events = []
         self.event = {"label":-1, "id":-1}
         self.unique_events = []
-
+        
+        self.geometry_info = {
+            'anode_drift_coordinate': [],
+            'det_bounds': [],
+            'det_id': [],
+            'det_rel_pos': [],
+            'drift_dir': [],
+            'pixel_coordinates_2D': [],
+            'sipm_abs_pos': [],
+            'sipm_rel_pos': [],
+            'tile_id': [],
+        }
+        
+        self.interactions = None
+        self.segments = None
+        self.stack = None
+        self.trajectories = None
+        self.charge = None
+        self.light = None
+        
         self.construct_app()
         self.construct_widgets()
         self.run_app()
@@ -160,9 +181,27 @@ class ArrakisDisplay:
                 
                 dbc.Nav(
                     [
-                        dbc.NavLink("Event", href="/tab-1", id="tab-1-link", active="exact",style={'color': 'white'}),
-                        dbc.NavLink("3d & tree", href="/tab-2", id="tab-2-link", active="exact",style={'color': 'white'}),
-                        dbc.NavLink("Tab 3", href="/tab-3", id="tab-3-link", active="exact",style={'color': 'white'}),
+                        dbc.NavLink(
+                            "Charge and Light Detectors", 
+                            href="/charge_light_tab", 
+                            id="charge_light_tab-link", 
+                            active="exact",
+                            style={'color': 'white'}
+                        ),
+                        dbc.NavLink(
+                            "Arrakis", 
+                            href="/arrakis_tab", 
+                            id="arrakis_tab-link", 
+                            active="exact",
+                            style={'color': 'white'}
+                        ),
+                        dbc.NavLink(
+                            "Clustering", 
+                            href="/clustering_tab", 
+                            id="clustering_tab-link", 
+                            active="exact",
+                            style={'color': 'white'}
+                        ),
                     ],
                     vertical=True,
                     pills=True,
@@ -189,19 +228,17 @@ class ArrakisDisplay:
             [Input("url", "pathname")]
         )
         def render_tab_content(pathname):
+            print("calling pathname", pathname)
             if pathname == "/":
                 return html.P("This is the content of the home page!")
-            if pathname == "/tab-1":
-                # evt_app = DashProxy(__name__, title="2x2 event display")
-                # evt_app.layout = get_layout()
-                # add_callbacks(evt_app)
-                # return get_layout()
-                vis_event = VisEvent(self.flow_folder,self.flow_file,self.event)
+            if pathname == "/charge_light_tab":
+                vis_event = VisEvent(self.flow_folder,self.flow_file,0)
                 return vis_event.get_layout()
-                # return create_vis_event()
-            elif pathname == "/tab-2":
+                # charge_light_display = ChargeLightDisplay(self.geometry_info)
+                # return charge_light_display.get_layout()
+            elif pathname == "/arrakis_tab":
                 return html.P("This is the content of page 2. Yay!")
-            elif pathname == "/tab-3":
+            elif pathname == "/clustering_tab":
                 return html.P("Oh cool, this is page 3!")
             # If the user tries to reach a different page, return a 404 message
             return html.Div(
@@ -282,15 +319,26 @@ class ArrakisDisplay:
             if flow_file is not None:
                 try:
                     self.flow_file = flow_file
-                    flow_file = h5py.File(self.flow_folder + flow_file, "r")
-                    # self.flow_file = h5flow.data.H5FlowDataManager(self.flow_folder + flow_file, "r")
-                    trajectories = flow_file['mc_truth/trajectories/data']
-                    events = trajectories['event_id']
-                    self.unique_events = np.unique(events)
-                    self.available_events = [
-                        {'label': event, 'value': event}
-                        for event in self.unique_events
-                    ]
+                    with h5py.File(self.flow_folder + flow_file, "r") as flow_file:
+                        trajectories = flow_file['mc_truth/trajectories/data']
+                        events = trajectories['event_id']
+                        for key in self.geometry_info.keys():
+                            try:
+                                self.geometry_info[key] = flow_file[f'geometry_info/{key}/data']['data']
+                            except Exception:
+                                pass
+                        self.unique_events = np.unique(events)
+                        self.available_events = [
+                            {'label': event, 'value': event}
+                            for event in self.unique_events
+                        ]
+                except Exception:
+                    pass
+            if arrakis_file is not None:
+                try:
+                    self.arrakis_file = arrakis_file
+                    with h5py.File(self.arrakis_folder + arrakis_file, "r") as arrakis_file:
+                        pass
                 except Exception:
                     pass
             return self.available_events
@@ -299,12 +347,45 @@ class ArrakisDisplay:
             Output('event_output', 'children'),
             [Input('event_dropdown', 'value')],
         )
-        def load_event(event_file):
+        def load_event(event):
             print_output = ''
-            if event_file is not None:
-                print(f"Event: {event_file}")
-                print_output = f"Event: {event_file} Loaded!"
-                self.event = {"label":event_file, "id":int(np.where(self.unique_events == event_file)[0])}
+            if event is not None:
+                if self.flow_file:
+                    with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
+                        interactions_events = flow_file['mc_truth/interactions/data']['event_id']
+                        segments_events = flow_file['mc_truth/segments/data']['event_id']
+                        stack_events = flow_file['mc_truth/stack/data']['event_id']
+                        trajectories_events = flow_file['mc_truth/trajectories/data']['event_id']
+                        charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_id']
+                        non_zero_charge_segments = [row[row != 0] for row in charge_segments]
+                        max_length = len(max(non_zero_charge_segments, key=len))
+                        segments_ids = flow_file['mc_truth/segments/data']['segment_id']
+                        self.interactions = flow_file['mc_truth/interactions/data'][
+                            np.where(interactions_events == event)[0]
+                        ]
+                        self.segments = flow_file['mc_truth/segments/data'][
+                            np.where(segments_events == event)[0]
+                        ]
+                        self.stack = flow_file['mc_truth/stack/data'][
+                            np.where(stack_events == event)[0]
+                        ]
+                        self.trajectories = flow_file['mc_truth/trajectories/data'][
+                            np.where(trajectories_events == event)[0]
+                        ]
+                        """For charge data we must backtrack through segments"""
+                        hits_to_segments = np.any(
+                            np.isin(
+                                charge_segments[:, :max_length], segments_ids[(segments_events == event)]
+                            ),
+                            axis=1,
+                        )
+                        self.charge = flow_file['charge/calib_final_hits/data'][
+                            hits_to_segments
+                        ]
+                        """Likewise for light data, we must backtrack through segments"""
+                        self.light = []
+                    print_output = f"Event: {event} Loaded!"
+            
             return print_output
 
     def run_app(self):
