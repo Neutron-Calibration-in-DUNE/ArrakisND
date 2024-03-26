@@ -11,6 +11,7 @@ from tqdm import tqdm
 import torch
 import numpy as np
 from datetime import datetime
+import traceback
 from matplotlib import pyplot as plt
 from importlib.metadata import version
 
@@ -65,9 +66,23 @@ class Arrakis:
 
         """Setting error status for this node"""
         self.error_status = None
+        self.exc_type = None
+        self.exc_value = None 
+        self.exc_traceback = None    
+        self.line_number = None
+        self.file_name = None
+        self.tb_str = None
+        self.traceback_details = None
         self.event_errors = []
         self.plugin_errors = []
         self.event_plugin_errors = []
+        self.event_plugin_exc_types = []
+        self.event_plugin_exc_values = []
+        self.event_plugin_exc_tracebacks = []
+        self.event_plugin_line_numbers = []
+        self.event_plugin_file_names = []
+        self.event_plugin_tb_strs = []
+        self.event_plugin_traceback_details = []
 
         """Parse config"""
         try:
@@ -105,8 +120,26 @@ class Arrakis:
         self.distributed_light_indices.clear()
 
     @profiler
+    def collect_error_info(self, exception):
+        self.error_status = exception
+        self.exc_type, self.exc_value, self.exc_traceback = sys.exc_info()
+        # Extracting the line number from the traceback
+        self.line_number = self.exc_traceback.tb_lineno
+        self.file_name = self.exc_traceback.tb_frame.f_code.co_filename
+        # Optionally, use traceback to format a string of the entire traceback
+        self.tb_str = traceback.format_exception(self.exc_type, self.exc_value, self.exc_traceback)
+        self.traceback_details = "".join(self.tb_str)
+
+    @profiler
     def barrier(self):
         errors = self.comm.allgather(self.error_status)
+        exc_types = self.comm.allgather(self.exc_type)
+        exc_values = self.comm.allgather(self.exc_value)
+        exc_tracebacks = self.comm.allgather(self.exc_traceback)
+        line_numbers = self.comm.allgather(self.line_number)
+        file_names = self.comm.allgather(self.file_name)
+        tb_strs = self.comm.allgather(self.tb_str)
+        traceback_details = self.comm.allgather(self.traceback_details)
         if any(errors):
             if self.rank == 0:
                 errors_count = sum(1 for error in errors if error is not None)
@@ -114,7 +147,12 @@ class Arrakis:
                 self.logger.critical(f"{errors_count} errors encountered in Arrakis program")
                 for index in errors_indices:
                     self.logger.critical(f"error encountered in worker {index}: ")
-                    self.logger.critical(errors[index])
+                    self.logger.critical(f"exception:   {errors[index]}")
+                    self.logger.critical(f"exc_type:    {exc_types[index]}")
+                    self.logger.critical(f"exc_value:   {exc_values[index]}")
+                    self.logger.critical(f"exc_traceback:   {exc_tracebacks[index]}")
+                    self.logger.critical(f"line_number:     {line_numbers[index]}")                    
+                    self.logger.critical(f"file_name:       {file_names[index]}")
                 self.comm.Abort(1)
         else:
             self.comm.Barrier()
@@ -473,6 +511,11 @@ class Arrakis:
         self.event_errors = []
         self.plugin_errors = []
         self.event_plugin_errors = []
+        self.event_plugin_exc_types = []
+        self.event_plugin_exc_values = []
+        self.event_plugin_exc_tracebacks = []
+        self.event_plugin_line_numbers = []
+        self.event_plugin_file_names = []
 
     @profiler
     def report_event_errors(
@@ -488,23 +531,30 @@ class Arrakis:
         event_errors = np.concatenate(self.comm.allgather(self.event_errors))
         plugin_errors = np.concatenate(self.comm.allgather(self.plugin_errors))
         event_plugin_errors = np.concatenate(self.comm.allgather(self.event_plugin_errors))
+        event_plugin_line_numbers = np.concatenate(self.comm.allgather(self.event_plugin_line_numbers))
+        event_plugin_file_names = np.concatenate(self.comm.allgather(self.event_plugin_file_names))
         if self.rank == 0:
             if len(event_errors) > 0:
                 self.logger.warn(f"event/plugin errors occurred when processing file {file_name}")
                 """Display error information"""
                 for ii, event_error in enumerate(event_errors):
-                    self.logger.warn(
-                        f"event: {event_error} / plugin: {plugin_errors[ii]} - error: {event_plugin_errors[ii]}"
-                    )
+                    self.logger.warn(f"event: {event_error} / plugin: {plugin_errors[ii]}")
+                    self.logger.warn(f" {' ':<{5}} exception: {event_plugin_errors[ii]}")
+                    self.logger.warn(f" {' ':<{5}} line_number: {event_plugin_line_numbers[ii]}")
+                    self.logger.warn(f" {' ':<{5}} file_name: {event_plugin_file_names[ii]}")
                 output_error_data_type = np.dtype([
                     ('event_id', 'i4'),
                     ('plugin_name', 'S50'),
                     ('plugin_error', 'S500'),
+                    ('plugin_line_number', 'S50'),
+                    ('plugin_file_name', 'S50'),
                 ])
                 errors = np.empty(len(event_errors), dtype=output_error_data_type)
                 errors['event_id'] = event_errors.astype('i4')
                 errors['plugin_name'] = plugin_errors.astype('S50')
                 errors['plugin_error'] = event_plugin_errors.astype('S500')
+                errors['plugin_line_number'] = event_plugin_line_numbers.astype('S50')
+                errors['plugin_file_name'] = event_plugin_file_names.astype('S50')
                 "Report error information to ARRAKIS file"
                 arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
                 with h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
@@ -891,11 +941,46 @@ class Arrakis:
                 ('event_id', 'i4'),
                 ('plugin_name', 'S50'),
                 ('plugin_error', 'S500'),
+                ('plugin_line_number', 'S50'),
+                ('plugin_file_name', 'S50'),
             ])
             if output_error_name in arrakis_file:
                 del arrakis_file[output_error_name]
-
+            
             arrakis_file.create_dataset(output_error_name, shape=(0,), maxshape=(None,), dtype=output_error_data_type)
+                
+            """Construct n-Ar inelastic data types"""
+            nar_inelastic_name = 'standard_record/nar_inelastic'
+            nar_inelastic_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('vertex_id', 'i4'),
+                ('proton_id', 'i4'),
+                ('proton_xyz_start', 'f4', (1, 3)),
+                ('nu_vertex', 'f4', (1, 3)),
+                ('proton_total_energy', 'f4'),
+                ('proton_vis_energy', 'f4'),
+                ('proton_length', 'f4'),
+                ('proton_pxyz_start', 'f4', (1, 3)),
+                ('proton_pxyz_end', 'f4', (1, 3)),
+                ('parent_total_energy', 'f4'),
+                ('parent_length', 'f4'),
+                ('parent_pxyz_start', 'f4', (1, 3)),
+                ('parent_pxyz_end', 'f4', (1, 3)),
+                ('nu_proton_dt', 'f4'),
+                ('nu_proton_distance', 'f4'),
+                ('parent_pdg', 'i4'),
+                ('grandparent_pdg', 'i4'),
+                ('primary_pdg', 'i4'),
+                ('primary_length', 'f4'),
+                ('lar', 'i4'),
+                ('best_completeness_cluster', 'i4'),
+                ('best_completeness', 'f4'),
+                ('best_purity', 'f4')
+            ])
+            if nar_inelastic_name in arrakis_file:
+                del arrakis_file[nar_inelastic_name]
+                
+            arrakis_file.create_dataset(nar_inelastic_name, shape=(0,), maxshape=(None,), dtype=nar_inelastic_data_type)
 
     @profiler
     def distribute_tasks(
@@ -948,6 +1033,8 @@ class Arrakis:
 
                 """Determine indices for mc_truth and charge/light data"""
                 for ii, event_id in enumerate(unique_events):
+                    if ii == 0:
+                        continue
                     worker_rank = 1 + ii % (self.size - 1)  # Distribute round-robin among wor
                     self.distributed_events[worker_rank].append(event_id)
                     self.distributed_interactions_indices[worker_rank].append(
@@ -1016,7 +1103,8 @@ class Arrakis:
             'shower': [],
             'blip': [],
             'particle': [],
-            'interaction': []
+            'interaction': [],
+            'nar_inelastic': []
         }
         self.clear_indices()
 
@@ -1041,7 +1129,8 @@ class Arrakis:
             'shower': [],
             'blip': [],
             'particle': [],
-            'interaction': []
+            'interaction': [],
+            'nar_inelastic': []
         }
         for ii, event in enumerate(self.distributed_events[self.rank]):
             """Grab event index information"""
@@ -1060,7 +1149,8 @@ class Arrakis:
                 'shower': [],
                 'blip': [],
                 'particle': [],
-                'interaction': []
+                'interaction': [],
+                'nar_inelastic': [],
             }
             """Iterate over plugins"""
             for plugin_name, plugin in self.plugins.items():
@@ -1076,6 +1166,16 @@ class Arrakis:
                     self.event_errors.append(event)
                     self.plugin_errors.append(plugin_name)
                     self.event_plugin_errors.append(e)
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    if exc_traceback.tb_next:
+                        exc_traceback = exc_traceback.tb_next
+                    if exc_traceback.tb_next:
+                        exc_traceback = exc_traceback.tb_next
+                    self.event_plugin_exc_types.append(exc_type)
+                    self.event_plugin_exc_values.append(exc_value)
+                    self.event_plugin_exc_tracebacks.append(exc_traceback)
+                    self.event_plugin_line_numbers.append(exc_traceback.tb_lineno)
+                    self.event_plugin_file_names.append(exc_traceback.tb_frame.f_code.co_filename)
             for object in self.standard_record_objects.keys():
                 self.standard_record_objects[object] += self.event_products[object]
         """Clear event indices so that file closes properly!"""

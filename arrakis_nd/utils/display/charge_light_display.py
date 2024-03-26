@@ -16,7 +16,13 @@ class ChargeLightDisplay:
         self,
         geometry_info: dict={}
     ):
+        self.interactions = None
+        self.segments = None
+        self.stack = None
+        self.trajectories = None
+        self.charge = None
         self.set_geometry_info(geometry_info)
+        self.generate_layout()
     
     def set_geometry_info(
         self,
@@ -31,18 +37,24 @@ class ChargeLightDisplay:
                 pass
     
     def construct_detector(self):
-        print("construct_detector")
-        tpc = self.construct_tpcs()
-        waveforms = self.construct_waveforms()
-        larpix = self.construct_larpix()
-        return tpc, waveforms, larpix
+        self.tpc = self.construct_tpcs()
+        self.waveforms = self.construct_waveforms()
+        self.larpix = self.construct_larpix()
     
     def construct_tpcs(self):
         tpc = go.Figure()
-        tpc_center, anodes, cathodes = self.draw_tpc()
-        tpc.add_traces(tpc_center)
-        tpc.add_traces(anodes)
-        tpc.add_traces(cathodes)
+        tpc.update_layout(
+            scene=dict(
+                xaxis_title="x [cm]",
+                yaxis_title="z [cm]",
+                zaxis_title="y [cm]"
+            ),
+            title="2x2 TPCs"
+        )
+        self.tpc_center, self.anodes, self.cathodes = self.draw_tpc()
+        tpc.add_traces(self.tpc_center)
+        tpc.add_traces(self.anodes)
+        tpc.add_traces(self.cathodes)
         return tpc
     
     def construct_light_detectors(self):
@@ -55,11 +67,6 @@ class ChargeLightDisplay:
     def construct_larpix(self):
         larpix = go.Figure()
         return larpix
-        
-    def plot_event(
-        self,
-    ):
-        pass
     
     def draw_tpc(
         self,
@@ -116,7 +123,7 @@ class ChargeLightDisplay:
                     * 0.5
                     * np.ones(z.shape)
                 )
-                traces.append(go.Surface(x=x, y=y, z=z, **kwargs))
+                traces.append(go.Surface(x=x, y=z, z=y, **kwargs))
 
         return traces
 
@@ -136,129 +143,64 @@ class ChargeLightDisplay:
                 )
                 x = x_boundaries[i_x] * np.ones(z.shape)
 
-                traces.append(go.Surface(x=x, y=y, z=z, **kwargs))
+                traces.append(go.Surface(x=x, y=z, z=y, **kwargs))
 
         return traces
         
-        
-    def create_3d_figure(self):
-        fig = go.Figure()
-        # Select the hits for the current event
-        prompthits_ev = self.data["charge/calib_prompt_hits/data"]         
-        finalhits_ev = self.data["charge/calib_final_hits/data"]
-        # select the segments (truth) for the current event
-        try:
-            prompthits_segs = self.data["mc_truth/segments"]
-            self.sim_version = "minirun4"
-            print("Found truth info in minirun4 format")
-        except:
-            print("No truth info in minirun4 format found")
-            try:
-                prompthits_segs = self.data["mc_truth/tracks"]
-                self.sim_version = "minirun3"
-                print("Found truth info in minirun3 format")
-            except:
-                print("No truth info in minirun3 format found")
-                prompthits_segs = None
-        # TODO: understand/fix this
-                
-        # Plot the prompt hits
-        print("Plotting prompt hits")
-        prompthits_traces = go.Scatter3d(
-            x=prompthits_ev["x"].flatten(),
-            y=(prompthits_ev["y"].flatten()),
-            z=(prompthits_ev["z"].flatten()),
-            marker_color=prompthits_ev["E"].flatten()
-            * 1000,  # convert to MeV from GeV for minirun4, not sure for minirun3
-            marker={
-                "size": 1.75,
-                "opacity": 0.7,
-                "colorscale": "cividis",
-                "colorbar": {
-                    "title": "Hit energy [MeV]",
-                    "titlefont": {"size": 12},
-                    "tickfont": {"size": 10},
-                    "thickness": 15,
-                    "len": 0.5,
-                    "xanchor": "left",
-                    "x": 0,
+    def update_event(
+        self,
+        interactions,
+        segments,
+        stack,
+        trajectories,
+        charge
+    ):
+        self.interactions = interactions
+        self.segments = segments
+        self.stack = stack
+        self.trajectories = trajectories
+        self.charge = charge
+    
+    def plot_event(self):
+        if self.charge is not None:
+            name_to_remove = "calib_final_hits"
+            # Create a new list of traces that excludes the ones with the specified name
+            new_traces = [trace for trace in self.tpc.data if trace.name != name_to_remove]
+            # Update the figure with the new list of traces
+            self.tpc.data = new_traces
+            
+            charge_hits_traces = go.Scatter3d(
+                x=self.charge['x'],
+                y=self.charge['z'],
+                z=self.charge['y'],
+                marker_color=self.charge['Q'],
+                marker={
+                    "size": 1.75,
+                    "opacity": 0.7,
+                    "colorscale": "cividis",
+                    "colorbar": {
+                        "title": "Hit charge [e-]",
+                        "titlefont": {"size": 12},
+                        "tickfont": {"size": 10},
+                        "thickness": 15,
+                        "len": 0.5,
+                        "xanchor": "left",
+                        "x": 0,
+                    },
                 },
-            },
-            name="prompt hits",
-            mode="markers",
-            showlegend=True,
-            opacity=0.7,
-            customdata=prompthits_ev["E"].flatten() * 1000,
-            hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
-        )
-        print("Adding prompt hits to figure")
-        fig.add_traces(prompthits_traces)
+                name="calib_final_hits",
+                mode="markers",
+                showlegend=True,
+                opacity=0.7,
+                hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
+            )
+            
+            self.tpc.add_traces(charge_hits_traces)
 
-        # Plot the final hits
-        print("Plotting final hits")
-        finalhits_traces = go.Scatter3d(
-            x=finalhits_ev["x"].flatten(),
-            y=(finalhits_ev["y"].flatten()),
-            z=(finalhits_ev["z"].flatten()),
-            marker_color=finalhits_ev["E"].flatten() * 1000,
-            marker={
-                "size": 1.75,
-                "opacity": 0.7,
-                "colorscale": "Plasma",
-                "colorbar": {
-                    "title": "Hit energy [MeV]",
-                    "titlefont": {"size": 12},
-                    "tickfont": {"size": 10},
-                    "thickness": 15,
-                    "len": 0.5,
-                    "xanchor": "left",
-                    "x": 0,
-                },
-            },
-            name="final hits",
-            mode="markers",
-            visible="legendonly",
-            showlegend=True,
-            opacity=0.7,
-            customdata=finalhits_ev["E"].flatten() * 1000,
-            hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
-        )
-        print("Adding final hits to figure")
-        fig.add_traces(finalhits_traces)
-
-        # print("Plotting segments")
-        # if prompthits_segs is not None:
-        #     segs_traces = plot_segs(
-        #         # prompthits_segs[0, :, 0, 0],
-        #         sim_version=self.sim_version,
-        #         mode="lines",
-        #         name="edep segments",
-        #         visible="legendonly",
-        #         line_color="red",
-        #         showlegend=True,
-        #     )
-        #     print("Adding segments to figure")
-        #     fig.add_traces(segs_traces)
-        # TODO: fix this
-
-        # Draw the TPC
-        print("Drawing TPC")
-        tpc_center, anodes, cathodes = draw_tpc(self.sim_version)
-        light_detectors = draw_light_detectors(self.data,self.event["id"])
-
-        print("Adding TPC to figure")
-        fig.add_traces(tpc_center)
-        fig.add_traces(anodes)
-        fig.add_traces(cathodes)
-        print("Adding light detectors to figure")
-        fig.add_traces(light_detectors)
-
-        return fig
-
-    def get_layout(self):
-        print("get_layout")
-        tpc, waveforms, larpix = self.construct_detector()
-        return html.Div(
+    def generate_layout(self):
+        self.construct_detector()
+        self.plot_event()
+        self.layout = html.Div(
             [
                 dcc.Location(id="url"),
                 dcc.Store(id="filename", storage_type="local", data=None),
@@ -266,9 +208,9 @@ class ChargeLightDisplay:
                 html.H1(children="2x2 event display", style={"textAlign": "center"}),
                 html.Div([
                     html.Div(dcc.Graph(
-                        id='3d-graph', 
+                        id='charge_light_tpc_plot', 
                         style={'height': '70vh', 'width': '50vw'}, 
-                        figure=tpc)
+                        figure=self.tpc)
                     ),
                     # html.Div(dcc.Graph(
                     #     id="light-waveform", 
