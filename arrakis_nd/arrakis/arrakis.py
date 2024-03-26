@@ -972,7 +972,10 @@ class Arrakis:
                 ('grandparent_pdg', 'i4'),
                 ('primary_pdg', 'i4'),
                 ('primary_length', 'f4'),
-                ('lar', 'i4'),
+                ('neutrino_vertex_fiducialized', 'i4'),
+                ('proton_xyz_start_fiducialized', 'i4'),
+                ('proton_xyz_end_fiducialized', 'i4'),
+                ('truth_segment_overlap', 'f4'),
                 ('best_completeness_cluster', 'i4'),
                 ('best_completeness', 'f4'),
                 ('best_purity', 'f4')

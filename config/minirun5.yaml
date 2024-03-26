@@ -12,3 +12,4 @@ plugins:
   TrackIDHitMapPlugin:
   TrackPlugin:
   ParticlePlugin:
+  ProtonPlugin:

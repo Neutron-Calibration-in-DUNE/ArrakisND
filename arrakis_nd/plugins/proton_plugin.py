@@ -220,10 +220,8 @@ class ProtonPlugin(Plugin):
             vert_mask = interactions['vertex_id'] == vertex_id
             nu_vert = interactions[vert_mask]
             vert_loc = nu_vert['vertex'][0]
-            lar_fv = 1
-            if self.fiducialized_vertex(vert_loc) == False: 
-                lar_fv = 0
-            
+            neutrino_vertex_fiducialized = self.fiducialized_vertex(nu_vert['vertex'][0])
+                        
             """Get proton parent info"""
             parent_pdg = 0
             parent_E = 0.0
@@ -271,6 +269,10 @@ class ProtonPlugin(Plugin):
             proton_pxyz_start = trajectories_pxyz_start[proton_mask][ii]
             proton_pxyz_end = trajectories_pxyz_end[proton_mask][ii]
             proton_E = trajectories_E[proton_mask][ii]
+            
+            """Check whether proton is fiducialized"""
+            proton_xyz_start_fiducialized = self.fiducialized_vertex(proton_xyz_start)
+            proton_xyz_end_fiducialized = self.fiducialized_vertex(proton_xyz_end)
             
             """
             To do this we find the closest hits to the actual track beginning
@@ -330,7 +332,7 @@ class ProtonPlugin(Plugin):
             """Set up list of proton points"""
             proton_points = np.zeros(len(np.unique(particle_hits)), dtype=bool)
             particle_proton_points = np.where(
-                np.isin(np.unique(particle_hits), np.unique(proton_hits))
+                np.isin(np.unique(proton_hits), np.unique(particle_hits))
             )[0]
             proton_points[particle_proton_points] = True
             
@@ -374,7 +376,9 @@ class ProtonPlugin(Plugin):
                 ('grandparent_pdg', 'i4'),
                 ('primary_pdg', 'i4'),
                 ('primary_length', 'f4'),
-                ('lar', 'i4'),
+                ('neutrino_vertex_fiducialized', 'i4'),
+                ('proton_xyz_start_fiducialized', 'i4'),
+                ('proton_xyz_end_fiducialized', 'i4'),
                 ('truth_segment_overlap', 'f4'),
                 ('best_completeness_cluster', 'i4'),
                 ('best_completeness', 'f4'),
@@ -405,7 +409,9 @@ class ProtonPlugin(Plugin):
                 grandparent_pdg,
                 0,
                 0,
-                lar_fv,
+                neutrino_vertex_fiducialized,
+                proton_xyz_start_fiducialized,
+                proton_xyz_end_fiducialized,
                 true_proton_hit_purity,
                 lowest_completeness_cluster,
                 lowest_completeness,
