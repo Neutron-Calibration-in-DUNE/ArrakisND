@@ -2,7 +2,7 @@
 ArrakisND main program
 """
 import argparse
-import torch
+from mpi4py import MPI
 
 from arrakis_nd.utils.logger import Logger
 from arrakis_nd.utils.config import ConfigParser
@@ -11,18 +11,47 @@ from arrakis_nd.arrakis.arrakis import Arrakis
 
 def run():
     """
-    Arrkis main program.
+    This program runs the Arrakis module from a config file.
+    It utilizes MPI + H5 to distribute the processing of events
+    over multiple cores which greatly speeds up runtime.  When 
+    used in conjunction with the "create_arrakis_runs" program,
+    running a post-flow ARRAKIS can performed in minutes.
     """
+
+    """Create a logger instance"""
+    logger = Logger("arrakis_runner")
+
+    """
+    We do a preliminary check to ensure that MPI is available
+    and that the number of processes is at least 2.  Assuming
+    that ArrakisND is being run on a system with more than one
+    CPU core.
+    """
+    try:
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+
+        """Check that size >= 2, which is required for Arrakis to run.  Otherwise we quit early"""
+        if size < 2:
+            logger.error(f"number of processes must be >=2! Received {size} from MPI", "value")
+    except Exception as e:
+        logger.error(f"error occurred with gathering MPI: {e}", "runtime")
+
+    """Set up command line arguments"""
     parser = argparse.ArgumentParser(
         prog="Arrakis Module Runner",
-        description="This program runs the Arrakis module " + "from a config file.",
+        description="This program runs the Arrakis module from a config file. \
+            It utilizes MPI + H5 to distribute the processing of events \
+            over multiple cores which greatly speeds up runtime.  When \
+            used in conjunction with the 'create_arrakis_runs' program, \
+            running a post-flow ARRAKIS can performed in minutes.",
         epilog="...",
     )
     parser.add_argument(
         "config_file",
-        metavar="<str>.yml",
+        metavar="<config_file>.yml",
         type=str,
-        help="config file specification for a BLIP module.",
+        help="config file specification for this Arrakis module.",
     )
     parser.add_argument(
         "-name",
@@ -36,88 +65,43 @@ def run():
         default=None,
         help='number of files to process (default None).',
     )
+
+    """Parse command line arguments"""
     args = parser.parse_args()
-    # Setup config file.
+    config_file = args.config_file
     name = args.name
     number_of_files = args.number_of_files
 
-    logger = Logger(name, output="both", file_mode="w")
-    logger.info("configuring arrakis...")
+    """Parse the config file"""
+    try:
+        config = ConfigParser(config_file).data
+    except Exception as e:
+        logger.error(f"failed to parse config: {e}")
 
-    config = ConfigParser(args.config_file).data
-    if "arrakis_nd" not in config.keys():
-        logger.error("arrakis_nd section not in config!")
-    arrakis_nd_config = config["arrakis_nd"]
-
+    """Determine whether to only pick a subset of files"""
     if number_of_files is not None:
-        number_of_files = int(number_of_files)
+        try:
+            number_of_files = int(number_of_files)
+        except Exception as e:
+            logger.error(f"unable to convert number_of_files from {type(number_of_files)} to int: {e}")
+
         if isinstance(number_of_files, int):
             if number_of_files > 0:
-                arrakis_nd_config["number_of_files"] = number_of_files
+                config["arrakis_nd"]["number_of_files"] = number_of_files
 
-    system_info = logger.get_system_info()
-    for key, value in system_info.items():
-        logger.info(f"system_info - {key}: {value}")
+    """Construct meta dictionary"""
+    meta = {
+        "name": name,
+        "config_file": config_file
+    }
 
-    meta = {"config_file": args.config_file}
-    if "verbose" in arrakis_nd_config:
-        if not isinstance(arrakis_nd_config["verbose"], bool):
-            logger.error(
-                f'"arrakis_nd:verbose" must be of type bool, but got {type(arrakis_nd_config["verbose"])}!'
-            )
-        meta["verbose"] = arrakis_nd_config["verbose"]
-    else:
-        meta["verbose"] = False
+    """Create the Arrakis instance"""
+    try:
+        arrakis = Arrakis(config, meta)
+    except Exception as e:
+        logger.error(f"failed to construct Arrakis object: {e}")
 
-    # Eventually we will want to check that the order of the arrakis_nds makes sense,
-    # and that the data products are compatible and available for the different modes.
-
-    # check for devices
-    if "gpu" not in arrakis_nd_config.keys():
-        logger.warn('"arrakis_nd:gpu" not specified in config!')
-        gpu = None
-    else:
-        gpu = arrakis_nd_config["gpu"]
-    if "gpu_device" not in arrakis_nd_config.keys():
-        logger.warn('"arrakis_nd:gpu_device" not specified in config!')
-        gpu_device = None
-    else:
-        gpu_device = arrakis_nd_config["gpu_device"]
-
-    if torch.cuda.is_available():
-        logger.info("CUDA is available with devices:")
-        for ii in range(torch.cuda.device_count()):
-            device_properties = torch.cuda.get_device_properties(ii)
-            cuda_stats = f"name: {device_properties.name}, "
-            cuda_stats += (
-                f"compute: {device_properties.major}.{device_properties.minor}, "
-            )
-            cuda_stats += f"memory: {device_properties.total_memory}"
-            logger.info(f" -- device: {ii} - " + cuda_stats)
-
-    # set gpu settings
-    if gpu:
-        if torch.cuda.is_available():
-            if gpu_device >= torch.cuda.device_count() or gpu_device < 0:
-                logger.warn(
-                    f"desired gpu_device '{gpu_device}' not available, using device '0'"
-                )
-                gpu_device = 0
-            meta["device"] = torch.device(f"cuda:{gpu_device}")
-            logger.info(
-                f"CUDA is available, using device {gpu_device}"
-                + f": {torch.cuda.get_device_name(gpu_device)}"
-            )
-        else:
-            gpu is False
-            logger.warn("CUDA not available! Using the cpu")
-            meta["device"] = torch.device("cpu")
-    else:
-        logger.info("using cpu as device")
-        meta["device"] = torch.device("cpu")
-    meta["gpu"] = gpu
-
-    arrakis = Arrakis(name, arrakis_nd_config, meta)
+    """Run Arrakis"""
     arrakis.run_arrakis_nd()
 
 
