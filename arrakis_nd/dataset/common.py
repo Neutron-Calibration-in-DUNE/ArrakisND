@@ -117,7 +117,7 @@ class Topology(Enum):
     Blip = 3
 
 
-class PhysicsMicro(Enum):
+class Physics(Enum):
     """
     micro-level descriptions of topological types.
     This further breaks down the blip/track/shower
@@ -125,16 +125,15 @@ class PhysicsMicro(Enum):
     """
     Undefined = -1
     Noise = 0
-    MIPIonization = 1
-    HIPIonization = 2
+    MIP = 1
+    HIP = 2
     ElectronIonization = 3
-    Bremsstrahlung = 4
-    Annihilation = 5
-    PhotoElectric = 6
-    GammaCompton = 7
-    GammaConversion = 8
-    HadronElastic = 9
-    HadronInelastic = 10
+    DeltaElectron = 4
+    MichelElectron = 5
+    GammaCompton = 6
+    GammaConversion = 7
+    NuclearRecoil = 8
+    ElectronRecoil = 9
 
 
 class PhysicsMacro(Enum):

@@ -607,15 +607,14 @@ class Arrakis:
             main labels that we wish to generate with various plugins:
                 (1) topology - a descriptor of basic shapes
                 (2) particle - the unique pdg of the particle
-                (3) physics_micro - a descriptor of local physics
-                (4) physics_macro - a descriptor of larger scale physics objects
-                (5) unique_topology - unique labels for instances of topology
-                (6) vertex - binary variable denoting whether a vertex is at this hit
-                (7) tracklette_begin - binary variable denoting whether a track beginning is at this hit
-                (8) tracklette_end - binary variable denoting whether a track end is at this hit
-                (9) fragment_begin - binary variable denoting whether a fragment beginning is at this hit
-                (10) fragment_end - binary variable denoting whether a fragment end is at this hit
-                (11) shower_begin - binary variable denoting whether a shower beginning is at this hit
+                (3) physics - a descriptor of local physics
+                (4) unique_topology - unique labels for instances of topology
+                (5) vertex - binary variable denoting whether a vertex is at this hit
+                (6) tracklette_begin - binary variable denoting whether a track beginning is at this hit
+                (7) tracklette_end - binary variable denoting whether a track end is at this hit
+                (8) fragment_begin - binary variable denoting whether a fragment beginning is at this hit
+                (9) fragment_end - binary variable denoting whether a fragment end is at this hit
+                (10) shower_begin - binary variable denoting whether a shower beginning is at this hit
 
             These labels are assigned to each reconstructed charge hit and
             written in the corresponding ARRAKIS file.
@@ -632,10 +631,13 @@ class Arrakis:
                 ('event_id', 'i4'),
                 ('segment_id', 'i4', (max_length,)),
                 ('segment_fraction', 'f4', (max_length,)),
+                ('segment_distance', 'f4', (max_length,)),
+                ('segment_parent', 'i4', (max_length,)),
+                ('segment_start_process', 'i4', (max_length,)),
+                ('segment_start_subprocess', 'i4', (max_length,)),
                 ('topology', 'i4', (max_length,)),
                 ('particle', 'i4', (max_length,)),
-                ('physics_micro', 'i4', (max_length,)),
-                ('physics_macro', 'i4', (max_length,)),
+                ('physics', 'i4', (max_length,)),
                 ('unique_topology', 'i4', (max_length,)),
                 ('vertex', 'i4', (max_length,)),
                 ('tracklette_begin', 'i4', (max_length,)),
@@ -648,6 +650,7 @@ class Arrakis:
             new_charge_segment_data = np.full(num_charge, -1, dtype=new_charge_segment_data_type)
             new_charge_segment_data['segment_id'] = charge_segments[:, :max_length]
             new_charge_segment_data['segment_fraction'] = charge_segments_fraction[:, :max_length]
+            new_charge_segment_data['segment_distance'][:, :max_length] = np.nan
             new_charge_segment_data['vertex'][:, :max_length] = 0
             new_charge_segment_data['tracklette_begin'][:, :max_length] = 0
             new_charge_segment_data['tracklette_end'][:, :max_length] = 0
@@ -664,8 +667,7 @@ class Arrakis:
                 ('event_id', 'i4'),
                 ('topology', 'i4'),
                 ('particle', 'i4'),
-                ('physics_micro', 'i4'),
-                ('physics_macro', 'i4'),
+                ('physics', 'i4'),
                 ('unique_topology', 'i4'),
                 ('vertex', 'i4'),
                 ('tracklette_begin', 'i4'),
@@ -946,9 +948,9 @@ class Arrakis:
             ])
             if output_error_name in arrakis_file:
                 del arrakis_file[output_error_name]
-            
+
             arrakis_file.create_dataset(output_error_name, shape=(0,), maxshape=(None,), dtype=output_error_data_type)
-                
+
             """Construct n-Ar inelastic data types"""
             nar_inelastic_name = 'standard_record/nar_inelastic'
             nar_inelastic_data_type = np.dtype([
@@ -982,7 +984,7 @@ class Arrakis:
             ])
             if nar_inelastic_name in arrakis_file:
                 del arrakis_file[nar_inelastic_name]
-                
+
             arrakis_file.create_dataset(nar_inelastic_name, shape=(0,), maxshape=(None,), dtype=nar_inelastic_data_type)
 
     @profiler
@@ -1010,8 +1012,11 @@ class Arrakis:
                 segments_events = file['mc_truth/segments/data']['event_id']
                 stack_events = file['mc_truth/stack/data']['event_id']
                 trajectories_events = file['mc_truth/trajectories/data']['event_id']
-                charge_segments = file['mc_truth/calib_final_hit_backtrack/data']['segment_id']
-                non_zero_charge_segments = [row[row != 0] for row in charge_segments]
+                charge_segments = file['mc_truth/calib_final_hit_backtrack/data']['segment_id'].astype(int)
+                charge_fraction = file['mc_truth/calib_final_hit_backtrack/data']['fraction']
+                charge_fraction_mask = (charge_fraction == 0)
+                charge_segments[charge_fraction_mask] = -1
+                non_zero_charge_segments = [row[row != 0] for row in charge_fraction]
                 max_length = len(max(non_zero_charge_segments, key=len))
                 segments_ids = file['mc_truth/segments/data']['segment_id']
 
@@ -1036,8 +1041,6 @@ class Arrakis:
 
                 """Determine indices for mc_truth and charge/light data"""
                 for ii, event_id in enumerate(unique_events):
-                    if ii == 0:
-                        continue
                     worker_rank = 1 + ii % (self.size - 1)  # Distribute round-robin among wor
                     self.distributed_events[worker_rank].append(event_id)
                     self.distributed_interactions_indices[worker_rank].append(

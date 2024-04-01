@@ -11,13 +11,13 @@ from arrakis_nd.utils.utils import profiler, integrand
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
     ProcessType, SubProcessType,
-    Topology, PhysicsMicro, PhysicsMacro
+    Topology, Physics
 )
 
 
 class ProtonPlugin(Plugin):
     """
-    
+
     """
     def __init__(
         self,
@@ -115,16 +115,24 @@ class ProtonPlugin(Plugin):
         return np.unique(bounds_relative_to_NDhall, axis=0)
 
     def fiducialized_vertex(self, vert_pos):
-        flag=False; x_drift_flag=False; y_vertical_flag=False; z_beam_flag=False
-        for i in range(3):
-            for i_bounds, bounds in enumerate(self.tpc_bounds(i)):
-                if vert_pos[i]>bounds[0] and vert_pos[i]<bounds[1]:
-                    if i==0: x_drift_flag=True; break
-                    if i==1: y_vertical_flag=True
-                    if i==2: z_beam_flag=True
-        if x_drift_flag==True and y_vertical_flag==True and z_beam_flag==True:
-            flag=True
-        return flag
+        lar_x=[(-63.9273,-3.0652),(3.0652,63.9273)]
+        lar_y=[(-62.055,62.055)]
+        lar_z=[(-64.51125,-2.48125),(2.48125,64.51125)]
+        flagX, flagY, flagZ=False, False, False
+        
+        for i in lar_z:
+            if vert_pos[2]>i[0] and vert_pos[2]<i[1]: flagZ=True
+        if flagZ==False: return False
+
+        for i in lar_x:
+            if vert_pos[0]>i[0] and vert_pos[0]<i[1]: flagX=True
+        if flagX==False: return False
+        
+        for i in lar_y:
+            if vert_pos[1]>i[0] and vert_pos[1]<i[1]: flagY=True
+        if flagY==False: return False
+        
+        return True
 
     @profiler
     def process_event(
@@ -392,7 +400,11 @@ class ProtonPlugin(Plugin):
                 vert_loc[:3],
                 proton_E,
                 sum(proton_charge_E),
-                track_data['track_len_cm'],
+                np.sqrt(
+                    (proton_xyz_start[0] - proton_xyz_end[0]) ** 2 + 
+                    (proton_xyz_start[1] - proton_xyz_end[1]) ** 2 +
+                    (proton_xyz_start[2] - proton_xyz_end[2]) ** 2
+                ),
                 proton_pxyz_start,
                 proton_pxyz_end,
                 parent_E,

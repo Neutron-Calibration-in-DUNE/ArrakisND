@@ -2,15 +2,13 @@
 """
 import h5py
 import numpy as np
-from scipy.interpolate import splprep, splev
-import warnings
-from scipy.integrate import quad, IntegrationWarning
 
-from arrakis_nd.utils.utils import profiler, integrand
+from arrakis_nd.utils.utils import profiler
+from arrakis_nd.utils.track_utils import fit_track
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
     ProcessType, SubProcessType,
-    Topology, PhysicsMicro, PhysicsMacro
+    Topology, Physics
 )
 
 
@@ -24,23 +22,12 @@ class TrackPlugin(Plugin):
 
         (1) hits coming directly from mip ionization are labeled as
                 topology = track
-                physics_micro = particle_ionization
-                physics_macro = mip
+                physics = mip
             mips are defined as muons, tauons, pions and kaons
         (2) hits coming directly from hip ionization are labeled as
                 topology = track
-                physics_micro = hip_ionization
-                physics_macro = hip
+                physics = hip
             hips are defined as protons
-        (3) hits coming from the direct daughter electrons of mips/hips
-            are labeled as
-                topology = track
-                physics_micro = electron_ionization
-                physics_macro = delta
-        (4) hits coming from michel electrons are labeled as
-                topology = track
-                physics_micro = electron_ionization
-                physics_macro = michel
 
     Apart from these labels, track beginning and ending points are also
     labelled.
@@ -65,85 +52,12 @@ class TrackPlugin(Plugin):
 
         self.mip_labels = {
             'topology': Topology.Track.value,
-            'physics_micro': PhysicsMicro.MIPIonization.value,
-            'physics_macro': PhysicsMacro.MIP.value
+            'physics': Physics.MIP.value,
         }
         self.hip_labels = {
             'topology': Topology.Track.value,
-            'physics_micro': PhysicsMicro.HIPIonization.value,
-            'physics_macro': PhysicsMacro.HIP.value
+            'physics': Physics.HIP.value,
         }
-        self.delta_labels = {
-            'topology': Topology.Track.value,
-            'physics_micro': PhysicsMicro.ElectronIonization.value,
-            'physics_macro': PhysicsMacro.DeltaElectron.value
-        }
-        self.michel_labels = {
-            'topology': Topology.Track.value,
-            'physics_micro': PhysicsMicro.ElectronIonization.value,
-            'physics_macro': PhysicsMacro.MichelElectron.value
-        }
-    
-    @profiler
-    def fit_track(
-        self,
-        track_t0s,
-        track_xyz
-    ):
-        combined = sorted(zip(track_t0s, track_xyz), key=lambda x: x[0])
-        sorted_t0, sorted_xyz = zip(*combined)
-        sorted_t0 = np.array(sorted_t0)
-        sorted_xyz = np.array(sorted_xyz)
-
-        try:
-            """Try to fit a spline curve to the xyz data"""
-            tck, u = splprep(
-                [sorted_xyz[:, 0], sorted_xyz[:, 1], sorted_xyz[:, 2]],
-                s=0
-            )
-
-            """Try to integrate this curve"""
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", IntegrationWarning)
-                try:
-                    curve_length, _ = quad(integrand, 0, 1, args=(tck,))
-                except Exception:
-                    curve_length = 0
-
-            """Get the derivatives at the beginning and ending points"""
-            dxdt_start, dydt_start, dzdt_start = splev(0, tck, der=1)
-            dxdt_end, dydt_end, dzdt_end = splev(1, tck, der=1)
-            dx_start = np.array([dxdt_start, dydt_start, dzdt_start])
-            dx_end = np.array([dxdt_end, dydt_end, dzdt_end])
-            dx_start_magnitude = np.linalg.norm(dx_start)
-            dx_end_magnitude = np.linalg.norm(dx_end)
-            
-            if dx_start_magnitude > 0:
-                track_dir = [dxdt_start, dydt_start, dzdt_start] / dx_start_magnitude
-            else:
-                track_dir = [dxdt_start, dydt_start, dzdt_start]
-            
-            if dx_end_magnitude > 0:
-                track_enddir = [dxdt_end, dydt_end, dzdt_end] / dx_end_magnitude
-            else:
-                track_enddir = [dxdt_end, dydt_end, dzdt_end]
-
-            """Fill the values"""
-            track_data = {
-                'track_dir': track_dir,
-                'track_enddir': track_enddir,
-                'track_len_gcm2': 0,
-                'track_len_cm': curve_length
-            }
-        except Exception:
-            """Otherwise, these values are undefined"""
-            track_data = {
-                'track_dir': [0, 0, 0],
-                'track_enddir': [0, 0, 0],
-                'track_len_gcm2': 0,
-                'track_len_cm': 0
-            }
-        return track_data
 
     @profiler
     def process_event(
@@ -171,7 +85,6 @@ class TrackPlugin(Plugin):
         trajectories_pxyz_start = trajectories['pxyz_start']
         trajectories_pxyz_end = trajectories['pxyz_end']
         trajectories_E = trajectories['E_start']
-        trajectories_start_process = trajectories['start_process']
         charge_x = charge['x']
         charge_y = charge['y']
         charge_z = charge['z']
@@ -219,7 +132,7 @@ class TrackPlugin(Plugin):
             else:
                 for label, value in self.mip_labels.items():
                     arrakis_charge[label][particle_hit_segments] = value
-                
+
             """Set the particle label"""
             arrakis_charge['particle'][particle_hit_segments] = trajectories_pdg_ids[particle_mask][ii]
 
@@ -271,7 +184,7 @@ class TrackPlugin(Plugin):
             arrakis_charge['tracklette_end'][particle_end_index] = 1
 
             """Parameterize the trajectory of this track using t0"""
-            track_data = self.fit_track(particle_hit_t0s, particle_charge_xyz)
+            track_data = fit_track(particle_hit_t0s, particle_charge_xyz)
 
             """############################### Construct Tracklettes ###############################"""
 
@@ -326,7 +239,7 @@ class TrackPlugin(Plugin):
 
                 """Parameterize the trajectory of this tracklette using t0"""
                 io_group_xyz = particle_charge_xyz[io_group_mask]
-                track_data = self.fit_track(io_group_t0s, io_group_xyz)
+                track_data = fit_track(io_group_t0s, io_group_xyz)
 
                 """Now generate the associated tracklette CAF object"""
                 """
@@ -382,12 +295,12 @@ class TrackPlugin(Plugin):
                 tracklette_data = np.array([(
                     event,
                     io_group_end_index[0],
-                    [0,0,0],
-                    [0,0,0],
+                    [0, 0, 0],
+                    [0, 0, 0],
                     [io_group_xyz[tracklette_start_index]],
                     [io_group_xyz[tracklette_end_index]],
-                    [0,0,0],
-                    [0,0,0],
+                    [0, 0, 0],
+                    [0, 0, 0],
                     [track_data['track_dir']],
                     [track_data['track_enddir']],
                     sum(particle_charge_E[io_group_mask]),
@@ -461,7 +374,7 @@ class TrackPlugin(Plugin):
                 particle_pxyz_start /= particle_pxyz_start_magnitude
             if particle_pxyz_end_magnitude > 0:
                 particle_pxyz_end /= particle_pxyz_end_magnitude
-            
+
             track_data = np.array([(
                 event,
                 traj_index,
@@ -486,10 +399,6 @@ class TrackPlugin(Plugin):
 
             """Add the new track to the CAF objects"""
             event_products['track'].append(track_data)
-            
-            """############################### Delta Electrons ###############################"""
-            
-            """############################### Michel Electrons ###############################"""
 
         """Write changes to arrakis_file"""
         arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']] = arrakis_charge

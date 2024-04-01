@@ -1,7 +1,7 @@
 import os, dash, yaml
 from dash import (
-    Dash, 
-    dcc, 
+    Dash,
+    dcc,
     html,
     callback_context
 )
@@ -47,18 +47,17 @@ class ArrakisDisplay:
         self.arrakis_file = ''
         self.arrakis_files = []
         self.available_events = []
-        self.event = {"label":-1, "id":-1}
         self.unique_events = []
-        
+
         self.standard_flow_folders = [
-            {'label': 'MiniRun4', 'value': 
+            {'label': 'MiniRun4', 'value':
                 '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW'},
-            {'label': 'MiniRun4.5', 'value': 
+            {'label': 'MiniRun4.5', 'value':
                 '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4.5_1E19_RHC/inputs_beta3/MiniRun4.5_1E19_RHC.flow/FLOW/0000000'},
-            {'label': 'MiniRun5', 'value': 
+            {'label': 'MiniRun5', 'value':
                 '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow.beta1/FLOW/0000000'},
         ]
-        
+
         self.geometry_info = {
             'anode_drift_coordinate': [],
             'det_bounds': [],
@@ -70,16 +69,16 @@ class ArrakisDisplay:
             'sipm_rel_pos': [],
             'tile_id': [],
         }
-        
+
         self.interactions = None
         self.segments = None
         self.stack = None
         self.trajectories = None
         self.charge = None
         self.light = None
-        
+
         self.charge_light_display = ChargeLightDisplay()
-        
+
         self.construct_app()
         self.construct_widgets()
         self.run_app()
@@ -119,7 +118,7 @@ class ArrakisDisplay:
             )
 
         """Get the custom style file"""
-        with open('arrakis_nd/utils/display/styles.yaml', 'r') as file: 
+        with open('arrakis_nd/utils/display/styles.yaml', 'r') as file:
             styles = yaml.safe_load(file)
 
         """Define the navbar with a dropdown"""
@@ -166,9 +165,9 @@ class ArrakisDisplay:
                         html.Img(src='/assets/DUNE.png', style={'height': '100px', 'marginRight': '15px'}),
                         html.H3("Arrakis Display"),
                     ],
-                    style={'display': 'flex', 'alignItems': 'center'}  
+                    style={'display': 'flex', 'alignItems': 'center'}
                 ),
-                
+
                 # Standard FLOW folder selection dropdown
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
                 html.P("🔍 FLOW/ARRAKIS Folders & Files "),
@@ -178,12 +177,12 @@ class ArrakisDisplay:
                     style={'color': "#000000"},
                 ),
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
-                
+
                 # Text box for writing FLOW and Arrakis folders
                 dbc.Label("FLOW folder"),
                 dbc.Input(
                     placeholder="Enter the FLOW folder",
-                    type="text", 
+                    type="text",
                     id='flow_folder_input',
                     size='sm',
                     value=''
@@ -191,13 +190,13 @@ class ArrakisDisplay:
                 dbc.Label("ARRAKIS folder"),
                 dbc.Input(
                     placeholder="Enter the ARRAKIS folder",
-                    type="text", 
+                    type="text",
                     id='arrakis_folder_input',
                     size='sm',
                     value=''
                 ),
                 html.H2(),
-                
+
                 # Dropdown which lists available flow and arrakis files
                 html.Label('FLOW files'),
                 dcc.Dropdown(
@@ -214,7 +213,7 @@ class ArrakisDisplay:
                     style={'color': "#000000"}
                 ),
                 html.H2(),
-                
+
                 # Event selector and previous/next buttons
                 html.H2(),
                 html.Label('Event (spill)'),
@@ -236,7 +235,7 @@ class ArrakisDisplay:
                 html.H2(),
                 html.Hr(),
                 html.P(
-                    "Choose a Display", 
+                    "Choose a Display",
                     className="lead"
                 ),
                 dcc.Dropdown(
@@ -312,7 +311,7 @@ class ArrakisDisplay:
                 if flow_folder[-1] != '/':
                     flow_folder += '/'
             self.flow_folder = flow_folder
-                
+
             flow_options = []
             if flow_folder and os.path.isdir(flow_folder):
                 self.flow_files = sorted([
@@ -322,12 +321,12 @@ class ArrakisDisplay:
                     if 'FLOW' in input_file
                 ])
                 flow_options = [
-                    {'label': file, 'value': file} 
+                    {'label': file, 'value': file}
                     for file in self.flow_files
                 ]
                 return flow_options
             return []
-    
+
         # Callback to update dropdown options
         @self.app.callback(
             Output('arrakis_dropdown', 'options'),
@@ -340,9 +339,9 @@ class ArrakisDisplay:
             if arrakis_folder:
                 if arrakis_folder[-1] != '/':
                     arrakis_folder += '/'
-            
+
             self.arrakis_folder = arrakis_folder
-            
+
             arrakis_options = []
             if arrakis_folder and os.path.isdir(arrakis_folder):
                 self.arrakis_files = sorted([
@@ -352,14 +351,14 @@ class ArrakisDisplay:
                     if 'ARRAKIS' in input_file
                 ])
                 arrakis_options = [
-                    {'label': file, 'value': file} 
+                    {'label': file, 'value': file}
                     for file in self.arrakis_files
                 ]
                 return arrakis_options
             return []
-        
+
         @self.app.callback(
-            Output('event_dropdown','options'),
+            Output('event_dropdown', 'options'),
             [Input('flow_dropdown', 'value'), Input('arrakis_dropdown', 'value')],
         )
         def update_available_events(flow_file, arrakis_file):
@@ -374,7 +373,7 @@ class ArrakisDisplay:
                             try:
                                 self.geometry_info[key] = flow_file[f'geometry_info/{key}/data']['data']
                             except Exception:
-                                pass
+                                print(f"Issue with getting {key} from geometry_info")
                         self.charge_light_display.set_geometry_info(self.geometry_info)
                         self.unique_events = np.unique(events)
                         self.available_events = [
@@ -394,8 +393,10 @@ class ArrakisDisplay:
 
         @self.app.callback(
             Output('event_dropdown', 'value'),
-            [Input('previous_event', 'n_clicks'),
-            Input('next_event', 'n_clicks')],
+            [
+                Input('previous_event', 'n_clicks'),
+                Input('next_event', 'n_clicks')
+            ],
             [State('event_dropdown', 'value')]
         )
         def update_event(previous_clicks, next_clicks, current_value):
@@ -405,7 +406,7 @@ class ArrakisDisplay:
                 raise PreventUpdate
 
             current_index = next(
-                (i for i, event in enumerate(self.available_events) 
+                (i for i, event in enumerate(self.available_events)
                  if event['value'] == current_value), None
             )
 

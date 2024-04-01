@@ -10,7 +10,7 @@ from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
     ProcessType, SubProcessType,
-    Topology, PhysicsMicro, PhysicsMacro
+    Topology, Physics
 )
 
 

@@ -79,7 +79,10 @@ class TrackIDHitMapPlugin(Plugin):
         segments_vertex_ids = segments['vertex_id']
         segments_segment_ids = segments['segment_id']
         segments_t0s = segments['t0']
-        charge_segment_ids = charge_back_track['segment_id']
+        charge_segment_ids = charge_back_track['segment_id'].astype(int)
+        charge_segment_fraction = charge_back_track['fraction']
+        charge_segment_fraction_mask = (charge_segment_fraction == 0)
+        charge_segment_ids[charge_segment_fraction_mask] = -1
 
         """Create empty map with (traj_id, vertex_id) as keys"""
         track_id_hit_map = {
@@ -98,7 +101,7 @@ class TrackIDHitMapPlugin(Plugin):
         """Loop over segment ids"""
         for ii, segment_ids in enumerate(charge_segment_ids):
             """Get segment_ids of segments of each hit"""
-            segment_ids = segment_ids[(segment_ids != 0)]
+            segment_ids = segment_ids[(segment_ids != -1)]
             """Determine where these ids are in the segments array"""
             segment_indices = np.array([
                 np.where(segments_segment_ids == segment_id)[0][0]

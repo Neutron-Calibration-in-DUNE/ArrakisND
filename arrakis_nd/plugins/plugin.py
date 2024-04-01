@@ -22,6 +22,8 @@ class Plugin:
         Args:
             config (dict, optional): _description_. Defaults to {}.
         """
+        if config is None:
+            config = {}
         self.config = config
 
         """These should be set by the creator of the custom plugin"""

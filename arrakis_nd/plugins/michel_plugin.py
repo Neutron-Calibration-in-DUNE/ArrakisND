@@ -14,7 +14,7 @@ from arrakis_nd.dataset.common import (
 )
 
 
-class ElectronPlugin(Plugin):
+class MichelPlugin(Plugin):
     """_summary_
 
     Args:
@@ -26,7 +26,7 @@ class ElectronPlugin(Plugin):
     ):
         """
         """
-        super(ElectronPlugin, self).__init__(config)
+        super(MichelPlugin, self).__init__(config)
 
         self.input_products = [
             'daughters',
@@ -35,15 +35,11 @@ class ElectronPlugin(Plugin):
             'track_id_hit_t0_map',
             'parent_pdg_id',
         ]
-        self.output_products = ['fragment', 'blip']
+        self.output_products = ['tracklette', 'track']
 
-        self.compton_labels = {
-            'topology': Topology.Shower.value,
-            'physics': Physics.GammaCompton.value,
-        }
-        self.conversion_labels = {
-            'topology': Topology.Shower.value,
-            'physics': Physics.GammaConversion.value,
+        self.michel_labels = {
+            'topology': Topology.Track.value,
+            'physics': Physics.MichelElectron.value
         }
         self.low_energy_labels = {
             'topology': Topology.Blip.value,
@@ -86,18 +82,19 @@ class ElectronPlugin(Plugin):
         charge_E = charge['E']
         charge_io_group = charge['io_group']
 
-        """Grab the electrons which are from compton scatters, conversions or electron ionization"""
+        """Grab the mips/hips which result in ionization"""
         particle_mask = (
             (abs(trajectories_pdg_ids) == 11) &
             (
-                (
-                    (abs(trajectories_start_subprocess) == SubProcessType.ComptonScattering.value) |
-                    (abs(trajectories_start_subprocess) == SubProcessType.GammaConversion.value)
-                ) |
-                (
-                    (abs(parent_pdg_ids) == 11) &
-                    (abs(trajectories_start_subprocess) == SubProcessType.Ionization.value)
-                )
+                (abs(parent_pdg_ids) == 13) |
+                (abs(parent_pdg_ids) == 15) |
+                (abs(parent_pdg_ids) == 211) |
+                (abs(parent_pdg_ids) == 321) |
+                (abs(parent_pdg_ids) == 2212)
+            ) &
+            (
+                (abs(trajectories_start_process) == ProcessType.Decay.value) |
+                (abs(trajectories_start_subprocess) == SubProcessType.HadronCaptureAtRest.value)
             )
         )
 
@@ -126,7 +123,7 @@ class ElectronPlugin(Plugin):
             """Set the event_id"""
             arrakis_charge['event_id'][particle_hits] = event
 
-            """############################### Electrons ###############################"""
+            """############################### Michel Electrons ###############################"""
             """
             
             """
@@ -168,29 +165,9 @@ class ElectronPlugin(Plugin):
                 arrakis_charge['vertex'][particle_start_index] = 1
                 arrakis_charge['tracklette_end'][particle_end_index] = 1
 
-            """If this particle is a Delta, add delta labels and vertex"""
-            if (
-                (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.ComptonScattering.value)
-            ):
-                """Iterate over standard labels"""
-                for label, value in self.compton_labels.items():
-                    arrakis_charge[label][particle_hit_segments] = value
-            elif (
-                (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.GammaConversion.value)
-            ):
-                """If this particle is a Michel electron, add labels and CAF"""
-                for label, value in self.conversion_labels.items():
-                    arrakis_charge[label][particle_hit_segments] = value
-            else:
-                """
-                If the electrons parent is a MIP/HIP, but has a process and subprocess that
-                corresponds to an intermediate particle, such as a photon, then we have to
-                be more careful with the logic. Edep-sim can be somewhat difficult to deal
-                with since it hides information about intermediate photons. 
-                """
-                """Iterate over standard labels"""
-                for label, value in self.low_energy_labels.items():
-                    arrakis_charge[label][particle_hit_segments] = value
+            """Iterate over standard labels"""
+            for label, value in self.michel_labels.items():
+                arrakis_charge[label][particle_hit_segments] = value
 
             """Set the particle label"""
             arrakis_charge['particle'][particle_hit_segments] = trajectories_pdg_ids[particle_mask][ii]
