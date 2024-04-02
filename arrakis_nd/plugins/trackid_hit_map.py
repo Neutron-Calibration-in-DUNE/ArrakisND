@@ -2,7 +2,6 @@
 """
 import h5py
 import numpy as np
-from numba import jit
 
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
@@ -49,7 +48,7 @@ class TrackIDHitMapPlugin(Plugin):
 
         self.input_products = None
         self.output_products = [
-            'track_id_hit_map', 
+            'track_id_hit_map',
             'track_id_hit_segment_map',
             'track_id_hit_t0_map'
         ]

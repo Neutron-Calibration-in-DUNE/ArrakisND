@@ -13,8 +13,16 @@ plugins:
   SegmentPlugin:
   TrackPlugin:
   DeltaPlugin:
+    delta_size_threshold: 20
   MichelPlugin:
-  ElectronPlugin:
+  FragmentPlugin:
+    compton_blip_threshold: 10
+    conversion_blip_threshold: 10
+  PhotonPlugin:
+  IonPlugin:
+  NeutronPlugin:
   ParticlePlugin:
   ConstraintPlugin:
+    segment_influence_cut: 5.0
+  NeutrinoPlugin:
   

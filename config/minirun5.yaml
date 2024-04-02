@@ -10,5 +10,19 @@ arrakis_nd:
 plugins:
   DaughterPlugin:
   TrackIDHitMapPlugin:
+  ParentPlugin:
+  SegmentPlugin:
   TrackPlugin:
+  DeltaPlugin:
+    delta_size_threshold: 20
+  MichelPlugin:
+  FragmentPlugin:
+    compton_blip_threshold: 10
+    conversion_blip_threshold: 10
+  PhotonPlugin:
+  IonPlugin:
+  NeutronPlugin:
   ParticlePlugin:
+  ConstraintPlugin:
+    segment_influence_cut: 5.0
+  NeutrinoPlugin:

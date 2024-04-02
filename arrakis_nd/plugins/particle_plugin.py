@@ -3,15 +3,9 @@
 import h5py
 import numpy as np
 from scipy.interpolate import splprep, splev
-import warnings
-from scipy.integrate import quad, IntegrationWarning
 
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
-from arrakis_nd.dataset.common import (
-    ProcessType, SubProcessType,
-    Topology, Physics
-)
 
 
 class ParticlePlugin(Plugin):

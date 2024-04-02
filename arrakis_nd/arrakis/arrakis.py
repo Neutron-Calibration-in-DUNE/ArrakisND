@@ -837,9 +837,13 @@ class Arrakis:
                 ('event_id', 'i4'),
                 ('fragment_id', 'i4'),
                 ('start', 'f4', (1, 3)),
+                ('end', 'f4', (1, 3)),
                 ('start_hit', 'f4', (1, 3)),
+                ('end_hit', 'f4', (1, 3)),
                 ('dir', 'f4', (1, 3)),
+                ('enddir', 'f4', (1, 3)),
                 ('dir_hit', 'f4', (1, 3)),
+                ('enddir_hit', 'f4', (1, 3)),
                 ('Evis', 'f4'),
                 ('qual', 'f4'),
                 ('len_gcm2', 'f4'),
@@ -853,9 +857,13 @@ class Arrakis:
                 ('shower_id', 'i4'),
                 ('fragment_ids', 'i4', (1, 20)),
                 ('start', 'f4', (1, 3)),
+                ('end', 'f4', (1, 3)),
                 ('start_hit', 'f4', (1, 3)),
+                ('end_hit', 'f4', (1, 3)),
                 ('dir', 'f4', (1, 3)),
+                ('enddir', 'f4', (1, 3)),
                 ('dir_hit', 'f4', (1, 3)),
+                ('enddir_hit', 'f4', (1, 3)),
                 ('Evis', 'f4'),
                 ('qual', 'f4'),
                 ('len_gcm2', 'f4'),
@@ -936,6 +944,18 @@ class Arrakis:
                 del arrakis_file[interaction_name]
 
             arrakis_file.create_dataset(interaction_name, shape=(0,), maxshape=(None,), dtype=interaction_data_type)
+
+            """Construct neutrino event label types"""
+            neutrino_event_name = 'standard_record/neutrino'
+            neutrino_event_data_type = np.dtype([
+                ('event_id', 'i4'),
+                ('neutrino_type', 'i4'),
+                ('fiducialized', 'i4')
+            ])
+            if neutrino_event_name in arrakis_file:
+                del arrakis_file[neutrino_event_name]
+
+            arrakis_file.create_dataset(neutrino_event_name, shape=(0,), maxshape=(None,), dtype=neutrino_event_data_type)
 
             """Construct output error data types"""
             output_error_name = 'arrakis/errors'
@@ -1110,6 +1130,7 @@ class Arrakis:
             'blip': [],
             'particle': [],
             'interaction': [],
+            'neutrino': [],
             'nar_inelastic': []
         }
         self.clear_indices()
@@ -1136,6 +1157,7 @@ class Arrakis:
             'blip': [],
             'particle': [],
             'interaction': [],
+            'neutrino': [],
             'nar_inelastic': []
         }
         for ii, event in enumerate(self.distributed_events[self.rank]):
@@ -1156,6 +1178,7 @@ class Arrakis:
                 'blip': [],
                 'particle': [],
                 'interaction': [],
+                'neutrino': [],
                 'nar_inelastic': [],
             }
             """Iterate over plugins"""

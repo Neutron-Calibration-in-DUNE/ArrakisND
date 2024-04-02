@@ -2,7 +2,6 @@
 """
 import h5py
 import numpy as np
-from numba import jit
 
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
@@ -59,7 +58,6 @@ class SegmentPlugin(Plugin):
         segments_x = segments['x']
         segments_y = segments['y']
         segments_z = segments['z']
-        segments_t0s = segments['t0']
         charge_x = charge['x']
         charge_y = charge['y']
         charge_z = charge['z']

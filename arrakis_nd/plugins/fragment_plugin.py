@@ -7,31 +7,28 @@ from arrakis_nd.utils.utils import profiler
 from arrakis_nd.utils.track_utils import fit_track
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
+    SubProcessType,
     Topology, Physics
 )
 
 
-class TrackPlugin(Plugin):
+class FragmentPlugin(Plugin):
     """
-    A plugin for labeling mips in charge and light data.
+    The fragment plugin looks at electrons whose parents are gammas,
+    or whose processes originate from
 
-    mips are MIPs which deposit energy through MIP ionization (i.e. the
-    standard dE/dx mechanism).  This plugin grabs all mips in an event
-    and labels their energy deposits according to the following scheme:
+        (1) compton scatters
+        (2) gamma conversions
+        (3) photoelectric effect
+        (4) ionization from another electron
 
-        (1) hits coming directly from mip ionization are labeled as
-                topology = track
-                physics = mip
-            mips are defined as muons, tauons, pions and kaons
-        (2) hits coming directly from hip ionization are labeled as
-                topology = track
-                physics = hip
-            hips are defined as protons
+    Each of the electrons/positrons which originate from gamma conversions
+    will have a particular size depending on how much initial energy
+    they have.  We must decide for each instance of this type of fragment
+    whether to consider it as an actual fragment, or as a blip.
 
-    Apart from these labels, track beginning and ending points are also
-    labelled.
-
-    StandardRecord objects are also generated.
+    Args:
+        Plugin (_type_): _description_
     """
     def __init__(
         self,
@@ -39,23 +36,44 @@ class TrackPlugin(Plugin):
     ):
         """
         """
-        super(TrackPlugin, self).__init__(config)
+        super(FragmentPlugin, self).__init__(config)
 
         self.input_products = [
             'daughters',
             'track_id_hit_map',
             'track_id_hit_segment_map',
-            'track_id_hit_t0_map'
+            'track_id_hit_t0_map',
+            'parent_pdg_id',
         ]
-        self.output_products = ['tracklette', 'track']
+        self.output_products = ['fragment', 'blip']
 
-        self.mip_labels = {
-            'topology': Topology.Track.value,
-            'physics': Physics.MIP.value,
+        if "compton_blip_threshold" not in self.config:
+            self.config["compton_blip_threshold"] = 10
+        self.compton_blip_threshold = self.config["compton_blip_threshold"]
+
+        if "conversion_blip_threshold" not in self.config:
+            self.config["conversion_blip_threshold"] = 10
+        self.conversion_blip_threshold = self.config["conversion_blip_threshold"]
+
+        self.compton_labels = {
+            'topology': Topology.Shower.value,
+            'physics': Physics.GammaCompton.value,
         }
-        self.hip_labels = {
-            'topology': Topology.Track.value,
-            'physics': Physics.HIP.value,
+        self.compton_blip_labels = {
+            'topology': Topology.Blip.value,
+            'physics': Physics.GammaCompton.value,
+        }
+        self.conversion_labels = {
+            'topology': Topology.Shower.value,
+            'physics': Physics.GammaConversion.value,
+        }
+        self.conversion_blip_labels = {
+            'topology': Topology.Blip.value,
+            'physics': Physics.GammaConversion.value,
+        }
+        self.low_energy_labels = {
+            'topology': Topology.Blip.value,
+            'physics': Physics.ElectronIonization.value,
         }
 
     @profiler
@@ -75,28 +93,39 @@ class TrackPlugin(Plugin):
         track_id_hit_map = event_products['track_id_hit_map']
         track_id_hit_segment_map = event_products['track_id_hit_segment_map']
         track_id_hit_t0_map = event_products['track_id_hit_t0_map']
+        parent_pdg_ids = event_products['parent_pdg_id']
 
         trajectories_traj_ids = trajectories['traj_id']
         trajectories_vertex_ids = trajectories['vertex_id']
         trajectories_pdg_ids = trajectories['pdg_id']
         trajectories_xyz_start = trajectories['xyz_start']
         trajectories_xyz_end = trajectories['xyz_end']
-        trajectories_pxyz_start = trajectories['pxyz_start']
-        trajectories_pxyz_end = trajectories['pxyz_end']
-        trajectories_E = trajectories['E_start']
+        trajectories_start_subprocess = trajectories['start_subprocess']
         charge_x = charge['x']
         charge_y = charge['y']
         charge_z = charge['z']
         charge_E = charge['E']
         charge_io_group = charge['io_group']
 
-        """Grab the mips/hips"""
+        """Grab the electrons which are from compton scatters, conversions or electron ionization"""
         particle_mask = (
-            (abs(trajectories_pdg_ids) == 13) |
-            (abs(trajectories_pdg_ids) == 15) |
-            (abs(trajectories_pdg_ids) == 211) |
-            (abs(trajectories_pdg_ids) == 321) |
-            (abs(trajectories_pdg_ids) == 2212)
+            (abs(trajectories_pdg_ids) == 11) &
+            (
+                (abs(parent_pdg_ids) == 22) |
+                (abs(trajectories_start_subprocess) == SubProcessType.ComptonScattering.value) |
+                (abs(trajectories_start_subprocess) == SubProcessType.GammaConversion.value) |
+                (abs(trajectories_start_subprocess) == SubProcessType.PairProdByCharge.value) |
+                (
+                    (abs(parent_pdg_ids) == 11) &
+                    (
+                        (abs(trajectories_start_subprocess) == SubProcessType.PhotoElectricEffect.value) |
+                        (abs(trajectories_start_subprocess) == SubProcessType.Ionization.value)
+                    )
+                ) |
+                (
+                    (abs(parent_pdg_ids) == 111)
+                )
+            )
         )
 
         """Iterate over the individual (particle_id, vertex_id, traj_index)"""
@@ -124,21 +153,10 @@ class TrackPlugin(Plugin):
             """Set the event_id"""
             arrakis_charge['event_id'][particle_hits] = event
 
-            """Iterate over standard labels"""
-            if abs(trajectories_pdg_ids[particle_mask][ii]) == 2212:
-                for label, value in self.hip_labels.items():
-                    arrakis_charge[label][particle_hit_segments] = value
-            else:
-                for label, value in self.mip_labels.items():
-                    arrakis_charge[label][particle_hit_segments] = value
+            """############################### Electrons ###############################"""
+            """
 
-            """Set the particle label"""
-            arrakis_charge['particle'][particle_hit_segments] = trajectories_pdg_ids[particle_mask][ii]
-
-            """Generate unique label"""
-            arrakis_charge['unique_topology'][particle_hit_segments] = traj_index
-
-            """Determine track begin and end points"""
+            """
             particle_charge_xyz = np.array([
                 charge_x[particle_hits],
                 charge_y[particle_hits],
@@ -147,10 +165,7 @@ class TrackPlugin(Plugin):
             particle_charge_E = charge_E[particle_hits]
             particle_xyz_start = trajectories_xyz_start[particle_mask][ii]
             particle_xyz_end = trajectories_xyz_end[particle_mask][ii]
-            particle_pxyz_start = trajectories_pxyz_start[particle_mask][ii]
-            particle_pxyz_end = trajectories_pxyz_end[particle_mask][ii]
-            particle_E = trajectories_E[particle_mask][ii]
-
+            """Determine track begin and end points"""
             """
             To do this we find the closest hits to the actual track beginning
             and ending from the trajectories.  If these points end up being the
@@ -175,29 +190,65 @@ class TrackPlugin(Plugin):
                 particle_segments[closest_end_index]
             )
 
-            if closest_start_index == closest_end_index:
-                continue
+            """Assign labels based on particle type"""
+            if (
+                (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.ComptonScattering.value)
+            ):
+                """Iterate over compton scattering labels"""
+                if len(particle_hits) < self.compton_blip_threshold:
+                    for label, value in self.compton_blip_labels.items():
+                        arrakis_charge[label][particle_hit_segments] = value
+                else:
+                    if closest_start_index != closest_end_index:
+                        arrakis_charge['fragment_begin'][particle_start_index] = 1
+                        arrakis_charge['fragment_end'][particle_end_index] = 1
+                    for label, value in self.compton_labels.items():
+                        arrakis_charge[label][particle_hit_segments] = value
+            elif (
+                (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.GammaConversion.value) |
+                (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PairProdByCharge.value) |
+                (
+                    (abs(parent_pdg_ids[particle_mask][ii]) == 111) &
+                    (abs(trajectories_start_subprocess[particle_mask][ii] == SubProcessType.Decay.value))
+                )
+            ):
+                """If this particle is a conversion electron, add labels and CAF"""
+                if len(particle_hits) < self.conversion_blip_threshold:
+                    for label, value in self.conversion_blip_labels.items():
+                        arrakis_charge[label][particle_hit_segments] = value
+                else:
+                    if closest_start_index != closest_end_index:
+                        arrakis_charge['fragment_begin'][particle_start_index] = 1
+                        arrakis_charge['fragment_end'][particle_end_index] = 1
+                    for label, value in self.conversion_labels.items():
+                        arrakis_charge[label][particle_hit_segments] = value
+            else:
+                """
+                Otherwise, consider this particle a low energy scatter.
+                """
+                """Iterate over standard labels"""
+                for label, value in self.low_energy_labels.items():
+                    arrakis_charge[label][particle_hit_segments] = value
 
-            """Set track beginning and ending points"""
-            arrakis_charge['tracklette_begin'][particle_start_index] = 1
-            arrakis_charge['tracklette_end'][particle_end_index] = 1
+            """Set the particle label"""
+            arrakis_charge['particle'][particle_hit_segments] = trajectories_pdg_ids[particle_mask][ii]
 
-            """Parameterize the trajectory of this track using t0"""
-            track_data = fit_track(particle_hit_t0s, particle_charge_xyz)
+            """Generate unique label"""
+            arrakis_charge['unique_topology'][particle_hit_segments] = traj_index
 
-            """############################### Construct Tracklettes ###############################"""
+            """############################### Construct Fragments ###############################"""
 
             """
-            Now we must determine if the track is broken along its
+            Now we must determine if the fragment is broken along its
             trajectory.  We can do this by checking if the beginning and
             ending points are in different TPCs.  If so, then we will have
-            to determine the beginning and ending points of each tracklette.
+            to determine the beginning and ending points of each fragment.
 
             We can do this by isolating hits according to the io_group,
             which defines the particular TPC region that a hit is in.  For
             each unique io_group associated to the hits of this particle,
             we will follow the same procedure and find the closest
-            points to the track beginning and ending to get the tracklette
+            points to the track beginning and ending to get the fragment
             begin and end points.
             """
             particle_io_group = charge_io_group[particle_hits]
@@ -205,7 +256,7 @@ class TrackPlugin(Plugin):
             particle_hits = np.array(particle_hits)
             particle_segments = np.array(particle_segments)
             particle_hit_t0s = np.array(particle_hit_t0s)
-            particle_tracklette_ids = []
+            particle_fragment_ids = []
             for io_group in unique_particle_io_group:
                 """Isolate hits from this io_group"""
                 io_group_mask = (particle_io_group == io_group)
@@ -218,36 +269,36 @@ class TrackPlugin(Plugin):
                 """Find the closest points to track begin/end for this io_group"""
                 io_group_start_distances = particle_start_distances[io_group_mask]
                 io_group_end_distances = particle_end_distances[io_group_mask]
-                tracklette_start_index = np.argmin(io_group_start_distances)
-                tracklette_end_index = np.argmin(io_group_end_distances)
+                fragment_start_index = np.argmin(io_group_start_distances)
+                fragment_end_index = np.argmin(io_group_end_distances)
 
                 io_group_start_index = (
-                    io_group_hits[tracklette_start_index],
-                    io_group_segments[tracklette_start_index]
+                    io_group_hits[fragment_start_index],
+                    io_group_segments[fragment_start_index]
                 )
                 io_group_end_index = (
-                    io_group_hits[tracklette_end_index],
-                    io_group_segments[tracklette_end_index]
+                    io_group_hits[fragment_end_index],
+                    io_group_segments[fragment_end_index]
                 )
 
-                if tracklette_start_index == tracklette_end_index:
+                if fragment_start_index == fragment_end_index:
                     continue
 
-                arrakis_charge['tracklette_begin'][io_group_start_index] = 1
-                arrakis_charge['tracklette_end'][io_group_end_index] = 1
+                arrakis_charge['fragment_begin'][io_group_start_index] = 1
+                arrakis_charge['fragment_end'][io_group_end_index] = 1
 
-                """Parameterize the trajectory of this tracklette using t0"""
+                """Parameterize the trajectory of this fragment using t0"""
                 io_group_xyz = particle_charge_xyz[io_group_mask]
                 track_data = fit_track(io_group_t0s, io_group_xyz)
 
-                """Now generate the associated tracklette CAF object"""
+                """Now generate the associated fragment CAF object"""
                 """
-                The tracklette data object has the following entries
+                The fragment data object has the following entries
                 that must be filled.
 
-                    tracklette_data_type = np.dtype([
+                    fragment_data_type = np.dtype([
                         ('event_id', 'i4'),
-                        ('tracklette_id', 'i4'),
+                        ('fragment_id', 'i4'),
                         ('start', 'f4', (1, 3)),
                         ('end', 'f4', (1, 3)),
                         ('start_hit', 'f4', (1, 3)),
@@ -267,9 +318,9 @@ class TrackPlugin(Plugin):
                 """
                 io_group_xyz = particle_charge_xyz[io_group_mask]
 
-                tracklette_data_type = np.dtype([
+                fragment_data_type = np.dtype([
                     ('event_id', 'i4'),
-                    ('tracklette_id', 'i4'),
+                    ('fragment_id', 'i4'),
                     ('start', 'f4', (1, 3)),
                     ('end', 'f4', (1, 3)),
                     ('start_hit', 'f4', (1, 3)),
@@ -287,17 +338,17 @@ class TrackPlugin(Plugin):
                     ('truthOverlap', 'f4', (1, 20)),
                 ])
 
-                """Assign this tracklette to the mip track"""
-                particle_tracklette_ids.append(io_group_end_index[0])
+                """Assign this fragment to the mip track"""
+                particle_fragment_ids.append(io_group_end_index[0])
 
-                """Create the CAF object for this tracklette"""
-                tracklette_data = np.array([(
+                """Create the CAF object for this fragment"""
+                fragment_data = np.array([(
                     event,
                     io_group_end_index[0],
                     [0, 0, 0],
                     [0, 0, 0],
-                    [io_group_xyz[tracklette_start_index]],
-                    [io_group_xyz[tracklette_end_index]],
+                    [io_group_xyz[fragment_start_index]],
+                    [io_group_xyz[fragment_end_index]],
                     [0, 0, 0],
                     [0, 0, 0],
                     [track_data['track_dir']],
@@ -309,95 +360,11 @@ class TrackPlugin(Plugin):
                     0,
                     [[traj_index]+[0]*19],
                     [[1]+[0]*19])],
-                    dtype=tracklette_data_type
+                    dtype=fragment_data_type
                 )
 
-                """Add the new tracklette to the CAF objects"""
-                event_products['tracklette'].append(tracklette_data)
-
-            """############################### Construct Track ###############################"""
-            """Now generate the associated track CAF object"""
-            """
-            The track data object has the following entries
-            that must be filled.
-
-                track_data_type = np.dtype([
-                    ('event_id', 'i4'),
-                    ('track_id', 'i4'),
-                    ('tracklette_ids', 'i4', (1, 20)),
-                    ('start', 'f4', (1, 3)),
-                    ('end', 'f4', (1, 3)),
-                    ('start_hit', 'f4', (1, 3)),
-                    ('end_hit', 'f4', (1, 3)),
-                    ('dir', 'f4', (1, 3)),
-                    ('enddir', 'f4', (1, 3)),
-                    ('dir_hit', 'f4', (1, 3)),
-                    ('enddir_hit', 'f4', (1, 3)),
-                    ('Evis', 'f4'),
-                    ('qual', 'f4'),
-                    ('len_gcm2', 'f4'),
-                    ('len_cm', 'f4'),
-                    ('E', 'f4'),
-                    ('truth', 'i4', (1, 20)),
-                    ('truthOverlap', 'f4', (1, 20)),
-                ])
-            """
-            io_group_xyz = particle_charge_xyz[io_group_mask]
-
-            track_data_type = np.dtype([
-                ('event_id', 'i4'),
-                ('track_id', 'i4'),
-                ('tracklette_ids', 'i4', (1, 20)),
-                ('start', 'f4', (1, 3)),
-                ('end', 'f4', (1, 3)),
-                ('start_hit', 'f4', (1, 3)),
-                ('end_hit', 'f4', (1, 3)),
-                ('dir', 'f4', (1, 3)),
-                ('enddir', 'f4', (1, 3)),
-                ('dir_hit', 'f4', (1, 3)),
-                ('enddir_hit', 'f4', (1, 3)),
-                ('Evis', 'f4'),
-                ('qual', 'f4'),
-                ('len_gcm2', 'f4'),
-                ('len_cm', 'f4'),
-                ('E', 'f4'),
-                ('truth', 'i4', (1, 20)),
-                ('truthOverlap', 'f4', (1, 20)),
-            ])
-
-            """Create the CAF object for this track"""
-            particle_tracklette_ids += [0] * (20 - len(particle_tracklette_ids))
-            particle_pxyz_start_magnitude = np.linalg.norm(particle_pxyz_start)
-            particle_pxyz_end_magnitude = np.linalg.norm(particle_pxyz_end)
-            if particle_pxyz_start_magnitude > 0:
-                particle_pxyz_start /= particle_pxyz_start_magnitude
-            if particle_pxyz_end_magnitude > 0:
-                particle_pxyz_end /= particle_pxyz_end_magnitude
-
-            track_data = np.array([(
-                event,
-                traj_index,
-                particle_tracklette_ids,
-                particle_xyz_start,
-                particle_xyz_end,
-                [particle_charge_xyz[closest_start_index]],
-                [particle_charge_xyz[closest_end_index]],
-                particle_pxyz_start,
-                particle_pxyz_end,
-                [track_data['track_dir']],
-                [track_data['track_enddir']],
-                sum(particle_charge_E),
-                1,
-                track_data['track_len_gcm2'],
-                track_data['track_len_cm'],
-                particle_E,
-                [[traj_index]+[0]*19],
-                [[1]+[0]*19])],
-                dtype=track_data_type
-            )
-
-            """Add the new track to the CAF objects"""
-            event_products['track'].append(track_data)
+                """Add the new fragment to the CAF objects"""
+                event_products['fragment'].append(fragment_data)
 
         """Write changes to arrakis_file"""
         arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']] = arrakis_charge

@@ -2,14 +2,10 @@
 """
 import h5py
 import numpy as np
-from scipy.interpolate import splprep, splev
-import warnings
-from scipy.integrate import quad, IntegrationWarning
 
-from arrakis_nd.utils.utils import profiler, integrand
+from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
-    ProcessType, SubProcessType,
     Topology, Physics
 )
 
@@ -53,31 +49,43 @@ class ConstraintPlugin(Plugin):
         """
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
-        charge = flow_file['charge/calib_final_hits/data'][event_indices['charge']]
         arrakis_charge = arrakis_file['charge/calib_final_hits/data'][event_indices['charge']]
         arrakis_segment_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
+        segments = flow_file['mc_truth/segments/data'][event_indices['segments']]
+        charge_back_track = flow_file['mc_truth/calib_final_hit_backtrack/data'][event_indices['charge']]
 
         segments_event = arrakis_segment_charge['event_id']
         segments_particle = arrakis_segment_charge['particle']
-        segments_parent = arrakis_segment_charge['segment_parent']
-        segments_start_process = arrakis_segment_charge['segment_start_process']
-        segments_start_subprocess = arrakis_segment_charge['segment_start_subprocess']
         segments_distance = arrakis_segment_charge['segment_distance']
         segments_topology = arrakis_segment_charge['topology']
         segments_physics = arrakis_segment_charge['physics']
         segments_fraction = arrakis_segment_charge['segment_fraction']
+        segments_vertex = arrakis_segment_charge['vertex']
+        segments_tracklette_begin = arrakis_segment_charge['tracklette_begin']
+        segments_tracklette_end = arrakis_segment_charge['tracklette_end']
+        segments_fragment_begin = arrakis_segment_charge['fragment_begin']
+        segments_fragment_end = arrakis_segment_charge['fragment_end']
+        segments_shower_begin = arrakis_segment_charge['shower_begin']
+
+        charge_segment_ids = charge_back_track['segment_id'].astype(int)
+        charge_segment_fraction = charge_back_track['fraction']
+        charge_segment_fraction_mask = (charge_segment_fraction == 0)
+        charge_segment_ids[charge_segment_fraction_mask] = -1
 
         """Iterate over the individual (hits)"""
         for ii, particle in enumerate(segments_particle):
             segment_event = segments_event[ii]
             segment_particle = segments_particle[ii]
-            segment_parent = segments_parent[ii]
-            segment_start_process = segments_start_process[ii]
-            segment_start_subprocess = segments_start_subprocess[ii]
             segment_distance = segments_distance[ii]
             segment_topology = segments_topology[ii]
             segment_physics = segments_physics[ii]
             segment_fraction = segments_fraction[ii]
+            segment_vertex = segments_vertex[ii]
+            segment_tracklette_begin = segments_tracklette_begin[ii]
+            segment_tracklette_end = segments_tracklette_end[ii]
+            segment_fragment_begin = segments_fragment_begin[ii]
+            segment_fragment_end = segments_fragment_end[ii]
+            segment_shower_begin = segments_shower_begin[ii]
             """Make a cut on segment_influence distance"""
             """
             We want to limit the influence of segments to labeling by how far away they are
@@ -86,16 +94,26 @@ class ConstraintPlugin(Plugin):
             in the delta hits.
             """
             """First check to see if any segments remain after the cut"""
-            if 3 in segment_physics:
-                delta_index = np.where(segment_physics == 3)
-                print(f"delta distance: {segment_distance[delta_index]}")
             if sum(segment_distance <= self.segment_influence_cut):
                 segment_fraction[(segment_distance > self.segment_influence_cut)] = 0
+            if Physics.MichelElectron.value in segment_physics:
+                segment_fraction[(segment_physics != Physics.MichelElectron.value)] = 0
+            if Physics.DeltaElectron.value in segment_physics:
+                segment_fraction[(segment_physics != Physics.DeltaElectron.value)] = 0
+            if Topology.Track.value in segment_topology:
+                segment_fraction[(segment_topology != Topology.Track.value)] = 0
 
             max_fraction = np.argmax(segment_fraction)
             arrakis_charge['event_id'][ii] = segment_event
             arrakis_charge['topology'][ii] = segment_topology[max_fraction]
+            arrakis_charge['particle'][ii] = segment_particle[max_fraction]
             arrakis_charge['physics'][ii] = segment_physics[max_fraction]
+            arrakis_charge['vertex'][ii] = segment_vertex[max_fraction]
+            arrakis_charge['tracklette_begin'][ii] = segment_tracklette_begin[max_fraction]
+            arrakis_charge['tracklette_end'][ii] = segment_tracklette_end[max_fraction]
+            arrakis_charge['fragment_begin'][ii] = segment_fragment_begin[max_fraction]
+            arrakis_charge['fragment_end'][ii] = segment_fragment_end[max_fraction]
+            arrakis_charge['shower_begin'][ii] = segment_shower_begin[max_fraction]
 
         """Write changes to arrakis_file"""
         arrakis_file['charge/calib_final_hits/data'][event_indices['charge']] = arrakis_charge

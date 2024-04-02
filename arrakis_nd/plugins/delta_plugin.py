@@ -2,11 +2,8 @@
 """
 import h5py
 import numpy as np
-from scipy.interpolate import splprep, splev
-import warnings
-from scipy.integrate import quad, IntegrationWarning
 
-from arrakis_nd.utils.utils import profiler, integrand
+from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
     ProcessType, SubProcessType,
@@ -37,6 +34,10 @@ class DeltaPlugin(Plugin):
         ]
         self.output_products = ['tracklette', 'track', 'blip']
 
+        if "delta_size_threshold" not in self.config:
+            self.config["delta_size_threshold"] = 10
+        self.delta_size_threshold = self.config["delta_size_threshold"]
+
         self.delta_labels = {
             'topology': Topology.Track.value,
             'physics': Physics.DeltaElectron.value
@@ -44,6 +45,14 @@ class DeltaPlugin(Plugin):
         self.low_energy_labels = {
             'topology': Topology.Blip.value,
             'physics': Physics.ElectronIonization.value,
+        }
+        self.mip_labels = {
+            'topology': Topology.Track.value,
+            'physics': Physics.MIP.value,
+        }
+        self.hip_labels = {
+            'topology': Topology.Track.value,
+            'physics': Physics.HIP.value,
         }
 
     @profiler
@@ -62,25 +71,18 @@ class DeltaPlugin(Plugin):
         arrakis_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
         track_id_hit_map = event_products['track_id_hit_map']
         track_id_hit_segment_map = event_products['track_id_hit_segment_map']
-        track_id_hit_t0_map = event_products['track_id_hit_t0_map']
         parent_pdg_ids = event_products['parent_pdg_id']
 
         trajectories_traj_ids = trajectories['traj_id']
         trajectories_vertex_ids = trajectories['vertex_id']
         trajectories_pdg_ids = trajectories['pdg_id']
-        trajectories_parent_ids = trajectories['parent_id']
         trajectories_xyz_start = trajectories['xyz_start']
         trajectories_xyz_end = trajectories['xyz_end']
-        trajectories_pxyz_start = trajectories['pxyz_start']
-        trajectories_pxyz_end = trajectories['pxyz_end']
-        trajectories_E = trajectories['E_start']
         trajectories_start_process = trajectories['start_process']
         trajectories_start_subprocess = trajectories['start_subprocess']
         charge_x = charge['x']
         charge_y = charge['y']
         charge_z = charge['z']
-        charge_E = charge['E']
-        charge_io_group = charge['io_group']
 
         """Grab the mips/hips which result in ionization"""
         particle_mask = (
@@ -116,9 +118,6 @@ class DeltaPlugin(Plugin):
                 particle_hits, particle_segments
             )
 
-            """Get the associated t0 values"""
-            particle_hit_t0s = track_id_hit_t0_map[(particle_id, vertex_id)]
-
             """############################### Set standard labels ###############################"""
             """Set the event_id"""
             arrakis_charge['event_id'][particle_hits] = event
@@ -140,7 +139,6 @@ class DeltaPlugin(Plugin):
                 charge_y[particle_hits],
                 charge_z[particle_hits]
             ]).T
-            particle_charge_E = charge_E[particle_hits]
             particle_xyz_start = trajectories_xyz_start[particle_mask][ii]
             particle_xyz_end = trajectories_xyz_end[particle_mask][ii]
             """Determine track begin and end points"""
@@ -168,14 +166,24 @@ class DeltaPlugin(Plugin):
                 particle_segments[closest_end_index]
             )
 
-            if closest_start_index != closest_end_index:
-                """Add delta/michel vertex"""
-                arrakis_charge['vertex'][particle_start_index] = 1
-                arrakis_charge['tracklette_end'][particle_end_index] = 1
+            """Add delta/michel vertex"""
+            if len(particle_hits) >= self.delta_size_threshold:
+                if closest_start_index != closest_end_index:
+                    arrakis_charge['vertex'][particle_start_index] = 1
+                    arrakis_charge['tracklette_end'][particle_end_index] = 1
 
-            """Iterate over standard labels"""
-            for label, value in self.delta_labels.items():
-                arrakis_charge[label][particle_hit_segments] = value
+                """Iterate over delta labels"""
+                for label, value in self.delta_labels.items():
+                    arrakis_charge[label][particle_hit_segments] = value
+            else:
+                if abs(parent_pdg_ids[particle_mask][ii]) == 2212:
+                    """Iterate over hip labels"""
+                    for label, value in self.hip_labels.items():
+                        arrakis_charge[label][particle_hit_segments] = value
+                else:
+                    """Iterate over mip labels"""
+                    for label, value in self.mip_labels.items():
+                        arrakis_charge[label][particle_hit_segments] = value
 
             """Set the particle label"""
             arrakis_charge['particle'][particle_hit_segments] = trajectories_pdg_ids[particle_mask][ii]

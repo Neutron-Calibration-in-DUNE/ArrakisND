@@ -136,31 +136,20 @@ class Physics(Enum):
     ElectronRecoil = 9
 
 
-class PhysicsMacro(Enum):
+class Blip(Enum):
     """
-    Macro-level decsriptions of topological types.
+    Macro-level decsriptions of blip types.
     """
     Undefined = -1
     Noise = 0
-    MIP = 1
-    HIP = 2
-    DeltaElectron = 3
-    MichelElectron = 4
-    ElectronShower = 5
-    PositronShower = 6
-    PhotonShower = 7
-    LowEnergyIonization = 8
-    NeutronCaptureGamma474 = 9
-    NeutronCaptureGamma336 = 10
-    NeutronCaptureGamma256 = 11
-    NeutronCaptureGamma118 = 12
-    NeutronCaptureGamma083 = 13
-    NeutronCaptureGamma051 = 14
-    NeutronCaptureGamma016 = 15
-    NeutronCaptureGammaOther = 16
-    Pi0Decay = 17
-    AlphaDecay = 18
-    BetaDecay = 19
-    GammaDecay = 20
-    NuclearRecoil = 21
-    ElectronRecoil = 22
+    NeutronCaptureGamma474 = 1
+    NeutronCaptureGamma336 = 2
+    NeutronCaptureGamma256 = 3
+    NeutronCaptureGamma118 = 4
+    NeutronCaptureGamma083 = 5
+    NeutronCaptureGamma051 = 6
+    NeutronCaptureGamma016 = 7
+    NeutronCaptureGammaOther = 8
+    AlphaDecay = 9
+    BetaDecay = 10
+    GammaDecay = 11

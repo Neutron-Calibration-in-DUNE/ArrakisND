@@ -1,7 +1,6 @@
 """
 """
 import h5py
-import numpy as np
 
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin

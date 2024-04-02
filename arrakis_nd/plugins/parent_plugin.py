@@ -9,7 +9,7 @@ from arrakis_nd.plugins.plugin import Plugin
 
 class ParentPlugin(Plugin):
     """
-    A plugin for constructing 
+    A plugin for constructing
     """
     def __init__(
         self,
