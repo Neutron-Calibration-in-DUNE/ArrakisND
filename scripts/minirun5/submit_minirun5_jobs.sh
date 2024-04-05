@@ -1,6 +1,6 @@
 # Submit the preparation job and get its job ID
 
-export NUMBER_OF_ARRAKIS_PROCESSES=25
+export NUMBER_OF_ARRAKIS_PROCESSES=24
 
 minirun5_config_prep_jobid=$(sbatch minirun5_config_prep.slurm | cut -d ' ' -f 4)
 

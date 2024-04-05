@@ -5,7 +5,6 @@ import h5py
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
-    SubProcessType,
     Topology, Physics
 )
 
@@ -32,7 +31,7 @@ class PhotonPlugin(Plugin):
             'parent_pdg_id',
         ]
         self.output_products = ['fragment', 'blip']
-        
+
         if "shower_size_threshold" not in self.config:
             self.config["shower_size_threshold"] = 10
         self.shower_size_threshold = self.config["shower_size_threshold"]

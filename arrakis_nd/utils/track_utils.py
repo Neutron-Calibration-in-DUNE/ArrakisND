@@ -55,11 +55,15 @@ def fit_track(
         else:
             track_enddir = [dxdt_end, dydt_end, dzdt_end]
 
+        """Determine the integrated columnar density"""
+        lar_rho = 1.40
+        curve_length_rho = lar_rho * curve_length
+
         """Fill the values"""
         track_data = {
             'track_dir': track_dir,
             'track_enddir': track_enddir,
-            'track_len_gcm2': 0,
+            'track_len_gcm2': curve_length_rho,
             'track_len_cm': curve_length
         }
     except Exception:

@@ -11,6 +11,7 @@ plugins:
   DaughterPlugin:
   TrackIDHitMapPlugin:
   ParentPlugin:
+  AncestorPlugin:
   SegmentPlugin:
   TrackPlugin:
   DeltaPlugin:
@@ -26,3 +27,4 @@ plugins:
   ConstraintPlugin:
     segment_influence_cut: 5.0
   NeutrinoPlugin:
+  ShowerPlugin:

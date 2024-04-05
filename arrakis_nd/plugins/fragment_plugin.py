@@ -10,6 +10,7 @@ from arrakis_nd.dataset.common import (
     SubProcessType,
     Topology, Physics
 )
+from arrakis_nd.arrakis.common import fragment_data_type
 
 
 class FragmentPlugin(Plugin):
@@ -86,6 +87,10 @@ class FragmentPlugin(Plugin):
         event_products: dict,
     ):
         """
+        A fragment is part of an electromagnetic cascade which corresponds to an object that
+        is contiguous in its energy depositions.  This will be true for electrons/positrons
+        which are created in a gamma conversion, but there will also be things which look
+        contiguous when you have a series of compton scatters that are close together.
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
         charge = flow_file['charge/calib_final_hits/data'][event_indices['charge']]
@@ -100,7 +105,10 @@ class FragmentPlugin(Plugin):
         trajectories_pdg_ids = trajectories['pdg_id']
         trajectories_xyz_start = trajectories['xyz_start']
         trajectories_xyz_end = trajectories['xyz_end']
+        trajectories_pxyz_start = trajectories['pxyz_start']
+        trajectories_pxyz_end = trajectories['pxyz_end']
         trajectories_start_subprocess = trajectories['start_subprocess']
+        trajectories_E = trajectories['E_start']
         charge_x = charge['x']
         charge_y = charge['y']
         charge_z = charge['z']
@@ -108,6 +116,26 @@ class FragmentPlugin(Plugin):
         charge_io_group = charge['io_group']
 
         """Grab the electrons which are from compton scatters, conversions or electron ionization"""
+        """
+        We are looking for electrons which also:
+            (1) have a gamma parent, or
+            (2) come from a compton scatter, or
+            (3) come from a gamma conversion, or
+            (4) come from a pair production by charge, or
+            (5) have an electron parent and
+                (5a) come from the photo electric effect, or
+                (5b) come from ionization,
+            (6) come from a pi0 decay
+
+        The reason we must consider the different subprocesses, event though we are already
+        looking for gamma parents, is that edep-sim does some bookkeeping that may remove
+        information about intermediate gammas which leave no energy deposits.  Thus, an
+        electron can have a gamma conversion as its subprocess, but will be linked to the parent
+        of the gamma (which may be a mip or hip, etc.).
+
+        The same thing can happen when the parent is an electron which bremsstrahlungs and
+        then the corresponding gamma does something like the photoelectric effect.
+        """
         particle_mask = (
             (abs(trajectories_pdg_ids) == 11) &
             (
@@ -165,6 +193,9 @@ class FragmentPlugin(Plugin):
             particle_charge_E = charge_E[particle_hits]
             particle_xyz_start = trajectories_xyz_start[particle_mask][ii]
             particle_xyz_end = trajectories_xyz_end[particle_mask][ii]
+            particle_pxyz_start = trajectories_pxyz_start[particle_mask][ii]
+            particle_pxyz_end = trajectories_pxyz_end[particle_mask][ii]
+            particle_E = trajectories_E[particle_mask][ii]
             """Determine track begin and end points"""
             """
             To do this we find the closest hits to the actual track beginning
@@ -294,49 +325,9 @@ class FragmentPlugin(Plugin):
                 """Now generate the associated fragment CAF object"""
                 """
                 The fragment data object has the following entries
-                that must be filled.
-
-                    fragment_data_type = np.dtype([
-                        ('event_id', 'i4'),
-                        ('fragment_id', 'i4'),
-                        ('start', 'f4', (1, 3)),
-                        ('end', 'f4', (1, 3)),
-                        ('start_hit', 'f4', (1, 3)),
-                        ('end_hit', 'f4', (1, 3)),
-                        ('dir', 'f4', (1, 3)),
-                        ('enddir', 'f4', (1, 3)),
-                        ('dir_hit', 'f4', (1, 3)),
-                        ('enddir_hit', 'f4', (1, 3)),
-                        ('Evis', 'f4'),
-                        ('qual', 'f4'),
-                        ('len_gcm2', 'f4'),
-                        ('len_cm', 'f4'),
-                        ('E', 'f4'),
-                        ('truth', 'i4', (1, 20)),
-                        ('truthOverlap', 'f4', (1, 20)),
-                    ])
+                that must be filled (see arrakis.common).
                 """
                 io_group_xyz = particle_charge_xyz[io_group_mask]
-
-                fragment_data_type = np.dtype([
-                    ('event_id', 'i4'),
-                    ('fragment_id', 'i4'),
-                    ('start', 'f4', (1, 3)),
-                    ('end', 'f4', (1, 3)),
-                    ('start_hit', 'f4', (1, 3)),
-                    ('end_hit', 'f4', (1, 3)),
-                    ('dir', 'f4', (1, 3)),
-                    ('enddir', 'f4', (1, 3)),
-                    ('dir_hit', 'f4', (1, 3)),
-                    ('enddir_hit', 'f4', (1, 3)),
-                    ('Evis', 'f4'),
-                    ('qual', 'f4'),
-                    ('len_gcm2', 'f4'),
-                    ('len_cm', 'f4'),
-                    ('E', 'f4'),
-                    ('truth', 'i4', (1, 20)),
-                    ('truthOverlap', 'f4', (1, 20)),
-                ])
 
                 """Assign this fragment to the mip track"""
                 particle_fragment_ids.append(io_group_end_index[0])
@@ -344,20 +335,22 @@ class FragmentPlugin(Plugin):
                 """Create the CAF object for this fragment"""
                 fragment_data = np.array([(
                     event,
-                    io_group_end_index[0],
-                    [0, 0, 0],
-                    [0, 0, 0],
+                    io_group,
+                    particle_id,
+                    vertex_id,
+                    particle_xyz_start,
+                    particle_xyz_end,
                     [io_group_xyz[fragment_start_index]],
                     [io_group_xyz[fragment_end_index]],
-                    [0, 0, 0],
-                    [0, 0, 0],
+                    particle_pxyz_start,
+                    particle_pxyz_end,
                     [track_data['track_dir']],
                     [track_data['track_enddir']],
                     sum(particle_charge_E[io_group_mask]),
                     1,
                     track_data['track_len_gcm2'],
                     track_data['track_len_cm'],
-                    0,
+                    particle_E,
                     [[traj_index]+[0]*19],
                     [[1]+[0]*19])],
                     dtype=fragment_data_type

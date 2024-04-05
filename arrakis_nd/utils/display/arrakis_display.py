@@ -1,4 +1,5 @@
-import os, dash, yaml
+import os
+import yaml
 from dash import (
     Dash,
     dcc,
@@ -162,8 +163,8 @@ class ArrakisDisplay:
                 # DUNE logo and Arrakis Display text
                 html.Div(
                     children=[
-                        html.Img(src='/assets/DUNE.png', style={'height': '100px', 'marginRight': '15px'}),
-                        html.H3("Arrakis Display"),
+                        html.Img(src='/assets/2x2.png', style={'height': '100px', 'marginRight': '15px'}),
+                        html.H3("2x2 Display"),
                     ],
                     style={'display': 'flex', 'alignItems': 'center'}
                 ),
@@ -249,6 +250,29 @@ class ArrakisDisplay:
                     value='Home',
                     style={'color': "#000000"}
                 ),
+
+                # Highlighting options
+                html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
+                html.P("FLOW charge types to plot"),
+                dcc.Checklist(
+                    ['Segments', 'Calib Prompt Hits', 'Calib Final Hits'],
+                    ['Calib Prompt Hits'], inline=True
+                ),
+                html.Hr(style={'border': '1px solid #ffffff', 'height': '0px'}),
+                html.Div([
+                    html.Div([
+                        html.P("Active TPCs"),
+                        dcc.Checklist(
+                            ['0', '1', '2', '3', '4', '5', '6', '7'],
+                            ['0', '1', '2', '3', '4', '5', '6', '7']
+                        )], style={'width': '45vw'}),
+                    html.Div([
+                        html.P("Detectors"),
+                        dcc.Checklist(
+                            ['0', '1', '2', '3', '4', '5', '6', '7'],
+                            ['0', '1', '2', '3', '4', '5', '6', '7']
+                        )], style={'width': '45vw'}),
+                ], style={'display': 'flex'}),
             ],
             style=styles['SIDEBAR_STYLE'],
         )
@@ -438,8 +462,11 @@ class ArrakisDisplay:
                         segments_events = flow_file['mc_truth/segments/data']['event_id']
                         stack_events = flow_file['mc_truth/stack/data']['event_id']
                         trajectories_events = flow_file['mc_truth/trajectories/data']['event_id']
-                        charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_id']
-                        non_zero_charge_segments = [row[row != 0] for row in charge_segments]
+                        charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_id'].astype(int)
+                        charge_fraction = flow_file['mc_truth/calib_final_hit_backtrack/data']['fraction']
+                        charge_fraction_mask = (charge_fraction == 0)
+                        charge_segments[charge_fraction_mask] = -1
+                        non_zero_charge_segments = [row[row != 0] for row in charge_fraction]
                         max_length = len(max(non_zero_charge_segments, key=len))
                         segments_ids = flow_file['mc_truth/segments/data']['segment_id']
                         self.interactions = flow_file['mc_truth/interactions/data'][

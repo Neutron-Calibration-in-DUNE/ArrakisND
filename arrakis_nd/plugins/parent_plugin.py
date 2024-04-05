@@ -9,7 +9,9 @@ from arrakis_nd.plugins.plugin import Plugin
 
 class ParentPlugin(Plugin):
     """
-    A plugin for constructing
+    A plugin for constructing an array of the parent particles
+    pdg code corresponding to the index of the original particle
+    in the trajectories array.
     """
     def __init__(
         self,
@@ -47,8 +49,8 @@ class ParentPlugin(Plugin):
             parent_ids
         )):
             if parent_id != -1:
-                proton_parent_index = np.where(
+                parent_index = np.where(
                     (traj_ids == parent_id) & (vertex_ids == vertex_id)
                 )[0]
-                parent_pdg_id[ii] = pdg_ids[proton_parent_index][0]
+                parent_pdg_id[ii] = pdg_ids[parent_index][0]
         event_products['parent_pdg_id'] = np.array(parent_pdg_id)

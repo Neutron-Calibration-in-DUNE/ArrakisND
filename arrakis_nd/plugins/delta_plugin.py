@@ -12,7 +12,9 @@ from arrakis_nd.dataset.common import (
 
 
 class DeltaPlugin(Plugin):
-    """_summary_
+    """
+    This plugin labels hits which are associated to ionized electrons
+    generated from MIPs and HIPS (i.e. delta electrons).
 
     Args:
         Plugin (_type_): _description_

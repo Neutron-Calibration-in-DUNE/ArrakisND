@@ -2,9 +2,7 @@
 Tools for parsing config files
 """
 import yaml
-from ruamel.yaml import YAML
 
-from arrakis_nd.utils.logger import Logger
 from arrakis_nd.utils.utils import profiler
 
 

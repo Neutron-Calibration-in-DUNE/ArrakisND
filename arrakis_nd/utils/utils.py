@@ -29,6 +29,28 @@ def integrand(t, tck):
     return np.sqrt(dxdt**2 + dydt**2 + dzdt**2)
 
 
+def fiducialized_vertex(vert_pos):
+    lar_x = [
+        (-63.9273, -3.0652),
+        (3.0652, 63.9273)
+    ]
+    lar_y = [(-62.055, 62.055)]
+    lar_z = [
+        (-64.51125, -2.48125),
+        (2.48125, 64.51125)
+    ]
+    for i in lar_z:
+        if vert_pos[2] < i[0] and vert_pos[2] > i[1]:
+            return False
+    for i in lar_x:
+        if vert_pos[0] < i[0] and vert_pos[0] > i[1]:
+            return False
+    for i in lar_y:
+        if vert_pos[1] < i[0] and vert_pos[1] > i[1]:
+            return False
+    return True
+
+
 class ResetableIterator:
     """_summary_
     """

@@ -11,7 +11,19 @@ from arrakis_nd.dataset.common import (
 
 
 class ConstraintPlugin(Plugin):
-    """_summary_
+    """
+    This plugin takes all the semantic information determine from the other
+    plugins and decides how to "officially" label each calib_final_hit.  This is
+    done in two steps,
+
+        (1) apply an influence cut based on the distance of each contributing
+            segment to the hit.
+        (2) make heirarchical choices to the labels based on the following criteria:
+            (a) michels take 1st precendence
+            (b) deltas take 2nd precendence
+            (c) tracks take 3rd precendence
+            (d) showers take 4th precendence
+            (e) blips take last precendence
 
     Args:
         Plugin (_type_): _description_
@@ -48,10 +60,8 @@ class ConstraintPlugin(Plugin):
     ):
         """
         """
-        trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
         arrakis_charge = arrakis_file['charge/calib_final_hits/data'][event_indices['charge']]
         arrakis_segment_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
-        segments = flow_file['mc_truth/segments/data'][event_indices['segments']]
         charge_back_track = flow_file['mc_truth/calib_final_hit_backtrack/data'][event_indices['charge']]
 
         segments_event = arrakis_segment_charge['event_id']
@@ -59,6 +69,7 @@ class ConstraintPlugin(Plugin):
         segments_distance = arrakis_segment_charge['segment_distance']
         segments_topology = arrakis_segment_charge['topology']
         segments_physics = arrakis_segment_charge['physics']
+        segments_unique_topology = arrakis_segment_charge['unique_topology']
         segments_fraction = arrakis_segment_charge['segment_fraction']
         segments_vertex = arrakis_segment_charge['vertex']
         segments_tracklette_begin = arrakis_segment_charge['tracklette_begin']
@@ -79,6 +90,7 @@ class ConstraintPlugin(Plugin):
             segment_distance = segments_distance[ii]
             segment_topology = segments_topology[ii]
             segment_physics = segments_physics[ii]
+            segment_unique_topology = segments_unique_topology[ii]
             segment_fraction = segments_fraction[ii]
             segment_vertex = segments_vertex[ii]
             segment_tracklette_begin = segments_tracklette_begin[ii]
@@ -102,18 +114,21 @@ class ConstraintPlugin(Plugin):
                 segment_fraction[(segment_physics != Physics.DeltaElectron.value)] = 0
             if Topology.Track.value in segment_topology:
                 segment_fraction[(segment_topology != Topology.Track.value)] = 0
+            if Topology.Shower.value in segment_topology:
+                segment_fraction[(segment_topology != Topology.Shower.value)] = 0
 
             max_fraction = np.argmax(segment_fraction)
             arrakis_charge['event_id'][ii] = segment_event
             arrakis_charge['topology'][ii] = segment_topology[max_fraction]
             arrakis_charge['particle'][ii] = segment_particle[max_fraction]
             arrakis_charge['physics'][ii] = segment_physics[max_fraction]
-            arrakis_charge['vertex'][ii] = segment_vertex[max_fraction]
-            arrakis_charge['tracklette_begin'][ii] = segment_tracklette_begin[max_fraction]
-            arrakis_charge['tracklette_end'][ii] = segment_tracklette_end[max_fraction]
-            arrakis_charge['fragment_begin'][ii] = segment_fragment_begin[max_fraction]
-            arrakis_charge['fragment_end'][ii] = segment_fragment_end[max_fraction]
-            arrakis_charge['shower_begin'][ii] = segment_shower_begin[max_fraction]
+            arrakis_charge['unique_topology'][ii] = segment_unique_topology[max_fraction]
+            arrakis_charge['vertex'][ii] = int(np.any(segment_vertex))
+            arrakis_charge['tracklette_begin'][ii] = int(np.any(segment_tracklette_begin))
+            arrakis_charge['tracklette_end'][ii] = int(np.any(segment_tracklette_end))
+            arrakis_charge['fragment_begin'][ii] = int(np.any(segment_fragment_begin))
+            arrakis_charge['fragment_end'][ii] = int(np.any(segment_fragment_end))
+            arrakis_charge['shower_begin'][ii] = int(np.any(segment_shower_begin))
 
         """Write changes to arrakis_file"""
         arrakis_file['charge/calib_final_hits/data'][event_indices['charge']] = arrakis_charge

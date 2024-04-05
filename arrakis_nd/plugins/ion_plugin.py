@@ -10,7 +10,8 @@ from arrakis_nd.dataset.common import (
 
 
 class IonPlugin(Plugin):
-    """_summary_
+    """
+    Ions are atoms which interact via an electron recoil mechanism.
 
     Args:
         Plugin (_type_): _description_

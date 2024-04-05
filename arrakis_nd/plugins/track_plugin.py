@@ -9,6 +9,10 @@ from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
     Topology, Physics
 )
+from arrakis_nd.arrakis.common import (
+    tracklette_data_type,
+    track_data_type
+)
 
 
 class TrackPlugin(Plugin):
@@ -205,7 +209,6 @@ class TrackPlugin(Plugin):
             particle_hits = np.array(particle_hits)
             particle_segments = np.array(particle_segments)
             particle_hit_t0s = np.array(particle_hit_t0s)
-            particle_tracklette_ids = []
             for io_group in unique_particle_io_group:
                 """Isolate hits from this io_group"""
                 io_group_mask = (particle_io_group == io_group)
@@ -243,57 +246,16 @@ class TrackPlugin(Plugin):
                 """Now generate the associated tracklette CAF object"""
                 """
                 The tracklette data object has the following entries
-                that must be filled.
-
-                    tracklette_data_type = np.dtype([
-                        ('event_id', 'i4'),
-                        ('tracklette_id', 'i4'),
-                        ('start', 'f4', (1, 3)),
-                        ('end', 'f4', (1, 3)),
-                        ('start_hit', 'f4', (1, 3)),
-                        ('end_hit', 'f4', (1, 3)),
-                        ('dir', 'f4', (1, 3)),
-                        ('enddir', 'f4', (1, 3)),
-                        ('dir_hit', 'f4', (1, 3)),
-                        ('enddir_hit', 'f4', (1, 3)),
-                        ('Evis', 'f4'),
-                        ('qual', 'f4'),
-                        ('len_gcm2', 'f4'),
-                        ('len_cm', 'f4'),
-                        ('E', 'f4'),
-                        ('truth', 'i4', (1, 20)),
-                        ('truthOverlap', 'f4', (1, 20)),
-                    ])
+                that must be filled (see arrakis.common).
                 """
                 io_group_xyz = particle_charge_xyz[io_group_mask]
-
-                tracklette_data_type = np.dtype([
-                    ('event_id', 'i4'),
-                    ('tracklette_id', 'i4'),
-                    ('start', 'f4', (1, 3)),
-                    ('end', 'f4', (1, 3)),
-                    ('start_hit', 'f4', (1, 3)),
-                    ('end_hit', 'f4', (1, 3)),
-                    ('dir', 'f4', (1, 3)),
-                    ('enddir', 'f4', (1, 3)),
-                    ('dir_hit', 'f4', (1, 3)),
-                    ('enddir_hit', 'f4', (1, 3)),
-                    ('Evis', 'f4'),
-                    ('qual', 'f4'),
-                    ('len_gcm2', 'f4'),
-                    ('len_cm', 'f4'),
-                    ('E', 'f4'),
-                    ('truth', 'i4', (1, 20)),
-                    ('truthOverlap', 'f4', (1, 20)),
-                ])
-
-                """Assign this tracklette to the mip track"""
-                particle_tracklette_ids.append(io_group_end_index[0])
 
                 """Create the CAF object for this tracklette"""
                 tracklette_data = np.array([(
                     event,
-                    io_group_end_index[0],
+                    io_group,
+                    particle_id,
+                    vertex_id,
                     [0, 0, 0],
                     [0, 0, 0],
                     [io_group_xyz[tracklette_start_index]],
@@ -319,54 +281,11 @@ class TrackPlugin(Plugin):
             """Now generate the associated track CAF object"""
             """
             The track data object has the following entries
-            that must be filled.
-
-                track_data_type = np.dtype([
-                    ('event_id', 'i4'),
-                    ('track_id', 'i4'),
-                    ('tracklette_ids', 'i4', (1, 20)),
-                    ('start', 'f4', (1, 3)),
-                    ('end', 'f4', (1, 3)),
-                    ('start_hit', 'f4', (1, 3)),
-                    ('end_hit', 'f4', (1, 3)),
-                    ('dir', 'f4', (1, 3)),
-                    ('enddir', 'f4', (1, 3)),
-                    ('dir_hit', 'f4', (1, 3)),
-                    ('enddir_hit', 'f4', (1, 3)),
-                    ('Evis', 'f4'),
-                    ('qual', 'f4'),
-                    ('len_gcm2', 'f4'),
-                    ('len_cm', 'f4'),
-                    ('E', 'f4'),
-                    ('truth', 'i4', (1, 20)),
-                    ('truthOverlap', 'f4', (1, 20)),
-                ])
+            that must be filled (see arrakis.common).
             """
             io_group_xyz = particle_charge_xyz[io_group_mask]
 
-            track_data_type = np.dtype([
-                ('event_id', 'i4'),
-                ('track_id', 'i4'),
-                ('tracklette_ids', 'i4', (1, 20)),
-                ('start', 'f4', (1, 3)),
-                ('end', 'f4', (1, 3)),
-                ('start_hit', 'f4', (1, 3)),
-                ('end_hit', 'f4', (1, 3)),
-                ('dir', 'f4', (1, 3)),
-                ('enddir', 'f4', (1, 3)),
-                ('dir_hit', 'f4', (1, 3)),
-                ('enddir_hit', 'f4', (1, 3)),
-                ('Evis', 'f4'),
-                ('qual', 'f4'),
-                ('len_gcm2', 'f4'),
-                ('len_cm', 'f4'),
-                ('E', 'f4'),
-                ('truth', 'i4', (1, 20)),
-                ('truthOverlap', 'f4', (1, 20)),
-            ])
-
             """Create the CAF object for this track"""
-            particle_tracklette_ids += [0] * (20 - len(particle_tracklette_ids))
             particle_pxyz_start_magnitude = np.linalg.norm(particle_pxyz_start)
             particle_pxyz_end_magnitude = np.linalg.norm(particle_pxyz_end)
             if particle_pxyz_start_magnitude > 0:
@@ -376,8 +295,8 @@ class TrackPlugin(Plugin):
 
             track_data = np.array([(
                 event,
-                traj_index,
-                particle_tracklette_ids,
+                particle_id,
+                vertex_id,
                 particle_xyz_start,
                 particle_xyz_end,
                 [particle_charge_xyz[closest_start_index]],

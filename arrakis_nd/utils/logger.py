@@ -15,7 +15,7 @@ import os
 class ArrakisError(Exception):
     """Custom default error for Arrakis"""
     def __init__(
-        self, 
+        self,
         message="An error occurred"
     ):
         self.message = message
@@ -25,7 +25,7 @@ class ArrakisError(Exception):
 class EventError(Exception):
     """Custom default error for an event"""
     def __init__(
-        self, 
+        self,
         message="An error occurred"
     ):
         self.message = message

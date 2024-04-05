@@ -5,7 +5,9 @@ import numpy as np
 from scipy.interpolate import splprep, splev
 
 from arrakis_nd.utils.utils import profiler
+from arrakis_nd.utils.utils import fiducialized_vertex
 from arrakis_nd.plugins.plugin import Plugin
+from arrakis_nd.arrakis.common import particle_data_type
 
 
 class ParticlePlugin(Plugin):
@@ -65,6 +67,7 @@ class ParticlePlugin(Plugin):
     ):
         """
         """
+        interactions = flow_file['mc_truth/interactions/data'][event_indices['interactions']]
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
         charge = flow_file['charge/calib_final_hits/data'][event_indices['charge']]
         track_id_hit_map = event_products['track_id_hit_map']
@@ -98,31 +101,6 @@ class ParticlePlugin(Plugin):
 
             """Get the associated t0 values"""
             particle_hit_t0s = track_id_hit_t0_map[(particle_id, vertex_id)]
-
-            """Otherwise, let's create the particle object"""
-            """
-            Particles in the standard record have the following variables:
-                particle_data_type = np.dtype([
-                    ('event_id', 'i4'),
-                    ('particle_id', 'i4'),
-                    ('primary', 'i4'),
-                    ('pdg', 'i4'),
-                    ('tgtA', 'i4'),
-                    ('score', 'f4'),
-                    ('Evis', 'f4'),
-                    ('E', 'f4'),
-                    ('E_method', 'i4'),
-                    ('p', 'f4', (1, 3)),
-                    ('dir_hit', 'f4', (1, 3)),
-                    ('start', 'f4', (1, 3)),
-                    ('end', 'f4', (1, 3)),
-                    ('start_hit', 'f4', (1, 3)),
-                    ('end_hit', 'f4', (1, 3)),
-                    ('contained', 'i4'),
-                    ('truth', 'i4', (1, 20)),
-                    ('truthOverlap', 'f4', (1, 20)),
-                ])
-            """
 
             """Determine if the particle is a primary"""
             if trajectories_parent_ids[ii] == -1:
@@ -184,32 +162,49 @@ class ParticlePlugin(Plugin):
                 """Otherwise, these values are undefined"""
                 particle_dir = [0, 0, 0]
 
-            particle_data_type = np.dtype([
-                ('event_id', 'i4'),
-                ('particle_id', 'i4'),
-                ('primary', 'i4'),
-                ('pdg', 'i4'),
-                ('tgtA', 'i4'),
-                ('score', 'f4'),
-                ('Evis', 'f4'),
-                ('E', 'f4'),
-                ('E_method', 'i4'),
-                ('p', 'f4', (1, 3)),
-                ('dir_hit', 'f4', (1, 3)),
-                ('start', 'f4', (1, 3)),
-                ('end', 'f4', (1, 3)),
-                ('start_hit', 'f4', (1, 3)),
-                ('end_hit', 'f4', (1, 3)),
-                ('contained', 'i4'),
-                ('truth', 'i4', (1, 20)),
-                ('truthOverlap', 'f4', (1, 20)),
-            ])
+            """Determine tgtA"""
+            interaction = interactions[(interactions['vertex_id'] == vertex_id)]
+            if fiducialized_vertex(particle_xyz_start):
+                tgtA = 18
+            else:
+                if particle_primary:
+                    tgtA = interaction['target']
+                else:
+                    tgtA = 0
+
+            """Let's create the particle object"""
+            """
+            Particles in the standard record have the following variables:
+                particle_data_type = np.dtype([
+                    ('event_id', 'i4'),
+                    ('particle_id', 'i4'),
+                    ('vertex_id', 'i8'),
+                    ('primary', 'i4'),
+                    ('pdg', 'i4'),
+                    ('tgtA', 'i4'),
+                    ('score', 'f4'),
+                    ('Evis', 'f4'),
+                    ('E', 'f4'),
+                    ('E_method', 'i4'),
+                    ('p', 'f4', (1, 3)),
+                    ('dir_hit', 'f4', (1, 3)),
+                    ('start', 'f4', (1, 3)),
+                    ('end', 'f4', (1, 3)),
+                    ('start_hit', 'f4', (1, 3)),
+                    ('end_hit', 'f4', (1, 3)),
+                    ('contained', 'i4'),
+                    ('truth', 'i4', (1, 20)),
+                    ('truthOverlap', 'f4', (1, 20)),
+                ])
+            """
+
             particle = np.array([(
                 event,
-                traj_index,
+                particle_id,
+                vertex_id,
                 particle_primary,
                 trajectories_pdg_ids[ii],
-                0,
+                tgtA,
                 1,
                 sum(particle_charge_E),
                 particle_E,
@@ -220,7 +215,7 @@ class ParticlePlugin(Plugin):
                 particle_xyz_end,
                 closest_particle_xyz_start,
                 closest_particle_xyz_end,
-                0,
+                fiducialized_vertex(particle_xyz_start) and fiducialized_vertex(particle_xyz_end),
                 [[traj_index]+[0]*19],
                 [[1]+[0]*19])],
                 dtype=particle_data_type

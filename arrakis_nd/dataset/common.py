@@ -136,6 +136,32 @@ class Physics(Enum):
     ElectronRecoil = 9
 
 
+class Shower(Enum):
+    """
+    Macro-level descriptions of shower types
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    Noise = 0
+    Electromagnetic = 1
+    Pion0Decay = 2
+    PiPlusDecay = 3
+    PiMinusDecay = 4
+    Kaon0Decay = 5
+    KaonShortDecay = 6
+    KaonLongDecay = 7
+    KaonPlusDecay = 8
+    KaonMinusdecay = 9
+    D0Decay = 10
+    DPlusDecay = 11
+    DMinusDecay = 12
+    LambdaDecay = 13
+    Sigma0Decay = 14
+    SigmaPlusDecay = 15
+    SigmaMinusDecay = 16
+
+
 class Blip(Enum):
     """
     Macro-level decsriptions of blip types.

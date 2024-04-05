@@ -4,6 +4,7 @@ import h5py
 import numpy as np
 
 from arrakis_nd.utils.utils import profiler
+from arrakis_nd.utils.utils import fiducialized_vertex
 from arrakis_nd.plugins.plugin import Plugin
 
 
@@ -35,28 +36,6 @@ class NeutrinoPlugin(Plugin):
         self.segment_influence_cut = self.config["segment_influence_cut"]
 
     @profiler
-    def fiducialized_vertex(self, vert_pos):
-        lar_x = [
-            (-63.9273, -3.0652),
-            (3.0652, 63.9273)
-        ]
-        lar_y = [(-62.055, 62.055)]
-        lar_z = [
-            (-64.51125, -2.48125),
-            (2.48125, 64.51125)
-        ]
-        for i in lar_z:
-            if vert_pos[2] < i[0] and vert_pos[2] > i[1]:
-                return False
-        for i in lar_x:
-            if vert_pos[0] < i[0] and vert_pos[0] > i[1]:
-                return False
-        for i in lar_y:
-            if vert_pos[1] < i[0] and vert_pos[1] > i[1]:
-                return False
-        return True
-
-    @profiler
     def process_event(
         self,
         event: int,
@@ -78,16 +57,22 @@ class NeutrinoPlugin(Plugin):
             if sum(argon_neutrino_targets) > 1:
                 return
             neutrino = interactions[argon_neutrino_targets]
-            fiducialized = self.fiducialized_vertex(neutrino['vertex'][0])
+            fiducialized = fiducialized_vertex(neutrino['vertex'][0])
             if neutrino['isCC'] is False:
                 neutrino_type = 1
             else:
-                if abs(neutrino['nu_pdg']) == 12:
+                if neutrino['nu_pdg'] == 12:
                     neutrino_type = 2
-                elif abs(neutrino['nu_pdg']) == 14:
+                elif neutrino['nu_pdg'] == -12:
                     neutrino_type = 3
-                else:
+                elif neutrino['nu_pdg'] == 14:
+                    neutrino_type = 3
+                elif neutrino['nu_pdg'] == -14:
                     neutrino_type = 4
+                elif neutrino['nu_pdg'] == 16:
+                    neutrino_type = 5
+                else:
+                    neutrino_type = 6
 
         neutrino_event_data_type = np.dtype([
             ('event_id', 'i4'),
