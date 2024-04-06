@@ -24,7 +24,7 @@ plugins:
   NeutronPlugin:
   ParticlePlugin:
   ConstraintPlugin:
-    segment_influence_cut: 5.0
+    segment_influence_cut: 0.2
   NeutrinoPlugin:
   ShowerPlugin:
   

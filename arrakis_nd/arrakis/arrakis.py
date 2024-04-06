@@ -59,8 +59,8 @@ class Arrakis:
             self.comm = MPI.COMM_WORLD
             self.rank = self.comm.Get_rank()
             self.size = self.comm.Get_size()
-        except Exception as e:
-            raise RuntimeError(f"unable to obtain MPI parameters: {e}")
+        except Exception as exception:
+            raise RuntimeError(f"unable to obtain MPI parameters: {exception}")
 
         """Set input parameters and set up loggers"""
         try:
@@ -68,8 +68,8 @@ class Arrakis:
                 self.logger = Logger(f"master: {self.rank}")
             else:
                 self.logger = Logger(f"worker: {self.rank}")
-        except Exception as e:
-            raise RuntimeError(f"unable to set up logging system: {e}")
+        except Exception as exception:
+            raise RuntimeError(f"unable to set up logging system: {exception}")
 
         self.config = config
         self.meta = meta
@@ -97,16 +97,16 @@ class Arrakis:
         """Parse config"""
         try:
             self.parse_config()
-        except Exception as e:
-            self.error_status = e
+        except Exception as exception:
+            self.report_error(exception=exception)
         self.barrier()
 
         """Construct plugins"""
         self.plugins = {}
         try:
             self.construct_plugins()
-        except Exception as e:
-            self.error_status = e
+        except Exception as exception:
+            self.report_error(exception=exception)
         self.barrier()
 
         self.flow_files = []
@@ -130,8 +130,11 @@ class Arrakis:
         self.distributed_light_indices.clear()
 
     @profiler
-    def collect_error_info(self, exception):
-        self.error_status = exception
+    def report_error(
+        self,
+        exception: Exception = None
+    ):
+        self.exception = exception
         self.exc_type, self.exc_value, self.exc_traceback = sys.exc_info()
         # Extracting the line number from the traceback
         self.line_number = self.exc_traceback.tb_lineno
@@ -249,15 +252,15 @@ class Arrakis:
                 """Send new device meta data to workers"""
                 for ii in range(1, self.comm.size):
                     self.comm.send(self.meta, dest=ii, tag=0)
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
         else:
             self.barrier()
             try:
                 self.meta = self.comm.recv(source=0, tag=0)
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
 
     @profiler
     def construct_plugins(self):
@@ -283,8 +286,8 @@ class Arrakis:
                 self.logger.error(f'specified plugin "{plugin}" not available!')
             try:
                 self.plugins[plugin] = self.available_plugins[plugin](config)
-            except Exception as e:
-                self.logger.error(f'failed to construct plugin {plugin} with config {config}: {e}')
+            except Exception as exception:
+                self.logger.error(f'failed to construct plugin {plugin} with config {config}: {exception}')
 
         """Check that intermediate products are set up correctly"""
         running_output_products = []
@@ -363,8 +366,8 @@ class Arrakis:
                 continue
             try:
                 self.load_plugin_function(plugin_file)
-            except Exception as e:
-                self.logger.warn(f'problem loading plugin from file: {plugin_file}: {e}')
+            except Exception as exception:
+                self.logger.warn(f'problem loading plugin from file: {plugin_file}: {exception}')
 
     @profiler
     def load_plugin_function(
@@ -504,8 +507,8 @@ class Arrakis:
                     self.comm.send(self.flow_files, dest=ii, tag=81)
                     self.comm.send(self.arrakis_folder, dest=ii, tag=82)
                 self.logger.info(f'found {len(self.flow_files)} flow files for processing.')
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
         else:
             self.barrier()
@@ -513,8 +516,8 @@ class Arrakis:
                 self.flow_folder = self.comm.recv(source=0, tag=80)
                 self.flow_files = self.comm.recv(source=0, tag=81)
                 self.arrakis_folder = self.comm.recv(source=0, tag=82)
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
 
     @profiler
     def reset_event_errors(self):
@@ -989,10 +992,10 @@ class Arrakis:
                         event_indices=event_indices,
                         event_products=self.event_products,
                     )
-                except Exception as e:
+                except Exception as exception:
                     self.event_errors.append(event)
                     self.plugin_errors.append(plugin_name)
-                    self.event_plugin_errors.append(e)
+                    self.event_plugin_errors.append(exception)
                     exc_type, exc_value, exc_traceback = sys.exc_info()
                     if exc_traceback.tb_next:
                         exc_traceback = exc_traceback.tb_next
@@ -1066,8 +1069,8 @@ class Arrakis:
         if self.rank == 0:
             try:
                 self.logger.info("Arrakis program ran successfully. Closing out.")
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
         else:
             pass
 
@@ -1078,15 +1081,15 @@ class Arrakis:
             try:
                 collected_timings = {ii: self.comm.recv(source=ii, tag=100) for ii in range(1, self.size)}
                 collected_memory = {ii: self.comm.recv(source=ii, tag=101) for ii in range(1, self.size)}
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
         else:
             try:
                 self.comm.send(timing_manager.timings, dest=0, tag=100)
                 self.comm.send(memory_manager.memory, dest=0, tag=101)
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
 
         """Generate timing and memory plots"""
@@ -1219,8 +1222,8 @@ class Arrakis:
                 plt.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
                 plt.tight_layout()
                 plt.savefig("/local_scratch/arrakis_nd_plugin_memory_avg.png")
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
         else:
             self.barrier()
@@ -1251,8 +1254,8 @@ class Arrakis:
         """Set up input files"""
         try:
             self.set_up_input_files()
-        except Exception as e:
-            self.error_status = e
+        except Exception as exception:
+            self.report_error(exception=exception)
         self.barrier()
 
         """Set up progress bar"""
@@ -1273,8 +1276,8 @@ class Arrakis:
                 try:
                     self.progress_bar.set_description_str(f'File [{ii+1}/{len(self.flow_files)}]')
                     self.run_begin_of_file(file_name)
-                except Exception as e:
-                    self.error_status = e
+                except Exception as exception:
+                    self.report_error(exception=exception)
             self.barrier()
 
             """Reset event/plugin errors"""
@@ -1285,15 +1288,15 @@ class Arrakis:
             if self.rank == 0:
                 try:
                     self.set_up_output_arrays(file_name)
-                except Exception as e:
-                    self.error_status = e
+                except Exception as exception:
+                    self.report_error(exception=exception)
             self.barrier()
 
             """Prepare indices for workers"""
             try:
                 self.distribute_tasks(file_name)
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
 
             """Now process the file"""
@@ -1307,50 +1310,50 @@ class Arrakis:
                         try:
                             self.progress_bar.set_postfix_str(f'# Events: [{self.num_events}]')
                             self.process_events_master(flow_file, arrakis_file)
-                        except Exception as e:
-                            self.error_status = e
+                        except Exception as exception:
+                            self.report_error(exception=exception)
                         self.barrier()
                     else:
                         """Process event in worker node"""
                         self.barrier()
                         try:
                             self.process_events_worker(flow_file, arrakis_file)
-                        except Exception as e:
-                            self.error_status = e
+                        except Exception as exception:
+                            self.report_error(exception=exception)
                     """Ensure that changes are pushed to the arrakis file"""
                     self.barrier()
                     arrakis_file.flush()
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
 
             """Run end of file plugins"""
             try:
                 self.run_end_of_file(file_name)
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
 
             """Update progress bar"""
             if self.rank == 0:
                 try:
                     self.progress_bar.update(1)
-                except Exception as e:
-                    self.error_status = e
+                except Exception as exception:
+                    self.report_error(exception=exception)
             self.barrier()
 
             """Report any event errors"""
             try:
                 self.report_event_errors(file_name)
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
             self.barrier()
 
         """Run end of program functions"""
         if self.rank == 0:
             try:
                 self.progress_bar.close()
-            except Exception as e:
-                self.error_status = e
+            except Exception as exception:
+                self.report_error(exception=exception)
         self.barrier()
         self.run_end_of_arrakis()

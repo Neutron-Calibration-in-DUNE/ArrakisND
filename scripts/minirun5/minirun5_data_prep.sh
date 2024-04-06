@@ -1,6 +1,5 @@
 #!/bin/bash
 config_file=$1
-pip install /local_arrakis/ArrakisND/
 cd /local_scratch
 
 # run the config file
