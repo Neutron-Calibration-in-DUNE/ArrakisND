@@ -12,6 +12,8 @@ comm
 contourpy
 cryptography==42.0.5
 cycler
+dash
+dash-bootstrap-components
 debugpy
 decorator
 docutils==0.20.1
