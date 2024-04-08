@@ -136,6 +136,54 @@ class Physics(Enum):
     ElectronRecoil = 9
 
 
+class Tracklette(Enum):
+    """
+    Macro-level descriptions of tracklette types
+
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    Noise = 0
+    MIP = 1
+    HIP = 2
+    Delta = 3
+    Michel = 4
+
+
+class Track(Enum):
+    """
+    Macro-level descriptions of track types
+
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    Noise = 0
+    MIP = 1
+    HIP = 2
+    Delta = 3
+    Michel = 4
+
+
+class Fragment(Enum):
+    """
+    Macro-level descriptions of fragment types
+
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    Noise = 0
+    GammaCompton = 1
+    GammaConversion = 2
+    PairProductionByCharge = 3
+    Bremsstrahlung = 4
+    PhotoelectricEffect = 5
+    ElectronIonization = 6
+    Annihilation = 7
+
+
 class Shower(Enum):
     """
     Macro-level descriptions of shower types
@@ -164,18 +212,57 @@ class Shower(Enum):
 
 class Blip(Enum):
     """
-    Macro-level decsriptions of blip types.
+    Macro-level descriptions of blip types.
     """
     Undefined = -1
     Noise = 0
-    NeutronCaptureGamma474 = 1
-    NeutronCaptureGamma336 = 2
-    NeutronCaptureGamma256 = 3
-    NeutronCaptureGamma118 = 4
-    NeutronCaptureGamma083 = 5
-    NeutronCaptureGamma051 = 6
-    NeutronCaptureGamma016 = 7
-    NeutronCaptureGammaOther = 8
-    AlphaDecay = 9
-    BetaDecay = 10
-    GammaDecay = 11
+    GammaCompton = 1
+    GammaConversion = 2
+    PairProductionByCharge = 3
+    Bremsstrahlung = 4
+    PhotoelectricEffect = 5
+    ElectronIonization = 6
+    Annihilation = 7
+    NeutronCaptureGamma474 = 8
+    NeutronCaptureGamma336 = 9
+    NeutronCaptureGamma256 = 10
+    NeutronCaptureGamma118 = 11
+    NeutronCaptureGamma083 = 12
+    NeutronCaptureGamma051 = 13
+    NeutronCaptureGamma016 = 14
+    NeutronCaptureGammaOther = 15
+    AlphaDecay = 16
+    BetaDecay = 17
+    GammaDecay = 18
+    NuclearRecoil = 19
+    ElectronRecoil = 20
+
+
+class Interaction(Enum):
+    """
+    Macro-level descriptions of final state interaction types
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    Noise = 0
+
+
+class Neutrino(Enum):
+    """
+    Macro-level descriptions of neutrino types.
+    """
+    Undefined = -1
+    Noise = 0
+    NCElectronNeutrino = 1
+    CCElectronNeutrino = 2
+    NCAntiElectronNeutrino = 3
+    CCAntiElectronNeutrino = 4
+    NCMuonNeutrino = 5
+    CCMuonNeutrino = 6
+    NCAntiMuonNeutrino = 7
+    CCAntiMuonNeutrino = 8
+    NCTauonNeutrino = 9
+    CCTauonNeutrino = 10
+    NCAntiTauonNeutrino = 11
+    CCAntiTauonNeutrino = 12

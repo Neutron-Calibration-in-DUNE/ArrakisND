@@ -97,6 +97,7 @@ tracklette_data_type = np.dtype([
     ('tpc_id', 'i4'),
     ('tracklette_id', 'i4'),
     ('vertex_id', 'i8'),
+    ('tracklette_type', 'i4'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
@@ -118,6 +119,7 @@ track_data_type = np.dtype([
     ('event_id', 'i4'),
     ('track_id', 'i4'),
     ('vertex_id', 'i8'),
+    ('track_type', 'i4'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
@@ -140,6 +142,8 @@ fragment_data_type = np.dtype([
     ('tpc_id', 'i4'),
     ('fragment_id', 'i4'),
     ('vertex_id', 'i8'),
+    ('ancestor_id', 'i4'),
+    ('fragment_type', 'i4'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
@@ -161,7 +165,6 @@ shower_data_type = np.dtype([
     ('event_id', 'i4'),
     ('shower_id', 'i4'),
     ('vertex_id', 'i8'),
-    ('fragment_ids', 'i4', (1, 400)),
     ('shower_type', 'i4'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
@@ -182,13 +185,24 @@ shower_data_type = np.dtype([
 
 blip_data_type = np.dtype([
     ('event_id', 'i4'),
+    ('tpc_id', 'i4'),
     ('blip_id', 'i4'),
     ('vertex_id', 'i8'),
+    ('ancestor_id', 'i4'),
+    ('blip_type', 'i4'),
     ('start', 'f4', (1, 3)),
+    ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
+    ('end_hit', 'f4', (1, 3)),
+    ('dir', 'f4', (1, 3)),
+    ('enddir', 'f4', (1, 3)),
+    ('dir_hit', 'f4', (1, 3)),
+    ('enddir_hit', 'f4', (1, 3)),
     ('Evis', 'f4'),
+    ('qual', 'f4'),
+    ('len_gcm2', 'f4'),
+    ('len_cm', 'f4'),
     ('E', 'f4'),
-    ('bliphyp', 'i4'),
     ('truth', 'i4', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
@@ -215,6 +229,20 @@ particle_data_type = np.dtype([
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
+neutrino_data_type = np.dtype([
+    ('event_id', 'i4'),
+    ('neutrino_id', 'i4'),
+    ('vtx', 'f4', (1, 3)),
+    ('dir_lngtrk', 'f4', (1, 3)),
+    ('dir_heshw', 'f4', (1, 3)),
+    ('nuhyp', 'f4', (1, 20)),
+    ('Enu', 'f4'),
+    ('E_method', 'i4'),
+    ('part', 'i4', (1, 20)),
+    ('truth', 'i4', (1, 20)),
+    ('truthOverlap', 'f4', (1, 20)),
+])
+
 interaction_data_type = np.dtype([
     ('event_id', 'i4'),
     ('interaction_id', 'i4'),
@@ -232,5 +260,11 @@ interaction_data_type = np.dtype([
 neutrino_event_data_type = np.dtype([
     ('event_id', 'i4'),
     ('neutrino_type', 'i4'),
+    ('fiducialized', 'i4')
+])
+
+interaction_event_data_type = np.dtype([
+    ('event_id', 'i4'),
+    ('interaction_type', 'i4'),
     ('fiducialized', 'i4')
 ])

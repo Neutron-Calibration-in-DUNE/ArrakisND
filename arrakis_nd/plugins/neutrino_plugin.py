@@ -6,6 +6,7 @@ import numpy as np
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.utils.utils import fiducialized_vertex
 from arrakis_nd.plugins.plugin import Plugin
+from arrakis_nd.dataset.common import Neutrino
 
 
 class NeutrinoPlugin(Plugin):
@@ -31,10 +32,6 @@ class NeutrinoPlugin(Plugin):
         ]
         self.output_products = []
 
-        if "segment_influence_cut" not in self.config:
-            self.config["segment_influence_cut"] = 1.0
-        self.segment_influence_cut = self.config["segment_influence_cut"]
-
     @profiler
     def process_event(
         self,
@@ -50,7 +47,7 @@ class NeutrinoPlugin(Plugin):
         """Determine neutrino type"""
         argon_neutrino_targets = (interactions['target'] == 18)
         if not sum(argon_neutrino_targets):
-            neutrino_type = 0
+            neutrino_type = Neutrino.Undefined.value
             fiducialized = 0
         else:
             """We only want events with one neutrino hitting the argon"""
@@ -58,21 +55,37 @@ class NeutrinoPlugin(Plugin):
                 return
             neutrino = interactions[argon_neutrino_targets]
             fiducialized = fiducialized_vertex(neutrino['vertex'][0])
-            if neutrino['isCC'] is False:
-                neutrino_type = 1
-            else:
-                if neutrino['nu_pdg'] == 12:
-                    neutrino_type = 2
-                elif neutrino['nu_pdg'] == -12:
-                    neutrino_type = 3
-                elif neutrino['nu_pdg'] == 14:
-                    neutrino_type = 3
-                elif neutrino['nu_pdg'] == -14:
-                    neutrino_type = 4
-                elif neutrino['nu_pdg'] == 16:
-                    neutrino_type = 5
+
+            if neutrino['nu_pdg'] == 12:
+                if neutrino['isCC'] is False:
+                    neutrino_type = Neutrino.NCElectronNeutrino.value
                 else:
-                    neutrino_type = 6
+                    neutrino_type = Neutrino.CCElectronNeutrino.value
+            elif neutrino['nu_pdg'] == -12:
+                if neutrino['isCC'] is False:
+                    neutrino_type = Neutrino.NCAntiElectronNeutrino.value
+                else:
+                    neutrino_type = Neutrino.CCAntiElectronNeutrino.value
+            elif neutrino['nu_pdg'] == 14:
+                if neutrino['isCC'] is False:
+                    neutrino_type = Neutrino.NCMuonNeutrino.value
+                else:
+                    neutrino_type = Neutrino.CCMuonNeutrino.value
+            elif neutrino['nu_pdg'] == -14:
+                if neutrino['isCC'] is False:
+                    neutrino_type = Neutrino.NCAntiMuonNeutrino.value
+                else:
+                    neutrino_type = Neutrino.CCAntiMuonNeutrino.value
+            elif neutrino['nu_pdg'] == 16:
+                if neutrino['isCC'] is False:
+                    neutrino_type = Neutrino.NCTauonNeutrino.value
+                else:
+                    neutrino_type = Neutrino.CCTauonNeutrino.value
+            else:
+                if neutrino['isCC'] is False:
+                    neutrino_type = Neutrino.NCAntiTauonNeutrino.value
+                else:
+                    neutrino_type = Neutrino.CCAntiTauonNeutrino.value
 
         neutrino_event_data_type = np.dtype([
             ('event_id', 'i4'),
@@ -88,4 +101,4 @@ class NeutrinoPlugin(Plugin):
         )
 
         """Add the new track to the CAF objects"""
-        event_products['neutrino'].append(neutrino_data)
+        event_products['neutrino_event'].append(neutrino_data)

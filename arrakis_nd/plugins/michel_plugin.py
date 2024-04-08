@@ -8,7 +8,8 @@ from arrakis_nd.utils.track_utils import fit_track
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
     ProcessType, SubProcessType,
-    Topology, Physics
+    Topology, Physics,
+    Track
 )
 from arrakis_nd.arrakis.common import (
     tracklette_data_type,
@@ -192,6 +193,7 @@ class MichelPlugin(Plugin):
             """Parameterize the trajectory of this track using t0"""
             track_data = fit_track(particle_hit_t0s, particle_charge_xyz)
 
+            track_type = Track.Michel.value
             """############################### Construct Tracklettes ###############################"""
 
             """
@@ -259,6 +261,7 @@ class MichelPlugin(Plugin):
                     io_group,
                     particle_id,
                     vertex_id,
+                    track_type,
                     [0, 0, 0],
                     [0, 0, 0],
                     [io_group_xyz[tracklette_start_index]],
@@ -300,6 +303,7 @@ class MichelPlugin(Plugin):
                 event,
                 particle_id,
                 vertex_id,
+                track_type,
                 particle_xyz_start,
                 particle_xyz_end,
                 [particle_charge_xyz[closest_start_index]],

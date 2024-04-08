@@ -53,9 +53,6 @@ class ShowerPlugin(Plugin):
         """
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
-        arrakis_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
-        track_id_hit_map = event_products['track_id_hit_map']
-        track_id_hit_segment_map = event_products['track_id_hit_segment_map']
 
         trajectories_traj_ids = trajectories['traj_id']
         trajectories_vertex_ids = trajectories['vertex_id']
@@ -69,28 +66,43 @@ class ShowerPlugin(Plugin):
 
         """Collect unique fragments"""
         arrakis_fragments = event_products['fragment']
+        arrakis_blips = event_products['blip']
         ancestor_traj_index_map = event_products['ancestor_traj_index_map']
         ancestor_traj_id_map = event_products['ancestor_traj_id_map']
         ancestor_pdg_id_map = event_products['ancestor_pdg_id_map']
 
         fragment_ids = np.array([fragment['fragment_id'][0] for fragment in arrakis_fragments])
         fragment_vertex_ids = np.array([fragment['vertex_id'][0] for fragment in arrakis_fragments])
+        blip_ids = np.array([blip['blip_id'][0] for blip in arrakis_blips])
+        blip_vertex_ids = np.array([blip['vertex_id'][0] for blip in arrakis_blips])
 
         fragment_ancestors = {}
+        ancestor_vertex = {}
+        blip_ancestors = {}
 
         for ii, (fragment_id, vertex_id) in enumerate(zip(
             fragment_ids, fragment_vertex_ids
         )):
             ancestor_traj_index = ancestor_traj_index_map[(fragment_id, vertex_id)]
             ancestor_id = ancestor_traj_id_map[(fragment_id, vertex_id)]
+            ancestor_vertex[ancestor_id] = vertex_id
             if ancestor_id not in fragment_ancestors.keys():
                 fragment_ancestors[ancestor_id] = [ii]
+                blip_ancestors[ancestor_id] = []
             else:
                 fragment_ancestors[ancestor_id].append(ii)
 
+        for ii, (blip_id, vertex_id) in enumerate(zip(
+            blip_ids, blip_vertex_ids
+        )):
+            ancestor_traj_index = ancestor_traj_index_map[(blip_id, vertex_id)]
+            ancestor_id = ancestor_traj_id_map[(blip_id, vertex_id)]
+            if ancestor_id in blip_ancestors.keys():
+                blip_ancestors[ancestor_id].append(ii)
+
         """Now that we've collected unique ancestors, lets make a shower for each"""
         for ii, (ancestor_id, frag_ids) in enumerate(fragment_ancestors.items()):
-            ancestor_traj_index = ancestor_traj_index_map[(fragment_id, vertex_id)]
+            ancestor_traj_index = ancestor_traj_index_map[(ancestor_id, ancestor_vertex[ancestor_id])]
             ancestor_pdg = trajectories_pdg_ids[ancestor_traj_index]
             ancestor_xyz_start = trajectories_xyz_start[ancestor_traj_index]
             ancestor_pxyz_start = trajectories_pxyz_start[ancestor_traj_index]
@@ -151,7 +163,7 @@ class ShowerPlugin(Plugin):
                     ('event_id', 'i4'),
                     ('shower_id', 'i4'),
                     ('vertex_id', 'i8'),
-                    ('fragment_ids', 'i4', (1, 400)),
+                    ('blip_ids', 'i4', (1, 400)),
                     ('shower_type', 'i4'),
                     ('start', 'f4', (1, 3)),
                     ('end', 'f4', (1, 3)),
@@ -170,15 +182,11 @@ class ShowerPlugin(Plugin):
                     ('truthOverlap', 'f4', (1, 20)),
                 ])
             """
-            shower_fragment_ids = np.concatenate(
-                (fragment_ids[frag_ids], np.array([-1 for ii in range(400 - len(frag_ids))])),
-            )
 
             shower_data = np.array([(
                 event,
                 ancestor_id,
                 vertex_id,
-                shower_fragment_ids,
                 shower_type,
                 ancestor_xyz_start,
                 [0, 0, 0],

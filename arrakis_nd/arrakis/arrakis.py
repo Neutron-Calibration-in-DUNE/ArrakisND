@@ -29,6 +29,8 @@ from arrakis_nd.arrakis.common import (
     blip_data_type,
     particle_data_type,
     interaction_data_type,
+    neutrino_data_type,
+    interaction_event_data_type,
     neutrino_event_data_type
 )
 from arrakis_nd.plugins.plugin import Plugin
@@ -134,7 +136,7 @@ class Arrakis:
         self,
         exception: Exception = None
     ):
-        self.exception = exception
+        self.error_status = exception
         self.exc_type, self.exc_value, self.exc_traceback = sys.exc_info()
         # Extracting the line number from the traceback
         self.line_number = self.exc_traceback.tb_lineno
@@ -147,12 +149,8 @@ class Arrakis:
     def barrier(self):
         errors = self.comm.allgather(self.error_status)
         exc_types = self.comm.allgather(self.exc_type)
-        exc_values = self.comm.allgather(self.exc_value)
-        exc_tracebacks = self.comm.allgather(self.exc_traceback)
         line_numbers = self.comm.allgather(self.line_number)
         file_names = self.comm.allgather(self.file_name)
-        tb_strs = self.comm.allgather(self.tb_str)
-        traceback_details = self.comm.allgather(self.traceback_details)
         if any(errors):
             if self.rank == 0:
                 errors_count = sum(1 for error in errors if error is not None)
@@ -162,8 +160,6 @@ class Arrakis:
                     self.logger.critical(f"error encountered in worker {index}: ")
                     self.logger.critical(f"exception:   {errors[index]}")
                     self.logger.critical(f"exc_type:    {exc_types[index]}")
-                    self.logger.critical(f"exc_value:   {exc_values[index]}")
-                    self.logger.critical(f"exc_traceback:   {exc_tracebacks[index]}")
                     self.logger.critical(f"line_number:     {line_numbers[index]}")
                     self.logger.critical(f"file_name:       {file_names[index]}")
                 self.comm.Abort(1)
@@ -751,8 +747,24 @@ class Arrakis:
 
             arrakis_file.create_dataset(interaction_name, shape=(0,), maxshape=(None,), dtype=interaction_data_type)
 
+            """Construct neutrino data types"""
+            neutrino_name = 'standard_record/neutrino'
+            if neutrino_name in arrakis_file:
+                del arrakis_file[neutrino_name]
+
+            arrakis_file.create_dataset(neutrino_name, shape=(0,), maxshape=(None,), dtype=neutrino_data_type)
+
+            """Construct interaction event label types"""
+            interaction_event_name = 'standard_record/interaction_event'
+            if interaction_event_name in arrakis_file:
+                del arrakis_file[interaction_event_name]
+
+            arrakis_file.create_dataset(
+                interaction_event_name, shape=(0,), maxshape=(None,), dtype=interaction_event_data_type
+            )
+
             """Construct neutrino event label types"""
-            neutrino_event_name = 'standard_record/neutrino'
+            neutrino_event_name = 'standard_record/neutrino_event'
             if neutrino_event_name in arrakis_file:
                 del arrakis_file[neutrino_event_name]
 
@@ -932,6 +944,8 @@ class Arrakis:
             'particle': [],
             'interaction': [],
             'neutrino': [],
+            'interaction_event': [],
+            'neutrino_event': [],
             'nar_inelastic': []
         }
         self.clear_indices()
@@ -959,6 +973,8 @@ class Arrakis:
             'particle': [],
             'interaction': [],
             'neutrino': [],
+            'interaction_event': [],
+            'neutrino_event': [],
             'nar_inelastic': []
         }
         for ii, event in enumerate(self.distributed_events[self.rank]):
@@ -980,6 +996,8 @@ class Arrakis:
                 'particle': [],
                 'interaction': [],
                 'neutrino': [],
+                'interaction_event': [],
+                'neutrino_event': [],
                 'nar_inelastic': [],
             }
             """Iterate over plugins"""

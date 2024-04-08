@@ -7,7 +7,8 @@ from arrakis_nd.utils.utils import profiler
 from arrakis_nd.utils.track_utils import fit_track
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
-    Topology, Physics
+    Topology, Physics,
+    Track
 )
 from arrakis_nd.arrakis.common import (
     tracklette_data_type,
@@ -130,9 +131,11 @@ class TrackPlugin(Plugin):
 
             """Iterate over standard labels"""
             if abs(trajectories_pdg_ids[particle_mask][ii]) == 2212:
+                track_type = Track.HIP.value
                 for label, value in self.hip_labels.items():
                     arrakis_charge[label][particle_hit_segments] = value
             else:
+                track_type = Track.MIP.value
                 for label, value in self.mip_labels.items():
                     arrakis_charge[label][particle_hit_segments] = value
 
@@ -256,6 +259,7 @@ class TrackPlugin(Plugin):
                     io_group,
                     particle_id,
                     vertex_id,
+                    track_type,
                     [0, 0, 0],
                     [0, 0, 0],
                     [io_group_xyz[tracklette_start_index]],
@@ -297,6 +301,7 @@ class TrackPlugin(Plugin):
                 event,
                 particle_id,
                 vertex_id,
+                track_type,
                 particle_xyz_start,
                 particle_xyz_end,
                 [particle_charge_xyz[closest_start_index]],

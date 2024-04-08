@@ -1,6 +1,7 @@
 """
 """
 import h5py
+import numpy as np
 
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
@@ -93,4 +94,4 @@ class DaughterPlugin(Plugin):
             # Direct lookup instead of np.where
             daughters[ii] = pair_to_indices.get((traj_id, vertex_id), [])
 
-        event_products['daughters'] = daughters
+        event_products['daughters'] = np.array(daughters, dtype=object)

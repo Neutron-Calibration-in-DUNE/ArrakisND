@@ -8,6 +8,7 @@ from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
     Topology, Physics
 )
+from arrakis_nd.utils.logger import ArrakisError
 
 
 class ConstraintPlugin(Plugin):
@@ -48,6 +49,12 @@ class ConstraintPlugin(Plugin):
         if "segment_influence_cut" not in self.config:
             self.config["segment_influence_cut"] = 1.0
         self.segment_influence_cut = self.config["segment_influence_cut"]
+
+        if "constraint_mode" not in self.config:
+            self.config["constraint_mode"] = "min_distance"
+        if self.config["constraint_mode"] not in ["max_fraction", "min_distance"]:
+            raise ArrakisError(f"specified 'constraint_mode' {self.config['constraint_mode']} not allowed!")
+        self.constraint_mode = self.config["constraint_mode"]
 
     @profiler
     def process_event(
@@ -108,21 +115,22 @@ class ConstraintPlugin(Plugin):
             """First check to see if any segments remain after the cut"""
             if sum(segment_distance <= self.segment_influence_cut):
                 segment_fraction[(segment_distance > self.segment_influence_cut)] = 0
-            if Physics.MichelElectron.value in segment_physics:
-                segment_fraction[(segment_physics != Physics.MichelElectron.value)] = 0
-            if Physics.DeltaElectron.value in segment_physics:
-                segment_fraction[(segment_physics != Physics.DeltaElectron.value)] = 0
             if Topology.Track.value in segment_topology:
                 segment_fraction[(segment_topology != Topology.Track.value)] = 0
             if Topology.Shower.value in segment_topology:
                 segment_fraction[(segment_topology != Topology.Shower.value)] = 0
+            segment_distance[(segment_fraction == 0.0)] = 10e10
 
-            max_fraction = np.argmax(segment_fraction)
+            if self.constraint_mode == "max_fraction":
+                constraint_mask = np.argmax(segment_fraction)
+            else:
+                constraint_mask = np.argmin(segment_distance)
+
             arrakis_charge['event_id'][ii] = segment_event
-            arrakis_charge['topology'][ii] = segment_topology[max_fraction]
-            arrakis_charge['particle'][ii] = segment_particle[max_fraction]
-            arrakis_charge['physics'][ii] = segment_physics[max_fraction]
-            arrakis_charge['unique_topology'][ii] = segment_unique_topology[max_fraction]
+            arrakis_charge['topology'][ii] = segment_topology[constraint_mask]
+            arrakis_charge['particle'][ii] = segment_particle[constraint_mask]
+            arrakis_charge['physics'][ii] = segment_physics[constraint_mask]
+            arrakis_charge['unique_topology'][ii] = segment_unique_topology[constraint_mask]
             arrakis_charge['vertex'][ii] = int(np.any(segment_vertex))
             arrakis_charge['tracklette_begin'][ii] = int(np.any(segment_tracklette_begin))
             arrakis_charge['tracklette_end'][ii] = int(np.any(segment_tracklette_end))

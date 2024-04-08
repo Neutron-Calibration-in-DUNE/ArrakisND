@@ -8,9 +8,13 @@ from arrakis_nd.utils.track_utils import fit_track
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
     SubProcessType,
-    Topology, Physics
+    Topology, Physics,
+    Fragment
 )
-from arrakis_nd.arrakis.common import fragment_data_type
+from arrakis_nd.arrakis.common import (
+    fragment_data_type,
+    blip_data_type
+)
 
 
 class FragmentPlugin(Plugin):
@@ -56,6 +60,10 @@ class FragmentPlugin(Plugin):
             self.config["conversion_blip_threshold"] = 10
         self.conversion_blip_threshold = self.config["conversion_blip_threshold"]
 
+        if "others_blip_threshold" not in self.config:
+            self.config["others_blip_threshold"] = 10
+        self.others_blip_threshold = self.config["others_blip_threshold"]
+
         self.compton_labels = {
             'topology': Topology.Shower.value,
             'physics': Physics.GammaCompton.value,
@@ -72,7 +80,11 @@ class FragmentPlugin(Plugin):
             'topology': Topology.Blip.value,
             'physics': Physics.GammaConversion.value,
         }
-        self.low_energy_labels = {
+        self.others_fragment_labels = {
+            'topology': Topology.Shower.value,
+            'physics': Physics.ElectronIonization.value,
+        }
+        self.others_blip_labels = {
             'topology': Topology.Blip.value,
             'physics': Physics.ElectronIonization.value,
         }
@@ -99,6 +111,7 @@ class FragmentPlugin(Plugin):
         track_id_hit_segment_map = event_products['track_id_hit_segment_map']
         track_id_hit_t0_map = event_products['track_id_hit_t0_map']
         parent_pdg_ids = event_products['parent_pdg_id']
+        ancestor_traj_id_map = event_products['ancestor_traj_id_map']
 
         trajectories_traj_ids = trajectories['traj_id']
         trajectories_vertex_ids = trajectories['vertex_id']
@@ -177,6 +190,9 @@ class FragmentPlugin(Plugin):
             """Get the associated t0 values"""
             particle_hit_t0s = track_id_hit_t0_map[(particle_id, vertex_id)]
 
+            """Get ancestor traj_id"""
+            ancestor_id = ancestor_traj_id_map[(particle_id, vertex_id)]
+
             """############################### Set standard labels ###############################"""
             """Set the event_id"""
             arrakis_charge['event_id'][particle_hits] = event
@@ -221,12 +237,18 @@ class FragmentPlugin(Plugin):
                 particle_segments[closest_end_index]
             )
 
+            """Variable determining if this particle made a fragment or blip"""
+            is_fragment = True
+            fragment_type = Fragment.Undefined.value
+
             """Assign labels based on particle type"""
             if (
                 (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.ComptonScattering.value)
             ):
+                fragment_type = Fragment.GammaCompton.value
                 """Iterate over compton scattering labels"""
                 if len(particle_hits) < self.compton_blip_threshold:
+                    is_fragment = False
                     for label, value in self.compton_blip_labels.items():
                         arrakis_charge[label][particle_hit_segments] = value
                 else:
@@ -243,8 +265,15 @@ class FragmentPlugin(Plugin):
                     (abs(trajectories_start_subprocess[particle_mask][ii] == SubProcessType.Decay.value))
                 )
             ):
+                if (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.GammaConversion.value):
+                    fragment_type = Fragment.GammaConversion.value
+                elif (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PairProdByCharge.value):
+                    fragment_type = Fragment.PairProductionByCharge.value
+                else:
+                    fragment_type = Fragment.GammaConversion.value
                 """If this particle is a conversion electron, add labels and CAF"""
                 if len(particle_hits) < self.conversion_blip_threshold:
+                    is_fragment = False
                     for label, value in self.conversion_blip_labels.items():
                         arrakis_charge[label][particle_hit_segments] = value
                 else:
@@ -258,8 +287,20 @@ class FragmentPlugin(Plugin):
                 Otherwise, consider this particle a low energy scatter.
                 """
                 """Iterate over standard labels"""
-                for label, value in self.low_energy_labels.items():
-                    arrakis_charge[label][particle_hit_segments] = value
+                if (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PhotoElectricEffect.value):
+                    fragment_type = Fragment.PhotoelectricEffect.value
+                else:
+                    fragment_type = Fragment.ElectronIonization.value
+                if len(particle_hits) < self.others_blip_threshold:
+                    is_fragment = False
+                    for label, value in self.others_blip_labels.items():
+                        arrakis_charge[label][particle_hit_segments] = value
+                else:
+                    if closest_start_index != closest_end_index:
+                        arrakis_charge['fragment_begin'][particle_start_index] = 1
+                        arrakis_charge['fragment_end'][particle_end_index] = 1
+                    for label, value in self.others_fragment_labels.items():
+                        arrakis_charge[label][particle_hit_segments] = value
 
             """Set the particle label"""
             arrakis_charge['particle'][particle_hit_segments] = trajectories_pdg_ids[particle_mask][ii]
@@ -312,11 +353,9 @@ class FragmentPlugin(Plugin):
                     io_group_segments[fragment_end_index]
                 )
 
-                if fragment_start_index == fragment_end_index:
-                    continue
-
-                arrakis_charge['fragment_begin'][io_group_start_index] = 1
-                arrakis_charge['fragment_end'][io_group_end_index] = 1
+                if (fragment_start_index != fragment_end_index) and (is_fragment):
+                    arrakis_charge['fragment_begin'][io_group_start_index] = 1
+                    arrakis_charge['fragment_end'][io_group_end_index] = 1
 
                 """Parameterize the trajectory of this fragment using t0"""
                 io_group_xyz = particle_charge_xyz[io_group_mask]
@@ -332,32 +371,64 @@ class FragmentPlugin(Plugin):
                 """Assign this fragment to the mip track"""
                 particle_fragment_ids.append(io_group_end_index[0])
 
-                """Create the CAF object for this fragment"""
-                fragment_data = np.array([(
-                    event,
-                    io_group,
-                    particle_id,
-                    vertex_id,
-                    particle_xyz_start,
-                    particle_xyz_end,
-                    [io_group_xyz[fragment_start_index]],
-                    [io_group_xyz[fragment_end_index]],
-                    particle_pxyz_start,
-                    particle_pxyz_end,
-                    [track_data['track_dir']],
-                    [track_data['track_enddir']],
-                    sum(particle_charge_E[io_group_mask]),
-                    1,
-                    track_data['track_len_gcm2'],
-                    track_data['track_len_cm'],
-                    particle_E,
-                    [[traj_index]+[0]*19],
-                    [[1]+[0]*19])],
-                    dtype=fragment_data_type
-                )
+                if is_fragment:
+                    """Create the CAF object for this fragment"""
+                    fragment_data = np.array([(
+                        event,
+                        io_group,
+                        particle_id,
+                        vertex_id,
+                        ancestor_id,
+                        fragment_type,
+                        particle_xyz_start,
+                        particle_xyz_end,
+                        [io_group_xyz[fragment_start_index]],
+                        [io_group_xyz[fragment_end_index]],
+                        particle_pxyz_start,
+                        particle_pxyz_end,
+                        [track_data['track_dir']],
+                        [track_data['track_enddir']],
+                        sum(particle_charge_E[io_group_mask]),
+                        1,
+                        track_data['track_len_gcm2'],
+                        track_data['track_len_cm'],
+                        particle_E,
+                        [[traj_index]+[0]*19],
+                        [[1]+[0]*19])],
+                        dtype=fragment_data_type
+                    )
 
-                """Add the new fragment to the CAF objects"""
-                event_products['fragment'].append(fragment_data)
+                    """Add the new fragment to the CAF objects"""
+                    event_products['fragment'].append(fragment_data)
+                else:
+                    """Create the CAF object for this fragment"""
+                    blip_data = np.array([(
+                        event,
+                        io_group,
+                        particle_id,
+                        vertex_id,
+                        ancestor_id,
+                        fragment_type,
+                        particle_xyz_start,
+                        particle_xyz_end,
+                        [io_group_xyz[fragment_start_index]],
+                        [io_group_xyz[fragment_end_index]],
+                        particle_pxyz_start,
+                        particle_pxyz_end,
+                        [track_data['track_dir']],
+                        [track_data['track_enddir']],
+                        sum(particle_charge_E[io_group_mask]),
+                        1,
+                        track_data['track_len_gcm2'],
+                        track_data['track_len_cm'],
+                        particle_E,
+                        [[traj_index]+[0]*19],
+                        [[1]+[0]*19])],
+                        dtype=blip_data_type
+                    )
+
+                    """Add the new blip to the CAF objects"""
+                    event_products['blip'].append(blip_data)
 
         """Write changes to arrakis_file"""
         arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']] = arrakis_charge
