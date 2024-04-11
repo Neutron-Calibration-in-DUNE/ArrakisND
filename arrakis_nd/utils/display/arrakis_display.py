@@ -395,7 +395,7 @@ class ArrakisDisplay:
                         events = trajectories['event_id']
                         for key in self.geometry_info.keys():
                             try:
-                                self.geometry_info[key] = flow_file[f'geometry_info/{key}/data']['data']
+                                self.geometry_info[key] = flow_file[f'geometry_info/{key}/data'][:]
                             except Exception:
                                 print(f"Issue with getting {key} from geometry_info")
                         self.charge_light_display.set_geometry_info(self.geometry_info)
@@ -459,6 +459,7 @@ class ArrakisDisplay:
                 if self.flow_file:
                     with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
                         interactions_events = flow_file['mc_truth/interactions/data']['event_id']
+                        #print(np.where(interactions_events == event)[0])
                         segments_events = flow_file['mc_truth/segments/data']['event_id']
                         stack_events = flow_file['mc_truth/stack/data']['event_id']
                         trajectories_events = flow_file['mc_truth/trajectories/data']['event_id']
@@ -491,17 +492,29 @@ class ArrakisDisplay:
                         self.charge = flow_file['charge/calib_final_hits/data'][
                             hits_to_segments
                         ]
+                        charge_events = flow_file["charge/events/data"]["id"]
+
+                        self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
+                        
                         """Likewise for light data, we must backtrack through segments"""
-                        self.light = []
+                        match_light = flow_file['/light/events/data'][:][ flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0],1] ]["id"]
+                        self.light = flow_file["light/events/data"][:]  # we have to try them all, events may not be time ordered
+
+                        waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
+                        print(match_light)
+                        self.waveforms = waveforms_all_detectors
+                        # we have now the waveforms for all detectors matched in time to the event
                     print_output = f"Event: {event} Loaded!"
                     self.charge_light_display.update_event(
                         self.interactions,
                         self.segments,
                         self.stack,
                         self.trajectories,
-                        self.charge
+                        self.charge,
+                        self.waveforms,
                     )
                     self.charge_light_display.plot_event()
+                    self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
             return print_output, self.charge_light_display.tpc
 
     def run_app(self):
