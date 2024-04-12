@@ -502,7 +502,6 @@ class ArrakisDisplay:
 
                         waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
                         print(match_light)
-                        self.waveforms = waveforms_all_detectors
                         # we have now the waveforms for all detectors matched in time to the event
                     print_output = f"Event: {event} Loaded!"
                     self.charge_light_display.update_event(
@@ -511,11 +510,37 @@ class ArrakisDisplay:
                         self.stack,
                         self.trajectories,
                         self.charge,
-                        self.waveforms,
                     )
                     self.charge_light_display.plot_event()
                     self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
             return print_output, self.charge_light_display.tpc
+        
+        @self.app.callback(
+            Output('light-waveform', 'figure'),
+            [Input('charge_light_tpc_plot', 'figure'),
+             Input('event_dropdown', 'value'),
+             Input('charge_light_tpc_plot', 'clickData')]
+        )
+        def update_light_waveform(charge_light_tpc_plot, event, click_data):
+            if click_data:
+                try:
+                    if self.flow_file:
+                        with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
+                            interactions_events = flow_file['mc_truth/interactions/data']['event_id']
+                            
+                            # self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
+                            
+                            """Likewise for light data, we must backtrack through segments"""
+                            match_light = flow_file['/light/events/data'][:][ flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0],1] ]["id"]
+                            # self.light = flow_file["light/events/data"][:]  # we have to try them all, events may not be time ordered
+
+                            waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
+                            opid = click_data['points'][0]['id'].split('_')[1]
+                            self.charge_light_display.plot_waveform(opid, waveforms_all_detectors)
+                    return self.charge_light_display.waveforms
+                except Exception as e:
+                    print(e)
+                    print("that is not a light trap, no waveform to plot")
 
     def run_app(self):
         self.app.run_server(

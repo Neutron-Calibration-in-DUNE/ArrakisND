@@ -21,7 +21,6 @@ class ChargeLightDisplay:
         self.stack = None
         self.trajectories = None
         self.charge = None
-        self.waveforms = None
         self.geometry_info = {}
         self.set_geometry_info(geometry_info)
         self.generate_layout()
@@ -109,7 +108,7 @@ class ChargeLightDisplay:
             sipms = channel_map_deluxe[channel_map_deluxe['det_id']==opid][['adc', 'channel']].values
             sum_photons = 0
             for adc, channel in sipms:
-                wvfm = self.waveforms[:, int(adc), int(channel), :]
+                wvfm = waveforms[:, int(adc), int(channel), :]
                 sum_wvfm = np.sum(wvfm, axis=0)
                 sum_photons += np.sum(sum_wvfm, axis=0)
             opid_str = f"opid_{opid}"
@@ -143,13 +142,34 @@ class ChargeLightDisplay:
             drawn_objects.append(light_plane)
         self.tpc.add_traces(drawn_objects)
 
+    def plot_waveform(self, opid, waveforms_all_detectors):
+        channel_map_deluxe = pd.read_csv('arrakis_nd/utils/display/sipm_channel_map.csv', header=0)
+        sipms = channel_map_deluxe[channel_map_deluxe['det_id']==opid][['adc', 'channel']].values
+        
+        sum_wvfm = np.array([0]*1000)
+        for adc, channel in sipms:
+            wvfm = waveforms_all_detectors[:, adc, channel, :]
+            event_sum_wvfm = np.sum(wvfm, axis=0) # sum over the events
+            sum_wvfm += event_sum_wvfm # sum over the sipms
+
+        x = np.arange(0, 1000, 1)
+        y = sum_wvfm
+
+        drawn_objects = go.Scatter(x=x, y=y, name=f"Channel sum for light trap {opid}", visible=True, showlegend=True)
+        self.waveforms.add_traces(drawn_objects)
+        for adc, channel in sipms:
+            wvfm = waveforms_all_detectors[:, adc, channel, :]
+            sum_wvfm = np.sum(wvfm, axis=0)
+            self.waveforms.add_traces(go.Scatter(x=x, y=sum_wvfm, visible="legendonly", showlegend=True, name=f"Channel {adc, channel}"))
+
+        print(self.waveforms.data)
+
     def construct_waveforms(self):
-        # waveforms = go.Figure()
-        # waveforms.update_xaxes(title_text='Time [ticks] (1 ns)')
-        # waveforms.update_yaxes(title_text='Adc counts')
-        # waveforms.update_layout(title_text='Waveform for optical detector')
-        # return waveforms
-        return go.Figure()
+        waveforms = go.Figure()
+        waveforms.update_xaxes(title_text='Time [ticks] (1 ns)')
+        waveforms.update_yaxes(title_text='Adc counts')
+        waveforms.update_layout(title_text='Waveform for optical detector')
+        return waveforms
 
     def construct_larpix(self):
         larpix = go.Figure()
@@ -241,14 +261,12 @@ class ChargeLightDisplay:
         stack,
         trajectories,
         charge,
-        waveforms
     ):
         self.interactions = interactions
         self.segments = segments
         self.stack = stack
         self.trajectories = trajectories
         self.charge = charge
-        self.waveforms = waveforms
     
     def plot_event(self):
         if self.charge is not None:
