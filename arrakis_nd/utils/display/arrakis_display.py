@@ -119,7 +119,7 @@ class ArrakisDisplay:
             )
 
         """Get the custom style file"""
-        with open('arrakis_nd/utils/display/styles.yaml', 'r') as file:
+        with open('arrakis_nd/utils/display/assets/styles.yaml', 'r') as file:
             styles = yaml.safe_load(file)
 
         """Define the navbar with a dropdown"""
@@ -298,6 +298,8 @@ class ArrakisDisplay:
             if pathname == "Home":
                 return html.P("This is the content of the home page!")
             if pathname == "Charge and Light Detectors":
+                print("Charge and Light Detectors")
+                # print(self.charge_light_display.layout)
                 return self.charge_light_display.layout
             elif pathname == "Arrakis":
                 return html.P("This is the content of page 2. Yay!")
@@ -445,7 +447,6 @@ class ArrakisDisplay:
             else:
                 # If we can't go previous or next, raise PreventUpdate to do nothing
                 raise PreventUpdate
-
             return self.available_events[new_index]['value']
 
         @self.app.callback(
@@ -513,6 +514,7 @@ class ArrakisDisplay:
                     )
                     self.charge_light_display.plot_event()
                     self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
+                    self.charge_light_display.waveforms = self.charge_light_display.construct_waveforms()
             return print_output, self.charge_light_display.tpc
         
         @self.app.callback(
@@ -537,6 +539,12 @@ class ArrakisDisplay:
                             waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
                             opid = click_data['points'][0]['id'].split('_')[1]
                             self.charge_light_display.plot_waveform(opid, waveforms_all_detectors)
+
+                            print("waveform plotted")
+                            print(opid)
+                            print(self.charge_light_display.waveforms.data)
+
+                            self.charge_light_display.generate_layout() 
                     return self.charge_light_display.waveforms
                 except Exception as e:
                     print(e)

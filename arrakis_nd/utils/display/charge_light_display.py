@@ -6,6 +6,7 @@ import plotly
 import h5py
 import traceback
 
+from arrakis_nd.utils.display.utils import custom_plotly_layout, get_continuous_color
 
 class ChargeLightDisplay:
     '''
@@ -43,7 +44,8 @@ class ChargeLightDisplay:
 
     def construct_detector(self):
         self.tpc = self.construct_tpcs()
-        self.waveforms = self.construct_waveforms()
+        try: aux = self.waveforms.data; print("We already have waveforms!"); del aux
+        except AttributeError: self.waveforms = self.construct_waveforms()
         self.larpix = self.construct_larpix()
 
     def construct_tpcs(self):
@@ -142,6 +144,14 @@ class ChargeLightDisplay:
             drawn_objects.append(light_plane)
         self.tpc.add_traces(drawn_objects)
 
+    def construct_waveforms(self):
+        waveforms = go.Figure()
+        waveforms = custom_plotly_layout(waveforms,
+                                         xaxis_title ="Time [ticks] (1 ns)",
+                                         yaxis_title="ADC counts",
+                                         title="Waveform for optical detector")
+        return waveforms
+    
     def plot_waveform(self, opid, waveforms_all_detectors):
         channel_map_deluxe = pd.read_csv('arrakis_nd/utils/display/sipm_channel_map.csv', header=0)
         sipms = channel_map_deluxe[channel_map_deluxe['det_id']==opid][['adc', 'channel']].values
@@ -155,24 +165,19 @@ class ChargeLightDisplay:
         x = np.arange(0, 1000, 1)
         y = sum_wvfm
 
-        drawn_objects = go.Scatter(x=x, y=y, name=f"Channel sum for light trap {opid}", visible=True, showlegend=True)
+        drawn_objects = go.Scatter(x=x, y=y, name=f"Channel sum for light trap {opid}", visible=True, showlegend=True, legend_orientation="h")
         self.waveforms.add_traces(drawn_objects)
         for adc, channel in sipms:
             wvfm = waveforms_all_detectors[:, adc, channel, :]
             sum_wvfm = np.sum(wvfm, axis=0)
             self.waveforms.add_traces(go.Scatter(x=x, y=sum_wvfm, visible="legendonly", showlegend=True, name=f"Channel {adc, channel}"))
 
-        print(self.waveforms.data)
-
-    def construct_waveforms(self):
-        waveforms = go.Figure()
-        waveforms.update_xaxes(title_text='Time [ticks] (1 ns)')
-        waveforms.update_yaxes(title_text='Adc counts')
-        waveforms.update_layout(title_text='Waveform for optical detector')
-        return waveforms
-
     def construct_larpix(self):
         larpix = go.Figure()
+        larpix = custom_plotly_layout(larpix,
+                                      xaxis_title="x [cm]",
+                                      yaxis_title="y [cm]",
+                                      title="LArPix detector")
         return larpix
 
     def draw_tpc(
@@ -340,46 +345,3 @@ class ChargeLightDisplay:
                 ], style={'display': 'flex'})
             ]
         )
-
-def get_continuous_color(colorscale, intermed):
-    """
-    Plotly continuous colorscales assign colors to the range [0, 1]. This function computes the intermediate
-    color for any value in that range.
-
-    Plotly doesn't make the colorscales directly accessible in a common format.
-    Some are ready to use:
-
-        colorscale = plotly.colors.PLOTLY_SCALES["Greens"]
-
-    Others are just swatches that need to be constructed into a colorscale:
-
-        viridis_colors, scale = plotly.colors.convert_colors_to_same_type(plotly.colors.sequential.Viridis)
-        colorscale = plotly.colors.make_colorscale(viridis_colors, scale=scale)
-
-    :param colorscale: A plotly continuous colorscale defined with RGB string colors.
-    :param intermed: value in the range [0, 1]
-    :return: color in rgb string format
-    :rtype: str
-    """
-    if len(colorscale) < 1:
-        raise ValueError("colorscale must have at least one color")
-
-    if intermed <= 0 or len(colorscale) == 1:
-        return colorscale[0][1]
-    if intermed >= 1:
-        return colorscale[-1][1]
-
-    for cutoff, color in colorscale:
-        if intermed > cutoff:
-            low_cutoff, low_color = cutoff, color
-        if intermed <= cutoff:
-            high_cutoff, high_color = cutoff, color
-            break
-
-    # noinspection PyUnboundLocalVariable
-    return plotly.colors.find_intermediate_color(
-        lowcolor=low_color,
-        highcolor=high_color,
-        intermed=((intermed - low_cutoff) / (high_cutoff - low_cutoff)),
-        colortype="rgb",
-    )
