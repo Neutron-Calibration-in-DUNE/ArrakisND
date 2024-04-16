@@ -70,6 +70,14 @@ For information on how each of these labels is assigned to each reconstructed po
 
 <a name="usage"></a>
 ## Usage
+You can have a look at the Arrakis visualizer by loading python and running the following script:
+```bash
+module load python
+cd ArrakisND
+git fetch
+git checkout -b develop remotes/origin/develop
+source scripts/run_display.sh
+```
 
 <a name="versions"></a>
 ## Versioning
