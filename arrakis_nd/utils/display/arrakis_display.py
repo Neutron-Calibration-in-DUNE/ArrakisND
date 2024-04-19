@@ -529,13 +529,10 @@ class ArrakisDisplay:
                     if self.flow_file:
                         with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
                             interactions_events = flow_file['mc_truth/interactions/data']['event_id']
-                            
-                            # self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
-                            
+                                                      
                             """Likewise for light data, we must backtrack through segments"""
                             match_light = flow_file['/light/events/data'][:][ flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0],1] ]["id"]
-                            # self.light = flow_file["light/events/data"][:]  # we have to try them all, events may not be time ordered
-
+                            
                             waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
                             opid = click_data['points'][0]['id'].split('_')[1]
                             self.charge_light_display.plot_waveform(opid, waveforms_all_detectors)

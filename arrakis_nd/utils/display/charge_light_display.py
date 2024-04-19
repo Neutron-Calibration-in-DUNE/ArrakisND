@@ -152,23 +152,22 @@ class ChargeLightDisplay:
                                          title="Waveform for optical detector")
         return waveforms
     
-    def plot_waveform(self, opid, waveforms_all_detectors):
+    def plot_waveform(self, opid, waveforms):
         channel_map_deluxe = pd.read_csv('arrakis_nd/utils/display/sipm_channel_map.csv', header=0)
-        sipms = channel_map_deluxe[channel_map_deluxe['det_id']==opid][['adc', 'channel']].values
-        
+        sipms = channel_map_deluxe[channel_map_deluxe['det_id']==int(opid)][['adc', 'channel']].values
         sum_wvfm = np.array([0]*1000)
         for adc, channel in sipms:
-            wvfm = waveforms_all_detectors[:, adc, channel, :]
+            wvfm = waveforms[:, int(adc), int(channel), :]
             event_sum_wvfm = np.sum(wvfm, axis=0) # sum over the events
             sum_wvfm += event_sum_wvfm # sum over the sipms
 
         x = np.arange(0, 1000, 1)
         y = sum_wvfm
 
-        drawn_objects = go.Scatter(x=x, y=y, name=f"Channel sum for light trap {opid}", visible=True, showlegend=True, legend_orientation="h")
+        drawn_objects = go.Scatter(x=x, y=y, name=f"Channel sum for light trap {opid}", visible=True, showlegend=True)#, legend_orientation="h")
         self.waveforms.add_traces(drawn_objects)
         for adc, channel in sipms:
-            wvfm = waveforms_all_detectors[:, adc, channel, :]
+            wvfm = waveforms[:, int(adc), int(channel), :]
             sum_wvfm = np.sum(wvfm, axis=0)
             self.waveforms.add_traces(go.Scatter(x=x, y=sum_wvfm, visible="legendonly", showlegend=True, name=f"Channel {adc, channel}"))
 
