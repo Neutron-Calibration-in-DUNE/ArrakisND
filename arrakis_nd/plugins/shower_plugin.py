@@ -5,6 +5,7 @@ import numpy as np
 
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
+from arrakis_nd.utils.shower_utils import fit_shower
 from arrakis_nd.arrakis.common import shower_data_type
 from arrakis_nd.dataset.common import (
     ProcessType, SubProcessType,
@@ -53,23 +54,31 @@ class ShowerPlugin(Plugin):
         """
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
+        charge = flow_file['charge/calib_final_hits/data'][event_indices['charge']]
+        arrakis_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
+        track_id_hit_map = event_products['track_id_hit_map']
+        track_id_hit_segment_map = event_products['track_id_hit_segment_map']
+        track_id_hit_t0_map = event_products['track_id_hit_t0_map']
 
         trajectories_traj_ids = trajectories['traj_id']
         trajectories_vertex_ids = trajectories['vertex_id']
         trajectories_pdg_ids = trajectories['pdg_id']
         trajectories_xyz_start = trajectories['xyz_start']
-        trajectories_xyz_end = trajectories['xyz_end']
         trajectories_pxyz_start = trajectories['pxyz_start']
+        trajectories_xyz_end = trajectories['xyz_end']
         trajectories_pxyz_end = trajectories['pxyz_end']
         trajectories_E = trajectories['E_start']
         trajectories_start_subprocess = trajectories['start_subprocess']
+        charge_x = charge['x']
+        charge_y = charge['y']
+        charge_z = charge['z']
+        charge_E = charge['E']
 
         """Collect unique fragments"""
         arrakis_fragments = event_products['fragment']
         arrakis_blips = event_products['blip']
         ancestor_traj_index_map = event_products['ancestor_traj_index_map']
         ancestor_traj_id_map = event_products['ancestor_traj_id_map']
-        ancestor_pdg_id_map = event_products['ancestor_pdg_id_map']
 
         fragment_ids = np.array([fragment['fragment_id'][0] for fragment in arrakis_fragments])
         fragment_vertex_ids = np.array([fragment['vertex_id'][0] for fragment in arrakis_fragments])
@@ -101,18 +110,71 @@ class ShowerPlugin(Plugin):
                 blip_ancestors[ancestor_id].append(ii)
 
         """Now that we've collected unique ancestors, lets make a shower for each"""
-        for ii, (ancestor_id, frag_ids) in enumerate(fragment_ancestors.items()):
+        for ii, (ancestor_id, frag_indices) in enumerate(fragment_ancestors.items()):
             ancestor_traj_index = ancestor_traj_index_map[(ancestor_id, ancestor_vertex[ancestor_id])]
             ancestor_pdg = trajectories_pdg_ids[ancestor_traj_index]
             ancestor_xyz_start = trajectories_xyz_start[ancestor_traj_index]
             ancestor_pxyz_start = trajectories_pxyz_start[ancestor_traj_index]
+            ancestor_xyz_end = trajectories_xyz_end[ancestor_traj_index]
+            ancestor_E = trajectories_E[ancestor_traj_index]
+
+            """Combine all hits together for this shower"""
+            fragment_hits = np.concatenate([
+                track_id_hit_map[(fragment_ids[frag_index], fragment_vertex_ids[frag_index])]
+                for frag_index in frag_indices
+            ])
+            fragment_segments = np.concatenate([
+                track_id_hit_segment_map[(fragment_ids[frag_index], fragment_vertex_ids[frag_index])]
+                for frag_index in frag_indices
+            ])
+
+            """Get the associated t0 values"""
+            fragment_t0s = np.concatenate([
+                track_id_hit_t0_map[(fragment_ids[frag_index], fragment_vertex_ids[frag_index])]
+                for frag_index in frag_indices
+            ])
+
+            """Determine track begin and end points"""
+            fragment_charge_xyz = np.array([
+                charge_x[fragment_hits],
+                charge_y[fragment_hits],
+                charge_z[fragment_hits]
+            ]).T
+            fragment_charge_E = charge_E[np.unique(fragment_hits)]
+
+            """
+            To do this we find the closest hits to the actual track beginning
+            and ending from the trajectories.  If these points end up being the
+            same, we skip this track, since there's no way to distinguish
+            that point as a track anyways.
+            """
+            fragment_start_distances = np.sqrt(
+                ((fragment_charge_xyz - ancestor_xyz_end) ** 2).sum(axis=1)
+            )
+            closest_start_index = np.argmin(fragment_start_distances)
+
+            fragment_start_index = (
+                fragment_hits[closest_start_index],
+                fragment_segments[closest_start_index]
+            )
+
+            """Set track beginning and ending points"""
+            arrakis_charge['shower_begin'][fragment_start_index] = 1
+
+            """Fit shower variables"""
+            shower_data = fit_shower(
+                fragment_t0s,
+                fragment_charge_xyz,
+                fragment_charge_xyz[closest_start_index],
+                ancestor_pxyz_start
+            )
 
             """First we check to see whether a conversion exists, if not then no shower"""
             num_conversions = 0
-            for frag_id in frag_ids:
+            for frag_index in frag_indices:
                 traj_index = np.where(
-                    (trajectories_traj_ids == arrakis_fragments[frag_id]['fragment_id']) &
-                    (trajectories_vertex_ids == arrakis_fragments[frag_id]['vertex_id'])
+                    (trajectories_traj_ids == arrakis_fragments[frag_index]['fragment_id']) &
+                    (trajectories_vertex_ids == arrakis_fragments[frag_index]['vertex_id'])
                 )
                 if trajectories_start_subprocess[traj_index] == SubProcessType.GammaConversion.value:
                     num_conversions += 1
@@ -177,6 +239,8 @@ class ShowerPlugin(Plugin):
                     ('qual', 'f4'),
                     ('len_gcm2', 'f4'),
                     ('len_cm', 'f4'),
+                    ('width', 'f4'),
+                    ('angle', 'f4'),
                     ('E', 'f4'),
                     ('truth', 'i4', (1, 20)),
                     ('truthOverlap', 'f4', (1, 20)),
@@ -189,18 +253,20 @@ class ShowerPlugin(Plugin):
                 vertex_id,
                 shower_type,
                 ancestor_xyz_start,
-                [0, 0, 0],
-                [0, 0, 0],
+                shower_data['shower_end'],
+                [fragment_charge_xyz[closest_start_index]],
                 [0, 0, 0],
                 ancestor_pxyz_start,
                 [0, 0, 0],
+                shower_data['shower_dir'],
                 [0, 0, 0],
-                [0, 0, 0],
-                0,
+                sum(fragment_charge_E),
                 1,
-                0,
-                0,
-                0,
+                shower_data['len_gcm2'],
+                shower_data['len_cm'],
+                shower_data['width'],
+                shower_data['angle'],
+                ancestor_E,
                 [[ancestor_traj_index]+[0]*19],
                 [[1]+[0]*19])],
                 dtype=shower_data_type

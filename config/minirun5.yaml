@@ -23,9 +23,10 @@ plugins:
   PhotonPlugin:
   IonPlugin:
   NeutronPlugin:
-  # ParticlePlugin:
+  NeutrinoPlugin:
+  ShowerPlugin:
+  ParticlePlugin:
   ConstraintPlugin:
     segment_influence_cut: 0.4
     constraint_mode: "min_distance"
-  NeutrinoPlugin:
-  ShowerPlugin:
+  ProtonPlugin:

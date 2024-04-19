@@ -6,6 +6,7 @@ from scipy.interpolate import splprep, splev
 
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.utils.utils import fiducialized_vertex
+from arrakis_nd.utils.track_utils import fit_track
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.arrakis.common import particle_data_type
 
@@ -139,28 +140,7 @@ class ParticlePlugin(Plugin):
             closest_particle_xyz_end = particle_charge_xyz[closest_end_index]
 
             """Parameterize the trajectory of this particle using t0"""
-            combined = sorted(zip(particle_hit_t0s, particle_charge_xyz), key=lambda x: x[0])
-            sorted_t0, sorted_xyz = zip(*combined)
-            sorted_t0 = np.array(sorted_t0)
-            sorted_xyz = np.array(sorted_xyz)
-
-            try:
-                """Try to fit a spline curve to the xyz data"""
-                tck, u = splprep(
-                    [sorted_xyz[:, 0], sorted_xyz[:, 1], sorted_xyz[:, 2]],
-                    s=0
-                )
-
-                """Get the derivatives at the beginning and ending points"""
-                dxdt_start, dydt_start, dzdt_start = splev(0, tck, der=1)
-                dx_start = np.array([dxdt_start, dydt_start, dzdt_start])
-                dx_start_magnitude = np.linalg.norm(dx_start)
-
-                """Fill the values"""
-                particle_dir = [dxdt_start, dydt_start, dzdt_start] / dx_start_magnitude
-            except Exception:
-                """Otherwise, these values are undefined"""
-                particle_dir = [0, 0, 0]
+            track_data = fit_track(particle_hit_t0s, particle_charge_xyz)
 
             """Determine tgtA"""
             interaction = interactions[(interactions['vertex_id'] == vertex_id)]
@@ -210,7 +190,7 @@ class ParticlePlugin(Plugin):
                 particle_E,
                 0,
                 particle_pxyz_start,
-                particle_dir,
+                track_data['track_dir'],
                 particle_xyz_start,
                 particle_xyz_end,
                 closest_particle_xyz_start,

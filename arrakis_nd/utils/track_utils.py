@@ -17,12 +17,13 @@ def fit_track(
     """
     This function ...
     """
-    combined = sorted(zip(track_t0s, track_xyz), key=lambda x: x[0])
-    sorted_t0, sorted_xyz = zip(*combined)
-    sorted_t0 = np.array(sorted_t0)
-    sorted_xyz = np.array(sorted_xyz)
-
     try:
+        """Sort charge with respect to t0s"""
+        combined = sorted(zip(track_t0s, track_xyz), key=lambda x: x[0])
+        sorted_t0, sorted_xyz = zip(*combined)
+        sorted_t0 = np.array(sorted_t0)
+        sorted_xyz = np.array(sorted_xyz)
+
         """Try to fit a spline curve to the xyz data"""
         tck, u = splprep(
             [sorted_xyz[:, 0], sorted_xyz[:, 1], sorted_xyz[:, 2]],

@@ -178,6 +178,8 @@ shower_data_type = np.dtype([
     ('qual', 'f4'),
     ('len_gcm2', 'f4'),
     ('len_cm', 'f4'),
+    ('width', 'f4'),
+    ('angle', 'f4'),
     ('E', 'f4'),
     ('truth', 'i4', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
