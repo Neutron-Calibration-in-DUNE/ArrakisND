@@ -31,7 +31,6 @@ setup(
     install_requires=read_requirements(),
     # packages
     packages=find_packages(
-        # where='pointnet',
         exclude=["test"],
     ),
     include_package_data=True,

@@ -29,4 +29,3 @@ plugins:
   ConstraintPlugin:
     segment_influence_cut: 0.4
     constraint_mode: "min_distance"
-  ProtonPlugin:

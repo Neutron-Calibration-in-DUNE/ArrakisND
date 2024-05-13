@@ -115,8 +115,11 @@ class ConstraintPlugin(Plugin):
             """First check to see if any segments remain after the cut"""
             if sum(segment_distance <= self.segment_influence_cut):
                 segment_fraction[(segment_distance > self.segment_influence_cut)] = 0
+            
+            """Then, give priority to tracks"""
             if Topology.Track.value in segment_topology:
                 segment_fraction[(segment_topology != Topology.Track.value)] = 0
+            """Then, to showers"""
             if Topology.Shower.value in segment_topology:
                 segment_fraction[(segment_topology != Topology.Shower.value)] = 0
             segment_distance[(segment_fraction == 0.0)] = 10e10
@@ -125,6 +128,11 @@ class ConstraintPlugin(Plugin):
                 constraint_mask = np.argmax(segment_fraction)
             else:
                 constraint_mask = np.argmin(segment_distance)
+            
+            if segment_topology[constraint_mask] == -1:
+                segment_topology[constraint_mask] = 2
+                segment_physics[constraint_mask] = 2
+                segment_particle[constraint_mask] = 11
 
             arrakis_charge['event_id'][ii] = segment_event
             arrakis_charge['topology'][ii] = segment_topology[constraint_mask]

@@ -111,10 +111,9 @@ class Topology(Enum):
     deposits.
     """
     Undefined = -1
-    Noise = 0
-    Track = 1
-    Shower = 2
-    Blip = 3
+    Track = 0
+    Shower = 1
+    Blip = 2
 
 
 class Physics(Enum):
@@ -124,16 +123,15 @@ class Physics(Enum):
     topology labels into micro-level physics.
     """
     Undefined = -1
-    Noise = 0
-    MIP = 1
-    HIP = 2
-    ElectronIonization = 3
-    DeltaElectron = 4
-    MichelElectron = 5
-    GammaCompton = 6
-    GammaConversion = 7
-    NuclearRecoil = 8
-    ElectronRecoil = 9
+    MIP = 0
+    HIP = 1
+    ElectronIonization = 2
+    DeltaElectron = 3
+    MichelElectron = 4
+    GammaCompton = 5
+    GammaConversion = 6
+    NuclearRecoil = 7
+    ElectronRecoil = 8
 
 
 class Tracklette(Enum):
@@ -144,11 +142,10 @@ class Tracklette(Enum):
         Enum (_type_): _description_
     """
     Undefined = -1
-    Noise = 0
-    MIP = 1
-    HIP = 2
-    Delta = 3
-    Michel = 4
+    MIP = 0
+    HIP = 1
+    Delta = 2
+    Michel = 3
 
 
 class Track(Enum):
@@ -159,11 +156,10 @@ class Track(Enum):
         Enum (_type_): _description_
     """
     Undefined = -1
-    Noise = 0
-    MIP = 1
-    HIP = 2
-    Delta = 3
-    Michel = 4
+    MIP = 0
+    HIP = 1
+    Delta = 2
+    Michel = 3
 
 
 class Fragment(Enum):
@@ -174,14 +170,13 @@ class Fragment(Enum):
         Enum (_type_): _description_
     """
     Undefined = -1
-    Noise = 0
-    GammaCompton = 1
-    GammaConversion = 2
-    PairProductionByCharge = 3
-    Bremsstrahlung = 4
-    PhotoelectricEffect = 5
-    ElectronIonization = 6
-    Annihilation = 7
+    GammaCompton = 0
+    GammaConversion = 1
+    PairProductionByCharge = 2
+    Bremsstrahlung = 3
+    PhotoelectricEffect = 4
+    ElectronIonization = 5
+    Annihilation = 6
 
 
 class Shower(Enum):
@@ -191,23 +186,22 @@ class Shower(Enum):
         Enum (_type_): _description_
     """
     Undefined = -1
-    Noise = 0
-    Electromagnetic = 1
-    Pion0Decay = 2
-    PiPlusDecay = 3
-    PiMinusDecay = 4
-    Kaon0Decay = 5
-    KaonShortDecay = 6
-    KaonLongDecay = 7
-    KaonPlusDecay = 8
-    KaonMinusdecay = 9
-    D0Decay = 10
-    DPlusDecay = 11
-    DMinusDecay = 12
-    LambdaDecay = 13
-    Sigma0Decay = 14
-    SigmaPlusDecay = 15
-    SigmaMinusDecay = 16
+    Electromagnetic = 0
+    Pion0Decay = 1
+    PiPlusDecay = 2
+    PiMinusDecay = 3
+    Kaon0Decay = 4
+    KaonShortDecay = 5
+    KaonLongDecay = 6
+    KaonPlusDecay = 7
+    KaonMinusdecay = 8
+    D0Decay = 9
+    DPlusDecay = 10
+    DMinusDecay = 11
+    LambdaDecay = 12
+    Sigma0Decay = 13
+    SigmaPlusDecay = 14
+    SigmaMinusDecay = 15
 
 
 class Blip(Enum):
@@ -215,27 +209,26 @@ class Blip(Enum):
     Macro-level descriptions of blip types.
     """
     Undefined = -1
-    Noise = 0
-    GammaCompton = 1
-    GammaConversion = 2
-    PairProductionByCharge = 3
-    Bremsstrahlung = 4
-    PhotoelectricEffect = 5
-    ElectronIonization = 6
-    Annihilation = 7
-    NeutronCaptureGamma474 = 8
-    NeutronCaptureGamma336 = 9
-    NeutronCaptureGamma256 = 10
-    NeutronCaptureGamma118 = 11
-    NeutronCaptureGamma083 = 12
-    NeutronCaptureGamma051 = 13
-    NeutronCaptureGamma016 = 14
-    NeutronCaptureGammaOther = 15
-    AlphaDecay = 16
-    BetaDecay = 17
-    GammaDecay = 18
-    NuclearRecoil = 19
-    ElectronRecoil = 20
+    GammaCompton = 0
+    GammaConversion = 1
+    PairProductionByCharge = 2
+    Bremsstrahlung = 3
+    PhotoelectricEffect = 4
+    ElectronIonization = 5
+    Annihilation = 6
+    NeutronCaptureGamma474 = 7
+    NeutronCaptureGamma336 = 8
+    NeutronCaptureGamma256 = 9
+    NeutronCaptureGamma118 = 10
+    NeutronCaptureGamma083 = 11
+    NeutronCaptureGamma051 = 12
+    NeutronCaptureGamma016 = 13
+    NeutronCaptureGammaOther = 14
+    AlphaDecay = 15
+    BetaDecay = 16
+    GammaDecay = 17
+    NuclearRecoil = 18
+    ElectronRecoil = 19
 
 
 class Interaction(Enum):
@@ -253,16 +246,15 @@ class Neutrino(Enum):
     Macro-level descriptions of neutrino types.
     """
     Undefined = -1
-    Noise = 0
-    NCElectronNeutrino = 1
-    CCElectronNeutrino = 2
-    NCAntiElectronNeutrino = 3
-    CCAntiElectronNeutrino = 4
-    NCMuonNeutrino = 5
-    CCMuonNeutrino = 6
-    NCAntiMuonNeutrino = 7
-    CCAntiMuonNeutrino = 8
-    NCTauonNeutrino = 9
-    CCTauonNeutrino = 10
-    NCAntiTauonNeutrino = 11
-    CCAntiTauonNeutrino = 12
+    NCElectronNeutrino = 0
+    CCElectronNeutrino = 1
+    NCAntiElectronNeutrino = 2
+    CCAntiElectronNeutrino = 3
+    NCMuonNeutrino = 4
+    CCMuonNeutrino = 5
+    NCAntiMuonNeutrino = 6
+    CCAntiMuonNeutrino = 7
+    NCTauonNeutrino = 8
+    CCTauonNeutrino = 9
+    NCAntiTauonNeutrino = 10
+    CCAntiTauonNeutrino = 11
