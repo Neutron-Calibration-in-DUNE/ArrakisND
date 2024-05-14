@@ -29,3 +29,4 @@ plugins:
   ConstraintPlugin:
     segment_influence_cut: 0.4
     constraint_mode: "min_distance"
+    replace_undefined: 2

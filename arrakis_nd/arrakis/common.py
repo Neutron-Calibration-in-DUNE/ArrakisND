@@ -270,3 +270,61 @@ interaction_event_data_type = np.dtype([
     ('interaction_type', 'i4'),
     ('fiducialized', 'i4')
 ])
+
+nar_inelastic_data_type = np.dtype([
+    ('event_id', 'i4'),
+    ('vertex_id', 'i8'),
+    ('proton_id', 'i4'),
+    ('proton_xyz_start', 'f4', (1, 3)),
+    ('nu_vertex', 'f4', (1, 3)),
+    ('proton_total_energy', 'f4'),
+    ('proton_vis_energy', 'f4'),
+    ('proton_length', 'f4'),
+    ('proton_pxyz_start', 'f4', (1, 3)),
+    ('proton_pxyz_end', 'f4', (1, 3)),
+    ('parent_total_energy', 'f4'),
+    ('parent_length', 'f4'),
+    ('parent_pxyz_start', 'f4', (1, 3)),
+    ('parent_pxyz_end', 'f4', (1, 3)),
+    ('nu_proton_dt', 'f4'),
+    ('nu_proton_distance', 'f4'),
+    ('parent_pdg', 'i4'),
+    ('grandparent_pdg', 'i4'),
+    ('primary_pdg', 'i4'),
+    ('primary_length', 'f4'),
+    ('neutrino_vertex_fiducialized', 'i4'),
+    ('proton_xyz_start_fiducialized', 'i4'),
+    ('proton_xyz_end_fiducialized', 'i4'),
+    ('truth_segment_overlap', 'f4'),
+    ('best_completeness_cluster', 'i4'),
+    ('best_completeness', 'f4'),
+    ('best_purity', 'f4')
+])
+
+undefined_data_type = np.dtype([
+    ('event_id', 'i4'),
+    ('vertex_id', 'i8'),
+    ('traj_id', 'i8'),
+    ('parent_id', 'i8'),
+    ('pdg_id', 'i8'),
+    ('parent_pdg_id', 'i8'),
+    ('ancestor_id', 'i8'),
+    ('ancestor_pdg_id', 'i8'),
+    ('ancestor_level', 'i4'),
+    ('start_process', 'i4'),
+    ('start_subprocess', 'i4'),
+    ('end_process', 'i4'),
+    ('end_subprocess', 'i4'),
+    ('parent_start_process', 'i4'),
+    ('parent_start_subprocess', 'i4'),
+    ('parent_end_process', 'i4'),
+    ('parent_end_subprocess', 'i4')
+])
+
+output_error_data_type = np.dtype([
+    ('event_id', 'i4'),
+    ('plugin_name', 'S50'),
+    ('plugin_error', 'S500'),
+    ('plugin_line_number', 'S50'),
+    ('plugin_file_name', 'S50'),
+])

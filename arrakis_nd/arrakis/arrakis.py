@@ -31,7 +31,10 @@ from arrakis_nd.arrakis.common import (
     interaction_data_type,
     neutrino_data_type,
     interaction_event_data_type,
-    neutrino_event_data_type
+    neutrino_event_data_type,
+    nar_inelastic_data_type,
+    undefined_data_type,
+    output_error_data_type
 )
 from arrakis_nd.plugins.plugin import Plugin
 
@@ -544,27 +547,23 @@ class Arrakis:
         event_plugin_file_names = np.concatenate(self.comm.allgather(self.event_plugin_file_names))
         if self.rank == 0:
             if len(event_errors) > 0:
+                """Report event errors to log"""
                 self.logger.warn(f"event/plugin errors occurred when processing file {file_name}")
+                
                 """Display error information"""
                 for ii, event_error in enumerate(event_errors):
                     self.logger.warn(f"event: {event_error} / plugin: {plugin_errors[ii]}")
                     self.logger.warn(f" {' ':<{5}} exception: {event_plugin_errors[ii]}")
                     self.logger.warn(f" {' ':<{5}} line_number: {event_plugin_line_numbers[ii]}")
                     self.logger.warn(f" {' ':<{5}} file_name: {event_plugin_file_names[ii]}")
-                output_error_data_type = np.dtype([
-                    ('event_id', 'i4'),
-                    ('plugin_name', 'S50'),
-                    ('plugin_error', 'S500'),
-                    ('plugin_line_number', 'S50'),
-                    ('plugin_file_name', 'S50'),
-                ])
                 errors = np.empty(len(event_errors), dtype=output_error_data_type)
                 errors['event_id'] = event_errors.astype('i4')
                 errors['plugin_name'] = plugin_errors.astype('S50')
                 errors['plugin_error'] = event_plugin_errors.astype('S500')
                 errors['plugin_line_number'] = event_plugin_line_numbers.astype('S50')
                 errors['plugin_file_name'] = event_plugin_file_names.astype('S50')
-                "Report error information to ARRAKIS file"
+                
+                """Report error information to ARRAKIS file"""
                 arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
                 with h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
                     original_size = arrakis_file['arrakis/errors'].shape[0]
@@ -772,13 +771,6 @@ class Arrakis:
 
             """Construct output error data types"""
             output_error_name = 'arrakis/errors'
-            output_error_data_type = np.dtype([
-                ('event_id', 'i4'),
-                ('plugin_name', 'S50'),
-                ('plugin_error', 'S500'),
-                ('plugin_line_number', 'S50'),
-                ('plugin_file_name', 'S50'),
-            ])
             if output_error_name in arrakis_file:
                 del arrakis_file[output_error_name]
 
@@ -786,39 +778,17 @@ class Arrakis:
 
             """Construct n-Ar inelastic data types"""
             nar_inelastic_name = 'standard_record/nar_inelastic'
-            nar_inelastic_data_type = np.dtype([
-                ('event_id', 'i4'),
-                ('vertex_id', 'i8'),
-                ('proton_id', 'i4'),
-                ('proton_xyz_start', 'f4', (1, 3)),
-                ('nu_vertex', 'f4', (1, 3)),
-                ('proton_total_energy', 'f4'),
-                ('proton_vis_energy', 'f4'),
-                ('proton_length', 'f4'),
-                ('proton_pxyz_start', 'f4', (1, 3)),
-                ('proton_pxyz_end', 'f4', (1, 3)),
-                ('parent_total_energy', 'f4'),
-                ('parent_length', 'f4'),
-                ('parent_pxyz_start', 'f4', (1, 3)),
-                ('parent_pxyz_end', 'f4', (1, 3)),
-                ('nu_proton_dt', 'f4'),
-                ('nu_proton_distance', 'f4'),
-                ('parent_pdg', 'i4'),
-                ('grandparent_pdg', 'i4'),
-                ('primary_pdg', 'i4'),
-                ('primary_length', 'f4'),
-                ('neutrino_vertex_fiducialized', 'i4'),
-                ('proton_xyz_start_fiducialized', 'i4'),
-                ('proton_xyz_end_fiducialized', 'i4'),
-                ('truth_segment_overlap', 'f4'),
-                ('best_completeness_cluster', 'i4'),
-                ('best_completeness', 'f4'),
-                ('best_purity', 'f4')
-            ])
             if nar_inelastic_name in arrakis_file:
                 del arrakis_file[nar_inelastic_name]
 
             arrakis_file.create_dataset(nar_inelastic_name, shape=(0,), maxshape=(None,), dtype=nar_inelastic_data_type)
+            
+            """Construct undefined objects"""
+            undefined_name = 'standard_record/undefined'
+            if undefined_name in arrakis_file:
+                del arrakis_file[undefined_name]
+            
+            arrakis_file.create_dataset(undefined_name, shape=(0,), maxshape=(None,), dtype=undefined_data_type)
 
     @profiler
     def distribute_tasks(
@@ -946,7 +916,8 @@ class Arrakis:
             'neutrino': [],
             'interaction_event': [],
             'neutrino_event': [],
-            'nar_inelastic': []
+            'nar_inelastic': [],
+            'undefined': [],
         }
         self.clear_indices()
 
@@ -975,7 +946,8 @@ class Arrakis:
             'neutrino': [],
             'interaction_event': [],
             'neutrino_event': [],
-            'nar_inelastic': []
+            'nar_inelastic': [],
+            'undefined': [],
         }
         for ii, event in enumerate(self.distributed_events[self.rank]):
             """Grab event index information"""
@@ -999,6 +971,7 @@ class Arrakis:
                 'interaction_event': [],
                 'neutrino_event': [],
                 'nar_inelastic': [],
+                'undefined': [],
             }
             """Iterate over plugins"""
             for plugin_name, plugin in self.plugins.items():
@@ -1074,6 +1047,28 @@ class Arrakis:
                         arrakis_file[f'standard_record/{object}'][original_size:new_size] = objects
         else:
             pass
+    
+    @profiler
+    def run_undefined_check(
+        self,
+        file_name: str
+    ):
+        """
+        We check for undefined labels in the arrakis output file and report 
+        information about them.
+
+        Args:
+            file_name (str): _description_
+        """
+        arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
+        with h5py.File(self.flow_folder + file_name, 'r') as flow_file, \
+             h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
+            arrakis_charge = arrakis_file['charge/calib_final_hits/data']
+            arrakis_topology = arrakis_charge['topology']
+            arrakis_physics = arrakis_charge['physics']
+            undefined_topology = np.where(arrakis_topology == -1)
+            undefined_physics = np.where(arrakis_physics == -1)
+            
 
     @profiler
     def run_end_of_arrakis(self):
@@ -1351,7 +1346,15 @@ class Arrakis:
             except Exception as exception:
                 self.report_error(exception=exception)
             self.barrier()
-
+            
+            """Run undefined check"""
+            if self.rank == 0:
+                try:
+                    self.run_undefined_check(file_name)
+                except Exception as exception:
+                    self.report_error(exception=exception)
+            self.barrier()
+            
             """Update progress bar"""
             if self.rank == 0:
                 try:

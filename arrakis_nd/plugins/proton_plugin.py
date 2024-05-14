@@ -14,6 +14,7 @@ from arrakis_nd.dataset.common import (
     ProcessType, SubProcessType,
     Topology, Physics
 )
+from arrakis_nd.utils.utils import fiducialized_vertex
 
 
 class ProtonPlugin(Plugin):
@@ -129,7 +130,7 @@ class ProtonPlugin(Plugin):
             vert_mask = interactions['vertex_id'] == vertex_id
             nu_vert = interactions[vert_mask]
             vert_loc = nu_vert['vertex'][0]
-            neutrino_vertex_fiducialized = self.fiducialized_vertex(nu_vert['vertex'][0])
+            neutrino_vertex_fiducialized = fiducialized_vertex(nu_vert['vertex'][0])
 
             """Get proton parent info"""
             parent_pdg = 0
@@ -180,8 +181,8 @@ class ProtonPlugin(Plugin):
             proton_E = trajectories_E[proton_mask][ii]
 
             """Check whether proton is fiducialized"""
-            proton_xyz_start_fiducialized = self.fiducialized_vertex(proton_xyz_start)
-            proton_xyz_end_fiducialized = self.fiducialized_vertex(proton_xyz_end)
+            proton_xyz_start_fiducialized = fiducialized_vertex(proton_xyz_start)
+            proton_xyz_end_fiducialized = fiducialized_vertex(proton_xyz_end)
 
             """
             To do this we find the closest hits to the actual track beginning
@@ -208,7 +209,7 @@ class ProtonPlugin(Plugin):
             )
 
             """Generate track fit data"""
-            track_data = self.fit_track(proton_hit_t0s, proton_charge_xyz)
+            track_data = fit_track(proton_hit_t0s, proton_charge_xyz)
 
             """Determine amount by which hits are shared from things other than the proton"""
             proton_hit_segment_ids = charge_back_track_segments[np.unique(proton_hits)]

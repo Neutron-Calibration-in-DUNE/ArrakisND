@@ -9,7 +9,7 @@ from arrakis_nd.dataset.common import (
     Topology, Physics
 )
 from arrakis_nd.utils.logger import ArrakisError
-
+from arrakis_nd.arrakis.common import undefined_data_type
 
 class ConstraintPlugin(Plugin):
     """
@@ -44,7 +44,9 @@ class ConstraintPlugin(Plugin):
             'track_id_hit_t0_map',
             'parent_pdg_id',
         ]
-        self.output_products = []
+        self.output_products = [
+            'undefined'
+        ]
 
         if "segment_influence_cut" not in self.config:
             self.config["segment_influence_cut"] = 1.0
@@ -55,6 +57,10 @@ class ConstraintPlugin(Plugin):
         if self.config["constraint_mode"] not in ["max_fraction", "min_distance"]:
             raise ArrakisError(f"specified 'constraint_mode' {self.config['constraint_mode']} not allowed!")
         self.constraint_mode = self.config["constraint_mode"]
+        
+        if "replace_undefined" not in self.config:
+            self.config["replace_undefined"] = -1
+        self.replace_undefined = self.config["replace_undefined"]
 
     @profiler
     def process_event(
@@ -70,6 +76,25 @@ class ConstraintPlugin(Plugin):
         arrakis_charge = arrakis_file['charge/calib_final_hits/data'][event_indices['charge']]
         arrakis_segment_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
         charge_back_track = flow_file['mc_truth/calib_final_hit_backtrack/data'][event_indices['charge']]
+        trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
+        segments = flow_file['mc_truth/segments/data'][event_indices['segments']]
+
+        trajectories_traj_ids = trajectories['traj_id']
+        trajectories_vertex_ids = trajectories['vertex_id']
+        trajectories_parent_ids = trajectories['parent_id']
+        trajectories_pdg_ids = trajectories['pdg_id']
+        trajectories_start_process = trajectories['start_process']
+        trajectories_start_subprocess = trajectories['start_subprocess']
+        trajectories_end_process = trajectories['end_process']
+        trajectories_end_subprocess = trajectories['end_subprocess']
+        trajectories_parent_pdg_ids = event_products['parent_pdg_id']
+        trajectories_ancestor_traj_ids = event_products['ancestor_traj_id_map']
+        trajectories_ancestor_pdg_ids = event_products['ancestor_pdg_id_map']
+        trajectories_ancestor_levels = event_products['ancestor_level_map']
+        
+        segments_traj_ids = segments['traj_id']
+        segments_vertex_ids = segments['vertex_id']
+        segments_segment_ids = segments['segment_id']
 
         segments_event = arrakis_segment_charge['event_id']
         segments_particle = arrakis_segment_charge['particle']
@@ -128,11 +153,6 @@ class ConstraintPlugin(Plugin):
                 constraint_mask = np.argmax(segment_fraction)
             else:
                 constraint_mask = np.argmin(segment_distance)
-            
-            if segment_topology[constraint_mask] == -1:
-                segment_topology[constraint_mask] = 2
-                segment_physics[constraint_mask] = 2
-                segment_particle[constraint_mask] = 11
 
             arrakis_charge['event_id'][ii] = segment_event
             arrakis_charge['topology'][ii] = segment_topology[constraint_mask]
@@ -145,6 +165,64 @@ class ConstraintPlugin(Plugin):
             arrakis_charge['fragment_begin'][ii] = int(np.any(segment_fragment_begin))
             arrakis_charge['fragment_end'][ii] = int(np.any(segment_fragment_end))
             arrakis_charge['shower_begin'][ii] = int(np.any(segment_shower_begin))
+            
+            """Check for undefined values"""
+            if arrakis_charge['topology'][ii] == -1:
+                """Replace undefined values"""
+                arrakis_charge['topology'][ii] = self.replace_undefined
+                arrakis_charge['physics'][ii] = self.replace_undefined
+                
+                """Log the undefined information to the arrakis file"""
+                segment_index = np.where(
+                    segments_segment_ids == charge_segment_ids[ii][constraint_mask]
+                )
+                traj_id = segments_traj_ids[segment_index]
+                vertex_id = segments_vertex_ids[segment_index]
+                traj_index = np.where(
+                    (trajectories_traj_ids == traj_id) &
+                    (trajectories_vertex_ids == vertex_id)
+                )
+                parent_id = trajectories_parent_ids[traj_index]
+                pdg_id = trajectories_pdg_ids[traj_index]
+                parent_pdg_id = trajectories_parent_pdg_ids[traj_index]
+                ancestor_id = trajectories_ancestor_traj_ids[(traj_id[0], vertex_id[0])]
+                ancestor_pdg_id = trajectories_ancestor_pdg_ids[(traj_id[0], vertex_id[0])]
+                ancestor_level = trajectories_ancestor_levels[(traj_id[0], vertex_id[0])]
+                start_process = trajectories_start_process[traj_index]
+                start_subprocess = trajectories_start_subprocess[traj_index]
+                end_process = trajectories_end_process[traj_index]
+                end_subprocess = trajectories_end_subprocess[traj_index]
+                parent_index = np.where(
+                    (trajectories_traj_ids == parent_id) &
+                    (trajectories_vertex_ids == vertex_id)
+                )
+                parent_start_process = trajectories_start_process[parent_index]
+                parent_start_subprocess = trajectories_start_subprocess[parent_index]
+                parent_end_process = trajectories_end_process[parent_index]
+                parent_end_subprocess = trajectories_end_subprocess[parent_index]
+                undefined_data = np.array([(
+                    event,
+                    vertex_id,
+                    traj_id,
+                    parent_id,
+                    pdg_id,
+                    parent_pdg_id,
+                    ancestor_id,
+                    ancestor_pdg_id,
+                    ancestor_level,
+                    start_process,
+                    start_subprocess,
+                    end_process,
+                    end_subprocess,
+                    parent_start_process,
+                    parent_start_subprocess,
+                    parent_end_process,
+                    parent_end_subprocess)],
+                    dtype=undefined_data_type
+                )
+                
+                """Add the undefined data to the event products"""
+                event_products['undefined'].append(undefined_data)
 
         """Write changes to arrakis_file"""
         arrakis_file['charge/calib_final_hits/data'][event_indices['charge']] = arrakis_charge
