@@ -15,8 +15,8 @@ setup(
     # current version
     #   MAJOR VERSION:  02
     #   MINOR VERSION:  00
-    #   Maintenance:    00
-    version="2.00.00",
+    #   Maintenance:    01
+    version="2.00.01",
     # descriptions
     description="Arrakis module for near detector data.",
     long_description=long_description,
