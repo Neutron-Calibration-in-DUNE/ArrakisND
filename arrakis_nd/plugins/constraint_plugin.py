@@ -196,10 +196,17 @@ class ConstraintPlugin(Plugin):
                     (trajectories_traj_ids == parent_id) &
                     (trajectories_vertex_ids == vertex_id)
                 )
-                parent_start_process = trajectories_start_process[parent_index]
-                parent_start_subprocess = trajectories_start_subprocess[parent_index]
-                parent_end_process = trajectories_end_process[parent_index]
-                parent_end_subprocess = trajectories_end_subprocess[parent_index]
+                if parent_id != -1:
+                    parent_start_process = trajectories_start_process[parent_index]
+                    parent_start_subprocess = trajectories_start_subprocess[parent_index]
+                    parent_end_process = trajectories_end_process[parent_index]
+                    parent_end_subprocess = trajectories_end_subprocess[parent_index]
+                else:
+                    parent_start_process = -1
+                    parent_start_subprocess = -1
+                    parent_end_process = -1
+                    parent_end_subprocess = -1
+
                 undefined_data = np.array([(
                     event,
                     vertex_id,
@@ -223,6 +230,6 @@ class ConstraintPlugin(Plugin):
                 
                 """Add the undefined data to the event products"""
                 event_products['undefined'].append(undefined_data)
-
+                
         """Write changes to arrakis_file"""
         arrakis_file['charge/calib_final_hits/data'][event_indices['charge']] = arrakis_charge

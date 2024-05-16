@@ -9,14 +9,15 @@ def read_requirements():
     with open('requirements.txt') as req:
         return req.read().splitlines()
 
+major_version = 2
+minor_version = 0
+maintenance = 2
+
 setup(
     # name
     name="arrakis_nd",
     # current version
-    #   MAJOR VERSION:  02
-    #   MINOR VERSION:  00
-    #   Maintenance:    01
-    version="2.00.01",
+    version=f"{major_version}.{minor_version}.{maintenance}",
     # descriptions
     description="Arrakis module for near detector data.",
     long_description=long_description,

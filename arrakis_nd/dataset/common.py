@@ -194,7 +194,7 @@ class Shower(Enum):
     KaonShortDecay = 5
     KaonLongDecay = 6
     KaonPlusDecay = 7
-    KaonMinusdecay = 8
+    KaonMinusDecay = 8
     D0Decay = 9
     DPlusDecay = 10
     DMinusDecay = 11
