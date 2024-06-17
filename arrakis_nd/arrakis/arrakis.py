@@ -629,7 +629,7 @@ class Arrakis:
             """
             charge_name = 'charge/calib_final_hits/data'
             charge_segment_name = 'charge_segment/calib_final_hits/data'
-            charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_id']
+            charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_ids']
             charge_segments_fraction = flow_file['mc_truth/calib_final_hit_backtrack/data']['fraction']
             non_zero_charge_segments = [row[row != 0] for row in charge_segments]
             max_length = len(max(non_zero_charge_segments, key=len))
@@ -782,12 +782,12 @@ class Arrakis:
                 del arrakis_file[nar_inelastic_name]
 
             arrakis_file.create_dataset(nar_inelastic_name, shape=(0,), maxshape=(None,), dtype=nar_inelastic_data_type)
-            
+
             """Construct undefined objects"""
             undefined_name = 'standard_record/undefined'
             if undefined_name in arrakis_file:
                 del arrakis_file[undefined_name]
-            
+
             arrakis_file.create_dataset(undefined_name, shape=(0,), maxshape=(None,), dtype=undefined_data_type)
 
     @profiler
@@ -815,7 +815,7 @@ class Arrakis:
                 segments_events = file['mc_truth/segments/data']['event_id']
                 stack_events = file['mc_truth/stack/data']['event_id']
                 trajectories_events = file['mc_truth/trajectories/data']['event_id']
-                charge_segments = file['mc_truth/calib_final_hit_backtrack/data']['segment_id'].astype(int)
+                charge_segments = file['mc_truth/calib_final_hit_backtrack/data']['segment_ids'].astype(int)
                 charge_fraction = file['mc_truth/calib_final_hit_backtrack/data']['fraction']
                 charge_fraction_mask = (charge_fraction == 0)
                 charge_segments[charge_fraction_mask] = -1
@@ -1047,28 +1047,6 @@ class Arrakis:
                         arrakis_file[f'standard_record/{object}'][original_size:new_size] = objects
         else:
             pass
-    
-    @profiler
-    def run_undefined_check(
-        self,
-        file_name: str
-    ):
-        """
-        We check for undefined labels in the arrakis output file and report 
-        information about them.
-
-        Args:
-            file_name (str): _description_
-        """
-        arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
-        with h5py.File(self.flow_folder + file_name, 'r') as flow_file, \
-             h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
-            arrakis_charge = arrakis_file['charge/calib_final_hits/data']
-            arrakis_topology = arrakis_charge['topology']
-            arrakis_physics = arrakis_charge['physics']
-            undefined_topology = np.where(arrakis_topology == -1)
-            undefined_physics = np.where(arrakis_physics == -1)
-            
 
     @profiler
     def run_end_of_arrakis(self):
@@ -1346,15 +1324,7 @@ class Arrakis:
             except Exception as exception:
                 self.report_error(exception=exception)
             self.barrier()
-            
-            """Run undefined check"""
-            if self.rank == 0:
-                try:
-                    self.run_undefined_check(file_name)
-                except Exception as exception:
-                    self.report_error(exception=exception)
-            self.barrier()
-            
+
             """Update progress bar"""
             if self.rank == 0:
                 try:

@@ -29,7 +29,57 @@ NAVBAR_STYLE:
 
 CONTENT_STYLE:
   margin-top: "56px"
-  bottom: 0
+  margin-bottom: "350px"  # Ensure enough space for bottom section
   margin-left: "24rem"
   margin-right: "2rem"
   padding: "2rem"
+  display: 'flex'
+  font-size: "14px"
+  height: "calc(100vh - 156px)"  # Adjust height to fit the bottom section and navbar
+  justify-content: 'center'  # Center content horizontally
+
+LEFT_COLUMN:
+  width: "50%"
+  padding: "5px"
+  box-sizing: 'border-box'
+
+RIGHT_COLUMN:
+  width: "50%"  # Updated to fit within 50% width
+  padding: "5px"
+  box-sizing: 'border-box'
+
+BOTTOM_SECTION:
+  position: fixed
+  bottom: 0
+  left: "24rem"
+  right: 0
+  height: "350px"  # Adjust this value to change the height of the bottom section
+  background-color: "#258fe6"
+  padding: "10px"
+  border: '2px solid #000000'
+  display: 'flex'
+  justify-content: 'space-between'
+  align-items: 'flex-start'  # Align items to the top
+  font-size: "14px"
+  color: "#ffffff"
+  zIndex: "1"  # Ensure bottom section is above the content but below the navbar
+
+LEFT_BOTTOM_SECTION:
+  width: "50%"
+  display: 'flex'
+  flex-direction: 'column'
+  justify-content: 'flex-start'  # Align items to the start (left)
+  align-items: 'flex-start'  # Align items to the top
+  font-size: "14px"
+  color: "#ffffff"
+  padding: "10px"
+
+RIGHT_BOTTOM_SECTION:
+  width: "50%"
+  display: 'flex'
+  flex-direction: 'column'
+  justify-content: 'flex-start'  # Align items to the start (left)
+  align-items: 'flex-start'  # Align items to the top
+  font-size: "14px"
+  color: "#ffffff"
+  padding: "10px"

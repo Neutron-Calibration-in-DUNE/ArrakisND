@@ -14,8 +14,8 @@ import h5py
 import glob
 
 from arrakis_nd.utils.display.set_server import SetServer
-from arrakis_nd.utils.display.charge_light_display import ChargeLightDisplay
-from arrakis_nd.utils.display.vis_event import VisEvent
+from arrakis_nd.utils.display.tpc_display import TPCDisplay
+from arrakis_nd.utils.display.larpix_light_display import LArPixLightDisplay
 
 
 class ArrakisDisplay:
@@ -27,11 +27,6 @@ class ArrakisDisplay:
     ):
         """
         Initialize the ArrakisDisplay class.
-
-        Args:
-            service_prefix (str, optional): _description_. Defaults to os.getenv("JUPYTERHUB_SERVICE_PREFIX", "/").
-            server_url (_type_, optional): _description_. Defaults to "https://jupyter.nersc.gov".
-            port (int, optional): _description_. Defaults to 8050.
         """
 
         server = SetServer()
@@ -49,14 +44,16 @@ class ArrakisDisplay:
         self.arrakis_files = []
         self.available_events = []
         self.unique_events = []
+        self.event = None
 
+        self.nersc_flow_folder = '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/'
         self.standard_flow_folders = [
             {'label': 'MiniRun4', 'value':
-                '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW'},
+                f'{self.nersc_flow_folder}MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW'},
             {'label': 'MiniRun4.5', 'value':
-                '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4.5_1E19_RHC/inputs_beta3/MiniRun4.5_1E19_RHC.flow/FLOW/0000000'},
+                f'{self.nersc_flow_folder}MiniRun4.5_1E19_RHC/inputs_beta3/MiniRun4.5_1E19_RHC.flow/FLOW/0000000'},
             {'label': 'MiniRun5', 'value':
-                '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow.beta1/FLOW/0000000'},
+                f'{self.nersc_flow_folder}MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow.beta2a/FLOW/0000000'},
         ]
 
         self.geometry_info = {
@@ -77,8 +74,13 @@ class ArrakisDisplay:
         self.trajectories = None
         self.charge = None
         self.light = None
+        self.topology = None
+        self.physics = None
 
-        self.charge_light_display = ChargeLightDisplay()
+        self.left_tpc = TPCDisplay(id_suffix='left')
+        self.right_tpc = TPCDisplay(id_suffix='right')
+        self.left_larpix_light_display = LArPixLightDisplay()
+        self.right_larpix_light_display = LArPixLightDisplay()
 
         self.construct_app()
         self.construct_widgets()
@@ -232,85 +234,165 @@ class ArrakisDisplay:
                 html.H2(),
                 html.Div(id='event_output'),
 
-                # Event display selector
-                html.H2(),
-                html.Hr(),
-                html.P(
-                    "Choose a Display",
-                    className="lead"
-                ),
-                dcc.Dropdown(
-                    id='display_dropdown',
-                    options=[
-                        'Home',
-                        'Charge and Light Detectors',
-                        'Arrakis',
-                        'Clustering'
-                    ],
-                    value='Home',
-                    style={'color': "#000000"}
-                ),
-
                 # Highlighting options
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
-                html.P("FLOW charge types to plot"),
-                dcc.Checklist(
-                    ['Segments', 'Calib Prompt Hits', 'Calib Final Hits'],
-                    ['Calib Prompt Hits'], inline=True
-                ),
-                html.Hr(style={'border': '1px solid #ffffff', 'height': '0px'}),
-                html.Div([
-                    html.Div([
-                        html.P("Active TPCs"),
-                        dcc.Checklist(
-                            ['0', '1', '2', '3', '4', '5', '6', '7'],
-                            ['0', '1', '2', '3', '4', '5', '6', '7']
-                        )], style={'width': '45vw'}),
-                    html.Div([
-                        html.P("Detectors"),
-                        dcc.Checklist(
-                            ['0', '1', '2', '3', '4', '5', '6', '7'],
-                            ['0', '1', '2', '3', '4', '5', '6', '7']
-                        )], style={'width': '45vw'}),
-                ], style={'display': 'flex'}),
+                # html.P("FLOW charge types to plot"),
+                # dcc.Checklist(
+                #     ['Segments', 'Calib Prompt Hits', 'Calib Final Hits'],
+                #     ['Calib Final Hits'], inline=True
+                # ),
+                # # Scale Slider
+                # html.Hr(style={'border': '1px solid #ffffff', 'height': '0px'}),
+                # html.Div([
+                #     html.Div([
+                #         html.P("Active TPCs"),
+                #         dcc.Checklist(
+                #             ['0', '1', '2', '3', '4', '5', '6', '7'],
+                #             ['0', '1', '2', '3', '4', '5', '6', '7']
+                #         )], style={'width': '45vw'}),
+                #     html.Div([
+                #         html.P("Detectors"),
+                #         dcc.Checklist(
+                #             ['0', '1', '2', '3', '4', '5', '6', '7'],
+                #             ['0', '1', '2', '3', '4', '5', '6', '7']
+                #         )], style={'width': '45vw'}),
+                # ], style={'display': 'flex'}),
             ],
             style=styles['SIDEBAR_STYLE'],
         )
 
         # Define content for the tabs
-        self.content = html.Div(id="page-content", style=styles["CONTENT_STYLE"])
+        self.main_display = html.Div(id="page-content", style=styles["CONTENT_STYLE"], children=[
+            html.Div(id="left-window", style=styles["LEFT_COLUMN"], children=[
+                html.Div(id="dynamic-left-content")
+            ]),
+            html.Div(id="right-window", style=styles["RIGHT_COLUMN"], children=[
+                html.Div(id="dynamic-right-content")
+            ]),
+            html.Div(id="bottom-section", style=styles["BOTTOM_SECTION"], children=[
+                html.Div(id="left-bottom-section", style=styles["LEFT_BOTTOM_SECTION"], children=[
+                    html.Div([
+                        html.Div(style={'display': 'flex', 'width': '100%', 'gap': '10px'}, children=[
+                            html.Div(children=[html.H2(), html.Label('Window I Display type')], style={'width': '50%'}),
+                            html.Div(children=[html.H2(), html.Label('Plot type (labels)')], style={'width': '50%'}),
+                        ]),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='left-window-dropdown',
+                                options=[
+                                    {'label': 'TPC', 'value': 'tpc'},
+                                    {'label': 'LArPix/Light', 'value': 'light'},
+                                ],
+                                value='tpc',
+                                style={'color': "#000000", 'width': '50%'}
+                            ),
+                            dcc.Dropdown(
+                                id='left-window-plottype-dropdown',
+                                options=[
+                                    {'label': 'Q (charge)', 'value': 'q'},
+                                    {'label': 'Topology', 'value': 'topology'},
+                                    {'label': 'Physics', 'value': 'physics'},
+                                ],
+                                value='q',
+                                style={'color': "#000000", 'width': '50%'}
+                            ),
+                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px', 'width': '100%'}),
+                        html.H2(),
+                        html.Label('Segment/Hit Scale'),
+                        dcc.Slider(
+                            id='left-window-scale-slider',
+                            min=0.0,
+                            max=1.0,
+                            step=0.01,
+                            value=0.01,  # Default scale
+                            marks={i / 10.0: f'{i / 10.0}' for i in range(0, 11)},
+                        ),
+                    ], style={'width': '50%'}),
+                ]),
+                html.Div(id="right-bottom-section", style=styles["RIGHT_BOTTOM_SECTION"], children=[
+                    html.Div([
+                        html.Div(style={'display': 'flex', 'width': '100%', 'gap': '10px'}, children=[
+                            html.Div(children=[html.H2(), html.Label('Window II Display type')], style={'width': '50%'}),
+                            html.Div(children=[html.H2(), html.Label('Plot type (labels)')], style={'width': '50%'}),
+                        ]),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='right-window-dropdown',
+                                options=[
+                                    {'label': 'TPC', 'value': 'tpc'},
+                                    {'label': 'LArPix/Light', 'value': 'light'},
+                                ],
+                                value='tpc',
+                                style={'color': "#000000", 'width': '50%'}
+                            ),
+                            dcc.Dropdown(
+                                id='right-window-plottype-dropdown',
+                                options=[
+                                    {'label': 'Q (charge)', 'value': 'q'},
+                                    {'label': 'Topology', 'value': 'topology'},
+                                    {'label': 'Physics', 'value': 'physics'},
+                                ],
+                                value='q',
+                                style={'color': "#000000", 'width': '50%'}
+                            ),
+                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px', 'width': '100%'}),
+                        html.H2(),
+                        html.Label('Segment/Hit Scale'),
+                        dcc.Slider(
+                            id='right-window-scale-slider',
+                            min=0.0,
+                            max=1.0,
+                            step=0.01,
+                            value=0.01,  # Default scale
+                            marks={i / 10.0: f'{i / 10.0}' for i in range(0, 11)},
+                        ),
+                    ], style={'width': '50%'}),
+                ]),
+            ])
+        ])
 
         # Define the layout
         self.app.layout = html.Div(style={'overflow': 'scroll'}, children=[
             dcc.Location(id="url"),
             self.navbar,
             self.sidebar,
-            self.content,
+            self.main_display,
         ])
 
     def construct_widgets(self):
-        # Callbacks to update the content based on which tab is selected
+        # Callbacks to update the content based on which dropdown is selected
         @self.app.callback(
-            Output("page-content", "children"),
-            [Input("display_dropdown", "value")]
+            Output("dynamic-left-content", "children"),
+            [Input("left-window-dropdown", "value")]
         )
-        def render_tab_content(pathname):
-            if pathname == "Home":
-                return html.P("This is the content of the home page!")
-            if pathname == "Charge and Light Detectors":
-                print("Charge and Light Detectors")
-                # print(self.charge_light_display.layout)
-                return self.charge_light_display.layout
-            elif pathname == "Arrakis":
-                return html.P("This is the content of page 2. Yay!")
-            elif pathname == "Clustering":
-                return html.P("Oh cool, this is page 3!")
-            # If the user tries to reach a different page, return a 404 message
+        def render_left_content(value):
+            if value == "light":
+                return self.left_larpix_light_display.layout
+            elif value == "tpc":
+                return self.left_tpc.layout
             return html.Div(
                 [
                     html.H1("404: Not found", className="text-danger"),
                     html.Hr(),
-                    html.P(f"The pathname {pathname} was not recognised..."),
+                    html.P(f"The value {value} was not recognised..."),
+                ],
+                className="p-3 bg-light rounded-3",
+            )
+
+        @self.app.callback(
+            Output("dynamic-right-content", "children"),
+            [Input("right-window-dropdown", "value")]
+        )
+        def render_right_content(value):
+            if value == "light":
+                return self.right_larpix_light_display.layout
+            elif value == "tpc":
+                return self.right_tpc.layout
+            return html.Div(
+                [
+                    html.H1("404: Not found", className="text-danger"),
+                    html.Hr(),
+                    html.P(f"The value {value} was not recognised..."),
                 ],
                 className="p-3 bg-light rounded-3",
             )
@@ -400,7 +482,10 @@ class ArrakisDisplay:
                                 self.geometry_info[key] = flow_file[f'geometry_info/{key}/data'][:]
                             except Exception:
                                 print(f"Issue with getting {key} from geometry_info")
-                        self.charge_light_display.set_geometry_info(self.geometry_info)
+                        self.left_tpc.set_geometry_info(self.geometry_info)
+                        self.right_tpc.set_geometry_info(self.geometry_info)
+                        self.left_larpix_light_display.set_geometry_info(self.geometry_info)
+                        self.right_larpix_light_display.set_geometry_info(self.geometry_info)
                         self.unique_events = np.unique(events)
                         self.available_events = [
                             {'label': event, 'value': event}
@@ -415,6 +500,7 @@ class ArrakisDisplay:
                         pass
                 except Exception:
                     pass
+            self.event = None
             return self.available_events
 
         @self.app.callback(
@@ -447,24 +533,29 @@ class ArrakisDisplay:
             else:
                 # If we can't go previous or next, raise PreventUpdate to do nothing
                 raise PreventUpdate
+            self.event = self.available_events[new_index]['value']
             return self.available_events[new_index]['value']
 
         @self.app.callback(
             [Output('event_output', 'children'),
-             Output('charge_light_tpc_plot', 'figure')],
-            [Input('event_dropdown', 'value')],
+             Output('tpc_plot_left', 'figure'),
+             Output('tpc_plot_right', 'figure')],
+            [Input('event_dropdown', 'value'),
+             Input('left-window-plottype-dropdown', 'value'),
+             Input('right-window-plottype-dropdown', 'value')],
         )
-        def load_event(event):
+        def load_event(event, left_plottype, right_plottype):
             print_output = ''
+            self.left_tpc.update_plottype(left_plottype)
+            self.right_tpc.update_plottype(right_plottype)
             if event is not None:
                 if self.flow_file:
                     with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
                         interactions_events = flow_file['mc_truth/interactions/data']['event_id']
-                        #print(np.where(interactions_events == event)[0])
                         segments_events = flow_file['mc_truth/segments/data']['event_id']
                         stack_events = flow_file['mc_truth/stack/data']['event_id']
                         trajectories_events = flow_file['mc_truth/trajectories/data']['event_id']
-                        charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_id'].astype(int)
+                        charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_ids'].astype(int)
                         charge_fraction = flow_file['mc_truth/calib_final_hit_backtrack/data']['fraction']
                         charge_fraction_mask = (charge_fraction == 0)
                         charge_segments[charge_fraction_mask] = -1
@@ -493,30 +584,58 @@ class ArrakisDisplay:
                         self.charge = flow_file['charge/calib_final_hits/data'][
                             hits_to_segments
                         ]
-                        charge_events = flow_file["charge/events/data"]["id"]
+                        # charge_events = flow_file["charge/events/data"]["id"]
 
-                        self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
-                        
-                        """Likewise for light data, we must backtrack through segments"""
-                        match_light = flow_file['/light/events/data'][:][ flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0],1] ]["id"]
-                        self.light = flow_file["light/events/data"][:]  # we have to try them all, events may not be time ordered
+                        # self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
 
-                        waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
-                        print(match_light)
+                        # """Likewise for light data, we must backtrack through segments"""
+                        # match_light = flow_file['/light/events/data'][:][
+                        #     flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0], 1]
+                        # ]["id"]
+                        # we have to try them all, events may not be time ordered
+                        # self.light = flow_file["light/events/data"][:]
+
+                        # waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
+                        # print(match_light)
                         # we have now the waveforms for all detectors matched in time to the event
                     print_output = f"Event: {event} Loaded!"
-                    self.charge_light_display.update_event(
+                    self.left_tpc.update_flow_event(
                         self.interactions,
                         self.segments,
                         self.stack,
                         self.trajectories,
                         self.charge,
                     )
-                    self.charge_light_display.plot_event()
-                    self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
-                    self.charge_light_display.waveforms = self.charge_light_display.construct_waveforms()
-            return print_output, self.charge_light_display.tpc
-        
+                    self.right_tpc.update_flow_event(
+                        self.interactions,
+                        self.segments,
+                        self.stack,
+                        self.trajectories,
+                        self.charge,
+                    )
+                    # self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
+                    # self.charge_light_display.waveforms = self.charge_light_display.construct_waveforms()
+                if self.arrakis_file:
+                    with h5py.File(self.arrakis_folder + self.arrakis_file, "r") as arrakis_file:
+                        arrakis_event_ids = arrakis_file["charge/calib_final_hits/data"]["event_id"]
+                        self.topology = arrakis_file["charge/calib_final_hits/data"]["topology"][
+                            (arrakis_event_ids == event)
+                        ]
+                        self.physics = arrakis_file["charge/calib_final_hits/data"]["physics"][
+                            (arrakis_event_ids == event)
+                        ]
+                    self.left_tpc.update_arrakis_event(
+                        self.topology,
+                        self.physics
+                    )
+                    self.right_tpc.update_arrakis_event(
+                        self.topology,
+                        self.physics
+                    )
+            self.left_tpc.plot_event()
+            self.right_tpc.plot_event()
+            return print_output, self.left_tpc.tpc, self.right_tpc.tpc
+
         @self.app.callback(
             Output('light-waveform', 'figure'),
             [Input('charge_light_tpc_plot', 'figure'),
@@ -529,10 +648,12 @@ class ArrakisDisplay:
                     if self.flow_file:
                         with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
                             interactions_events = flow_file['mc_truth/interactions/data']['event_id']
-                                                      
+
                             """Likewise for light data, we must backtrack through segments"""
-                            match_light = flow_file['/light/events/data'][:][ flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0],1] ]["id"]
-                            
+                            match_light = flow_file['/light/events/data'][:][
+                                flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0], 1]
+                            ]["id"]
+
                             waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
                             opid = click_data['points'][0]['id'].split('_')[1]
                             self.charge_light_display.plot_waveform(opid, waveforms_all_detectors)
@@ -541,11 +662,33 @@ class ArrakisDisplay:
                             print(opid)
                             print(self.charge_light_display.waveforms.data)
 
-                            self.charge_light_display.generate_layout() 
+                            self.charge_light_display.generate_layout()
                     return self.charge_light_display.waveforms
                 except Exception as e:
                     print(e)
                     print("that is not a light trap, no waveform to plot")
+
+        # @self.app.callback(
+        #     Output('tpc_plot_left', 'figure'),
+        #     Input('left-window-scale-slider', 'value')
+        # )
+        # def update_left_size_scaler(size):
+        #     self.left_tpc.scale = size
+        #     print(size)
+        #     if self.event is not None:
+        #         self.left_tpc.plot_event()
+        #     return self.left_tpc.tpc
+
+        # @self.app.callback(
+        #     Output('tpc_plot_right', 'figure'),
+        #     Input('right-window-scale-slider', 'value')
+        # )
+        # def update_right_size_scaler(size):
+        #     print(size)
+        #     self.right_tpc.scale = size
+        #     if self.event is not None:
+        #         self.right_tpc.plot_event()
+        #     return self.right_tpc.tpc
 
     def run_app(self):
         self.app.run_server(
@@ -556,3 +699,7 @@ class ArrakisDisplay:
         )
         if self.jupyter_mode == "inline":
             self.adjust_iframe_height(height=1500)
+
+
+if __name__ == "__main__":
+    display = ArrakisDisplay()

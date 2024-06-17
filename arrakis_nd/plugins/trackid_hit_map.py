@@ -78,7 +78,7 @@ class TrackIDHitMapPlugin(Plugin):
         segments_vertex_ids = segments['vertex_id']
         segments_segment_ids = segments['segment_id']
         segments_t0s = segments['t0']
-        charge_segment_ids = charge_back_track['segment_id'].astype(int)
+        charge_segment_ids = charge_back_track['segment_ids'].astype(int)
         charge_segment_fraction = charge_back_track['fraction']
         charge_segment_fraction_mask = (charge_segment_fraction == 0)
         charge_segment_ids[charge_segment_fraction_mask] = -1

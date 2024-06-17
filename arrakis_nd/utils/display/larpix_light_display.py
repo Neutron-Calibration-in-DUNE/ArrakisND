@@ -8,7 +8,8 @@ import traceback
 
 from arrakis_nd.utils.display.utils import custom_plotly_layout, get_continuous_color
 
-class ChargeLightDisplay:
+
+class LArPixLightDisplay:
     '''
     This class is used to visualize the events in three different plots:
 
@@ -23,6 +24,9 @@ class ChargeLightDisplay:
         self.trajectories = None
         self.charge = None
         self.geometry_info = {}
+
+        self.scale = 0.0
+
         self.set_geometry_info(geometry_info)
         self.generate_layout()
 
@@ -35,17 +39,20 @@ class ChargeLightDisplay:
         else:
             try:
                 self.geometry_info = geometry_info
-                #self.light_traps = self.construct_light_detectors()
-                #self.tpc.add_traces(self.light_traps)
+                # self.light_traps = self.construct_light_detectors()
+                # self.tpc.add_traces(self.light_traps)
             except Exception:
                 print(traceback.format_exc())
-                #print(f"issue with light traps {e}")
-
+                # print(f"issue with light traps {e}")
 
     def construct_detector(self):
         self.tpc = self.construct_tpcs()
-        try: aux = self.waveforms.data; print("We already have waveforms!"); del aux
-        except AttributeError: self.waveforms = self.construct_waveforms()
+        try:
+            aux = self.waveforms.data
+            print("We already have waveforms!")
+            del aux
+        except AttributeError:
+            self.waveforms = self.construct_waveforms()
         self.larpix = self.construct_larpix()
 
     def construct_tpcs(self):
@@ -53,10 +60,9 @@ class ChargeLightDisplay:
         tpc.update_layout(
             scene=dict(
                 xaxis_title="x [cm]",
-                yaxis_title="y [cm]",
-                zaxis_title="z [cm]"
+                yaxis_title="z [cm]",
+                zaxis_title="y [cm]"
             ),
-            title="2x2 TPCs"
         )
         self.tpc_center, self.anodes, self.cathodes = self.draw_tpc()
         tpc.add_traces(self.tpc_center)
@@ -67,26 +73,28 @@ class ChargeLightDisplay:
     def construct_light_detectors(self, waveforms):
         """Plot optical detectors"""
         drawn_objects = []
-        
         det_bounds = self.geometry_info["det_bounds"]
-        
-        channel_map = np.array([0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 65, 73, 81, 89, 97, 105, 113, 121, 1, 9, 17, 25, 33, 41, 49, 57, 2, 10, 18, 26,
-                    34, 42, 50, 58, 66, 74, 82, 90, 98, 106, 114, 122, 67, 75, 83, 91, 99, 107, 115, 123, 3, 11, 19, 27, 35, 43, 51, 59, 4, 12, 20, 28, 36, 44, 52,
-                    60, 68, 76, 84, 92, 100, 108, 116, 124, 69, 77, 85, 93, 101, 109, 117, 125, 5, 13, 21, 29, 37, 45, 53, 61, 6, 14, 22, 30, 38, 46, 54, 62, 70,
-                    78, 86, 94, 102, 110, 118, 126, 71, 79, 87, 95, 103, 111, 119, 127, 7, 15, 23, 31, 39, 47, 55, 63]) # this maps detector position to detector number
+        channel_map = np.array([
+            0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 65, 73, 81, 89, 97, 105, 113, 121,
+            1, 9, 17, 25, 33, 41, 49, 57, 2, 10, 18, 26, 34, 42, 50, 58, 66, 74, 82, 90, 98, 106, 114, 122, 67,
+            75, 83, 91, 99, 107, 115, 123, 3, 11, 19, 27, 35, 43, 51, 59, 4, 12, 20, 28, 36, 44, 52, 60, 68, 76,
+            84, 92, 100, 108, 116, 124, 69, 77, 85, 93, 101, 109, 117, 125, 5, 13, 21, 29, 37, 45, 53, 61, 6, 14,
+            22, 30, 38, 46, 54, 62, 70, 78, 86, 94, 102, 110, 118, 126, 71, 79, 87, 95, 103, 111, 119, 127, 7, 15,
+            23, 31, 39, 47, 55, 63
+        ])  # this maps detector position to detector number
         # we need to invert the mapping because I'm stupid
         channel_map = np.argsort(channel_map)
         channel_map_deluxe = pd.read_csv('arrakis_nd/utils/display/sipm_channel_map.csv', header=0)
-        
+
         xs = []
         ys = []
         zs = []
         for i in range(len(det_bounds)):
-            if det_bounds[i][1] == True:
+            if det_bounds[i][1] is True:
                 xs.append([det_bounds[i][0][0][0], det_bounds[i][0][1][0]])
                 ys.append([det_bounds[i][0][0][1], det_bounds[i][0][1][1]])
                 zs.append([det_bounds[i][0][0][2], det_bounds[i][0][1][2]])
-        
+
         COLORSCALE = plotly.colors.make_colorscale(
             plotly.colors.convert_colors_to_same_type(plotly.colors.sequential.YlOrRd)[0]
         )
@@ -94,20 +102,24 @@ class ChargeLightDisplay:
         photon_sums = []
         for i in range(len(xs)):
             opid = channel_map[i]
-            # get all adc, channel belonging to opid=det_id. We have a numpy array channel_map_deluxe with dtype (det_id, tpc, side, sipm_pos, adc, channel)
-            sipms = channel_map_deluxe[channel_map_deluxe['det_id']==opid][['adc', 'channel']].values
+            # get all adc, channel belonging to opid=det_id.
+            # We have a numpy array channel_map_deluxe with dtype
+            # (det_id, tpc, side, sipm_pos, adc, channel)
+            sipms = channel_map_deluxe[channel_map_deluxe['det_id'] == opid][['adc', 'channel']].values
             sum_photons = 0
             for adc, channel in sipms:
                 wvfm = waveforms[:, int(adc), int(channel), :]
-                sum_wvfm = np.sum(wvfm, axis=0) # sum over the events
-                sum_photons += np.sum(sum_wvfm, axis=0) # sum over the time
+                sum_wvfm = np.sum(wvfm, axis=0)  # sum over the events
+                sum_photons += np.sum(sum_wvfm, axis=0)  # sum over the time
             photon_sums.append(sum_photons)
         max_integral = np.max(photon_sums)
-        
+
         for i in range(len(xs)):
             opid = channel_map[i]
-            # get all adc, channel belonging to opid=det_id. We have a numpy array channel_map_deluxe with dtype (det_id, tpc, side, sipm_pos, adc, channel)
-            sipms = channel_map_deluxe[channel_map_deluxe['det_id']==opid][['adc', 'channel']].values
+            # get all adc, channel belonging to opid=det_id.
+            # We have a numpy array channel_map_deluxe with dtype
+            # (det_id, tpc, side, sipm_pos, adc, channel)
+            sipms = channel_map_deluxe[channel_map_deluxe['det_id'] == opid][['adc', 'channel']].values
             sum_photons = 0
             for adc, channel in sipms:
                 wvfm = waveforms[:, int(adc), int(channel), :]
@@ -130,15 +142,15 @@ class ChargeLightDisplay:
             ]
             light_plane = go.Surface(
                 x=xs[i],
-                y=ys[i],
-                z=[zs[i], zs[i]], # why flip y and z?
+                z=ys[i],
+                y=[zs[i], zs[i]],  # why flip y and z?
                 colorscale=light_color,
                 showscale=False,
                 showlegend=False,
                 opacity=0.2,
                 hoverinfo="text",
                 ids=[[opid_str, opid_str], [opid_str, opid_str]],
-                text=f"Optical detector {opid} waveform integral<br>{max(0,sum_photons):.2e}",
+                text=f"Optical detector {opid} waveform integral<br>{max(0, sum_photons):.2e}",
             )
 
             drawn_objects.append(light_plane)
@@ -146,20 +158,22 @@ class ChargeLightDisplay:
 
     def construct_waveforms(self):
         waveforms = go.Figure()
-        waveforms = custom_plotly_layout(waveforms,
-                                         xaxis_title ="Time [ticks] (1 ns)",
-                                         yaxis_title="ADC counts",
-                                         title="Waveform for optical detector")
+        waveforms = custom_plotly_layout(
+            waveforms,
+            xaxis_title="Time [ticks] (1 ns)",
+            yaxis_title="ADC counts",
+            title="Waveform for optical detector"
+        )
         return waveforms
-    
+
     def plot_waveform(self, opid, waveforms):
         channel_map_deluxe = pd.read_csv('arrakis_nd/utils/display/sipm_channel_map.csv', header=0)
-        sipms = channel_map_deluxe[channel_map_deluxe['det_id']==int(opid)][['adc', 'channel']].values
+        sipms = channel_map_deluxe[channel_map_deluxe['det_id'] == int(opid)][['adc', 'channel']].values
         sum_wvfm = np.array([0]*1000)
         for adc, channel in sipms:
             wvfm = waveforms[:, int(adc), int(channel), :]
-            event_sum_wvfm = np.sum(wvfm, axis=0) # sum over the events
-            sum_wvfm += event_sum_wvfm # sum over the sipms
+            event_sum_wvfm = np.sum(wvfm, axis=0)  # sum over the events
+            sum_wvfm += event_sum_wvfm  # sum over the sipms
 
         x = np.arange(0, 1000, 1)
         y = sum_wvfm
@@ -169,7 +183,13 @@ class ChargeLightDisplay:
         for adc, channel in sipms:
             wvfm = waveforms[:, int(adc), int(channel), :]
             sum_wvfm = np.sum(wvfm, axis=0)
-            self.waveforms.add_traces(go.Scatter(x=x, y=sum_wvfm, visible="legendonly", showlegend=True, name=f"Channel {adc, channel}"))
+            self.waveforms.add_traces(go.Scatter(
+                x=x,
+                y=sum_wvfm,
+                visible="legendonly",
+                showlegend=True,
+                name=f"Channel {adc, channel}"
+            ))
 
     def construct_larpix(self):
         larpix = go.Figure()
@@ -201,8 +221,8 @@ class ChargeLightDisplay:
 
         center = go.Scatter3d(
             x=[detector_center[0]],
-            y=[detector_center[1]],
-            z=[detector_center[2]],
+            z=[detector_center[1]],
+            y=[detector_center[2]],
             marker=dict(size=3, color="green", opacity=0.5),
             mode="markers",
             name="tpc center",
@@ -234,7 +254,7 @@ class ChargeLightDisplay:
                     * 0.5
                     * np.ones(z.shape)
                 )
-                traces.append(go.Surface(x=x, y=y, z=z, **kwargs))
+                traces.append(go.Surface(x=x, y=z, z=y, **kwargs))
 
         return traces
 
@@ -254,7 +274,7 @@ class ChargeLightDisplay:
                 )
                 x = x_boundaries[i_x] * np.ones(z.shape)
 
-                traces.append(go.Surface(x=x, y=y, z=z, **kwargs))
+                traces.append(go.Surface(x=x, y=z, z=y, **kwargs))
 
         return traces
 
@@ -271,9 +291,13 @@ class ChargeLightDisplay:
         self.stack = stack
         self.trajectories = trajectories
         self.charge = charge
-    
+
     def plot_event(self):
         if self.charge is not None:
+            if self.scale == 0.0:
+                marker_size = 2.0  # Fixed size when scale is 0
+            else:
+                marker_size = np.array([q * self.scale for q in self.charge['Q']])  # Scale marker size
             name_to_remove = "calib_final_hits"
             # Create a new list of traces that excludes the ones with the specified name
             new_traces = [trace for trace in self.tpc.data if trace.name != name_to_remove]
@@ -282,65 +306,40 @@ class ChargeLightDisplay:
 
             charge_hits_traces = go.Scatter3d(
                 x=self.charge['x'],
-                y=self.charge['y'],
-                z=self.charge['z'],
-                marker_color=self.charge['Q'],
+                z=self.charge['y'],
+                y=self.charge['z'],
                 marker={
-                    "size": 1.75,
+                    "size": marker_size,
                     "opacity": 0.7,
                     "colorscale": "cividis",
-                    "colorbar": {
-                        "title": "Hit charge [e-]",
-                        "titlefont": {"size": 12},
-                        "tickfont": {"size": 10},
-                        "thickness": 15,
-                        "len": 0.5,
-                        "xanchor": "left",
-                        "x": 0,
-                    },
                 },
                 name="calib_final_hits",
                 mode="markers",
                 showlegend=True,
                 opacity=0.7,
-                hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>E:%{customdata:.3f}",
+                hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>Q:%{marker_size}",  # Show Q value in hover
             )
 
             self.tpc.add_traces(charge_hits_traces)
 
-
     def generate_layout(self):
         self.construct_detector()
         self.plot_event()
-        self.layout = html.Div(
-            [
-                dcc.Location(id="url"),
-                dcc.Store(id="filename", storage_type="local", data=None),
-                dcc.Store(id='data-length', data=0),
-                html.H1(children="2x2 event display", style={"textAlign": "center"}),
-                html.Div([
-                    # This div contains the plot on the left with 50% width of the viewport width
-                    html.Div(dcc.Graph(
-                        id='charge_light_tpc_plot',
-                        style={'height': '80vh', 'width': '45vw'},  # Adjust size as needed
-                        figure=self.tpc
-                    ), style={'width': '45vw'}),  # This ensures the left plot takes up half the viewport width
-
-                    # This div is the container for the two plots on the right
-                    html.Div([
-                        # This div contains the top right plot with 35% viewport width and 50% viewport height
-                        html.Div(dcc.Graph(
-                            id="light-waveform",
-                            style={'height': '50vh', 'width': '35vw'},  # Adjust size as needed
-                            figure=self.waveforms
-                        )),
-                        # This div contains the bottom right plot with 35% viewport width and 30% viewport height
-                        html.Div(dcc.Graph(
-                            id="another-graph",
-                            style={'height': '30vh', 'width': '35vw'},  # Adjust size as needed
-                            figure=self.larpix
-                        )),
-                    ], style={'display': 'flex', 'flexDirection': 'column', 'width': '45vw'}),
-                ], style={'display': 'flex'})
-            ]
-        )
+        self.layout = html.Div([
+            html.H2("2x2 Light and LArPix", style={"textAlign": "center"}),  # Centered header
+            html.Div(
+                dcc.Graph(
+                    id="light-waveform",
+                    style={'height': '50vh', 'width': '35vw'},
+                    figure=self.waveforms
+                )
+            ),
+            html.Div(
+                dcc.Graph(
+                    id="larpix-tiles",
+                    style={'height': '30vh', 'width': '35vw'},
+                    figure=self.larpix
+                )
+            ),
+            html.Div(id="dynamic-content")
+        ], style={'display': 'flex', 'flexDirection': 'column', 'width': '45vw'})

@@ -55,7 +55,7 @@ class ProtonPlugin(Plugin):
         track_id_hit_map = event_products['track_id_hit_map']
         track_id_hit_segment_map = event_products['track_id_hit_segment_map']
         track_id_hit_t0_map = event_products['track_id_hit_t0_map']
-        charge_back_track_segments = charge_backtrack['segment_id']
+        charge_back_track_segments = charge_backtrack['segment_ids']
 
         trajectories_traj_ids = trajectories['traj_id']
         trajectories_vertex_ids = trajectories['vertex_id']

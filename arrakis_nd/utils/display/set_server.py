@@ -1,5 +1,6 @@
 import os, socket
 
+
 class SetServer:
     """
     Set up the Dash app to run in Jupyter or as a standalone server.

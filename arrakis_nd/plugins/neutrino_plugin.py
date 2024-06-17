@@ -54,7 +54,11 @@ class NeutrinoPlugin(Plugin):
             if sum(argon_neutrino_targets) > 1:
                 return
             neutrino = interactions[argon_neutrino_targets]
-            fiducialized = fiducialized_vertex(neutrino['vertex'][0])
+            fiducialized = fiducialized_vertex([
+                neutrino['x_vert'],
+                neutrino['y_vert'],
+                neutrino['z_vert']
+            ])
 
             if neutrino['nu_pdg'] == 12:
                 if neutrino['isCC'] is False:

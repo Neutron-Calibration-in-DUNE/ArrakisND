@@ -1,6 +1,6 @@
 #!/bin/bash 
 #SBATCH -C gpu
-#SBATCH -A dune
+#SBATCH -A dune_g
 #SBATCH --ntasks-per-node 4
 #SBATCH --cpus-per-task 32
 #SBATCH --gpus-per-node 4

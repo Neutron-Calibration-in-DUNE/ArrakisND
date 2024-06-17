@@ -6,10 +6,12 @@ import numpy as np
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
 from arrakis_nd.dataset.common import (
-    Topology, Physics
+    Topology,
+    Physics
 )
 from arrakis_nd.utils.logger import ArrakisError
 from arrakis_nd.arrakis.common import undefined_data_type
+
 
 class ConstraintPlugin(Plugin):
     """
@@ -57,7 +59,7 @@ class ConstraintPlugin(Plugin):
         if self.config["constraint_mode"] not in ["max_fraction", "min_distance"]:
             raise ArrakisError(f"specified 'constraint_mode' {self.config['constraint_mode']} not allowed!")
         self.constraint_mode = self.config["constraint_mode"]
-        
+
         if "replace_undefined" not in self.config:
             self.config["replace_undefined"] = -1
         self.replace_undefined = self.config["replace_undefined"]
@@ -91,7 +93,7 @@ class ConstraintPlugin(Plugin):
         trajectories_ancestor_traj_ids = event_products['ancestor_traj_id_map']
         trajectories_ancestor_pdg_ids = event_products['ancestor_pdg_id_map']
         trajectories_ancestor_levels = event_products['ancestor_level_map']
-        
+
         segments_traj_ids = segments['traj_id']
         segments_vertex_ids = segments['vertex_id']
         segments_segment_ids = segments['segment_id']
@@ -110,7 +112,7 @@ class ConstraintPlugin(Plugin):
         segments_fragment_end = arrakis_segment_charge['fragment_end']
         segments_shower_begin = arrakis_segment_charge['shower_begin']
 
-        charge_segment_ids = charge_back_track['segment_id'].astype(int)
+        charge_segment_ids = charge_back_track['segment_ids'].astype(int)
         charge_segment_fraction = charge_back_track['fraction']
         charge_segment_fraction_mask = (charge_segment_fraction == 0)
         charge_segment_ids[charge_segment_fraction_mask] = -1
@@ -140,13 +142,21 @@ class ConstraintPlugin(Plugin):
             """First check to see if any segments remain after the cut"""
             if sum(segment_distance <= self.segment_influence_cut):
                 segment_fraction[(segment_distance > self.segment_influence_cut)] = 0
-            
+
             """Then, give priority to tracks"""
             if Topology.Track.value in segment_topology:
                 segment_fraction[(segment_topology != Topology.Track.value)] = 0
             """Then, to showers"""
             if Topology.Shower.value in segment_topology:
                 segment_fraction[(segment_topology != Topology.Shower.value)] = 0
+                """Conversions get priority, then comptons"""
+                if Physics.GammaConversion.value in segment_physics:
+                    segment_fraction[(segment_physics != Physics.GammaConversion.value)] == 0
+                elif (
+                    Physics.GammaConversion.value not in segment_physics and
+                    Physics.GammaCompton.value in segment_physics
+                ):
+                    segment_fraction[(segment_physics != Physics.GammaCompton.value)] == 0
             segment_distance[(segment_fraction == 0.0)] = 10e10
 
             if self.constraint_mode == "max_fraction":
@@ -165,13 +175,13 @@ class ConstraintPlugin(Plugin):
             arrakis_charge['fragment_begin'][ii] = int(np.any(segment_fragment_begin))
             arrakis_charge['fragment_end'][ii] = int(np.any(segment_fragment_end))
             arrakis_charge['shower_begin'][ii] = int(np.any(segment_shower_begin))
-            
+
             """Check for undefined values"""
             if arrakis_charge['topology'][ii] == -1:
                 """Replace undefined values"""
                 arrakis_charge['topology'][ii] = self.replace_undefined
                 arrakis_charge['physics'][ii] = self.replace_undefined
-                
+
                 """Log the undefined information to the arrakis file"""
                 segment_index = np.where(
                     segments_segment_ids == charge_segment_ids[ii][constraint_mask]
@@ -227,9 +237,9 @@ class ConstraintPlugin(Plugin):
                     parent_end_subprocess)],
                     dtype=undefined_data_type
                 )
-                
+
                 """Add the undefined data to the event products"""
                 event_products['undefined'].append(undefined_data)
-                
+
         """Write changes to arrakis_file"""
         arrakis_file['charge/calib_final_hits/data'][event_indices['charge']] = arrakis_charge
