@@ -25,11 +25,12 @@ class PhotonPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         """
-        super(PhotonPlugin, self).__init__(config)
+        super(PhotonPlugin, self).__init__(config, meta)
 
         self.input_products = [
             'daughters',
@@ -65,8 +66,8 @@ class PhotonPlugin(Plugin):
         """
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
-        charge = flow_file['charge/calib_final_hits/data'][event_indices['charge']]
-        arrakis_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
+        charge = flow_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
+        arrakis_charge = arrakis_file[f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
         track_id_hit_map = event_products['track_id_hit_map']
         track_id_hit_segment_map = event_products['track_id_hit_segment_map']
         track_id_hit_t0_map = event_products['track_id_hit_t0_map']
@@ -290,4 +291,4 @@ class PhotonPlugin(Plugin):
                     event_products['blip'].append(blip_data)
 
         """Write changes to arrakis_file"""
-        arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']] = arrakis_charge
+        arrakis_file[f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']] = arrakis_charge

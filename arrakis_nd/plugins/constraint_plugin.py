@@ -33,11 +33,12 @@ class ConstraintPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         """
-        super(ConstraintPlugin, self).__init__(config)
+        super(ConstraintPlugin, self).__init__(config, meta)
 
         self.input_products = [
             'daughters',
@@ -75,9 +76,11 @@ class ConstraintPlugin(Plugin):
     ):
         """
         """
-        arrakis_charge = arrakis_file['charge/calib_final_hits/data'][event_indices['charge']]
-        arrakis_segment_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
-        charge_back_track = flow_file['mc_truth/calib_final_hit_backtrack/data'][event_indices['charge']]
+        arrakis_charge = arrakis_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
+        arrakis_segment_charge = arrakis_file[
+            f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'
+        ][event_indices['charge']]
+        charge_back_track = flow_file[f'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data'][event_indices['charge']]
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
         segments = flow_file['mc_truth/segments/data'][event_indices['segments']]
 
@@ -242,4 +245,4 @@ class ConstraintPlugin(Plugin):
                 event_products['undefined'].append(undefined_data)
 
         """Write changes to arrakis_file"""
-        arrakis_file['charge/calib_final_hits/data'][event_indices['charge']] = arrakis_charge
+        arrakis_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']] = arrakis_charge

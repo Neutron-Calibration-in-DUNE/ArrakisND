@@ -5,6 +5,7 @@ arrakis_nd:
   flow_files:   'hdf5'
   skip_files: []
   plugin_locations: []
+  hit_type: 'prompt'
 
 plugins:
   DaughterPlugin:

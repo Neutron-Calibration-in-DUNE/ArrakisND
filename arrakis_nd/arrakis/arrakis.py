@@ -248,6 +248,13 @@ class Arrakis:
                     self.meta["device"] = torch.device("cpu")
                 self.meta["gpu"] = gpu
 
+                """Check for hit type in config"""
+                if "hit_type" not in arrakis_nd_config:
+                    self.meta["hit_type"] = "prompt"
+                else:
+                    self.meta["hit_type"] = arrakis_nd_config["hit_type"]
+                self.logger.info(f"using {self.meta['hit_type']} for hit labelling")
+
                 """Send new device meta data to workers"""
                 for ii in range(1, self.comm.size):
                     self.comm.send(self.meta, dest=ii, tag=0)
@@ -284,7 +291,7 @@ class Arrakis:
             if plugin not in self.available_plugins.keys():
                 self.logger.error(f'specified plugin "{plugin}" not available!')
             try:
-                self.plugins[plugin] = self.available_plugins[plugin](config)
+                self.plugins[plugin] = self.available_plugins[plugin](config, self.meta)
             except Exception as exception:
                 self.logger.error(f'failed to construct plugin {plugin} with config {config}: {exception}')
 
@@ -549,7 +556,7 @@ class Arrakis:
             if len(event_errors) > 0:
                 """Report event errors to log"""
                 self.logger.warn(f"event/plugin errors occurred when processing file {file_name}")
-                
+
                 """Display error information"""
                 for ii, event_error in enumerate(event_errors):
                     self.logger.warn(f"event: {event_error} / plugin: {plugin_errors[ii]}")
@@ -562,7 +569,7 @@ class Arrakis:
                 errors['plugin_error'] = event_plugin_errors.astype('S500')
                 errors['plugin_line_number'] = event_plugin_line_numbers.astype('S50')
                 errors['plugin_file_name'] = event_plugin_file_names.astype('S50')
-                
+
                 """Report error information to ARRAKIS file"""
                 arrakis_file_name = file_name.replace('FLOW', 'ARRAKIS').replace('flow', 'arrakis')
                 with h5py.File(self.arrakis_folder + arrakis_file_name, 'a') as arrakis_file:
@@ -627,10 +634,10 @@ class Arrakis:
             These labels are assigned to each reconstructed charge hit and
             written in the corresponding ARRAKIS file.
             """
-            charge_name = 'charge/calib_final_hits/data'
-            charge_segment_name = 'charge_segment/calib_final_hits/data'
-            charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_ids']
-            charge_segments_fraction = flow_file['mc_truth/calib_final_hit_backtrack/data']['fraction']
+            charge_name = f'charge/calib_{self.meta["hit_type"]}_hits/data'
+            charge_segment_name = f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'
+            charge_segments = flow_file[f'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data']['segment_ids']
+            charge_segments_fraction = flow_file[f'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data']['fraction']
             non_zero_charge_segments = [row[row != 0] for row in charge_segments]
             max_length = len(max(non_zero_charge_segments, key=len))
             num_charge = len(flow_file[charge_name]['x'])
@@ -803,7 +810,7 @@ class Arrakis:
         The slowest part of this code is backtracking through hits->segments,
         which must be done in order to create the reverse map from segments->hits.
         This must be done since there is no way to determine what hits go
-        with what events with only the calib_final_hits data alone.
+        with what events with only the calib_{self.meta["hit_type"]}_hits data alone.
 
         Args:
             file_name (_str_): _description_
@@ -815,8 +822,8 @@ class Arrakis:
                 segments_events = file['mc_truth/segments/data']['event_id']
                 stack_events = file['mc_truth/stack/data']['event_id']
                 trajectories_events = file['mc_truth/trajectories/data']['event_id']
-                charge_segments = file['mc_truth/calib_final_hit_backtrack/data']['segment_ids'].astype(int)
-                charge_fraction = file['mc_truth/calib_final_hit_backtrack/data']['fraction']
+                charge_segments = file[f'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data']['segment_ids'].astype(int)
+                charge_fraction = file[f'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data']['fraction']
                 charge_fraction_mask = (charge_fraction == 0)
                 charge_segments[charge_fraction_mask] = -1
                 non_zero_charge_segments = [row[row != 0] for row in charge_fraction]

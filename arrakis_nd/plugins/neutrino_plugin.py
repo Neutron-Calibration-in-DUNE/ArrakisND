@@ -17,11 +17,12 @@ class NeutrinoPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         """
-        super(NeutrinoPlugin, self).__init__(config)
+        super(NeutrinoPlugin, self).__init__(config, meta)
 
         self.input_products = [
             'daughters',

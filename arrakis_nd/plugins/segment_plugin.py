@@ -13,13 +13,14 @@ class SegmentPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         This plugin generates ...
 
         """
-        super(SegmentPlugin, self).__init__(config)
+        super(SegmentPlugin, self).__init__(config, meta)
 
         self.input_products = [
             'parent_pdg_id'
@@ -39,13 +40,13 @@ class SegmentPlugin(Plugin):
         Here we associate (traj_id, vertex_id) pairs to indices in the event_indices['charge']
         mask so that later plugins can easily grab the hits associated to each particle.
         To do this we must first associate (traj_id, vertex_id) to (segment_id) and then
-        use the back tracking information in 'mc_truth/calib_final_hit_backtrack/data'
+        use the back tracking information in 'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data'
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
         segments = flow_file['mc_truth/segments/data'][event_indices['segments']]
-        charge = flow_file['charge/calib_final_hits/data'][event_indices['charge']]
-        arrakis_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
-        charge_back_track = flow_file['mc_truth/calib_final_hit_backtrack/data'][event_indices['charge']]
+        charge = flow_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
+        arrakis_charge = arrakis_file[f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
+        charge_back_track = flow_file[f'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data'][event_indices['charge']]
 
         trajectories_traj_ids = trajectories['traj_id']
         trajectories_vertex_ids = trajectories['vertex_id']
@@ -93,4 +94,4 @@ class SegmentPlugin(Plugin):
                     (charge_y[ii] - segments_y[segment_index]) ** 2 +
                     (charge_z[ii] - segments_z[segment_index]) ** 2
                 )
-        arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']] = arrakis_charge
+        arrakis_file[f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']] = arrakis_charge

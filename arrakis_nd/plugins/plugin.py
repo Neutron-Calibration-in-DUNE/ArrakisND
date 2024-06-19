@@ -12,7 +12,8 @@ class Plugin:
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         All plugins must run super(CustomPlugin, self).__init__(config)
@@ -25,6 +26,10 @@ class Plugin:
         if config is None:
             config = {}
         self.config = config
+
+        if meta is None:
+            meta = {}
+        self.meta = meta
 
         """These should be set by the creator of the custom plugin"""
         self.input_products = None

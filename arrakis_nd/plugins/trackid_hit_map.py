@@ -13,11 +13,12 @@ class TrackIDHitMapPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         This plugin generates a map from (traj_id, vertex_it) pairs to
-        indices in the calib_final_hits array.  This allows other plugins
+        indices in the calib_{self.meta["hit_type"]}_hits array.  This allows other plugins
         to easily find which hits originate from each particle so that
         labels can be assigned in the corresponding ARRAKIS array.
 
@@ -44,7 +45,7 @@ class TrackIDHitMapPlugin(Plugin):
         which is currently implemented in process_event.
 
         """
-        super(TrackIDHitMapPlugin, self).__init__(config)
+        super(TrackIDHitMapPlugin, self).__init__(config, meta)
 
         self.input_products = None
         self.output_products = [
@@ -66,11 +67,11 @@ class TrackIDHitMapPlugin(Plugin):
         Here we associate (traj_id, vertex_id) pairs to indices in the event_indices['charge']
         mask so that later plugins can easily grab the hits associated to each particle.
         To do this we must first associate (traj_id, vertex_id) to (segment_id) and then
-        use the back tracking information in 'mc_truth/calib_final_hit_backtrack/data'
+        use the back tracking information in 'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data'
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
         segments = flow_file['mc_truth/segments/data'][event_indices['segments']]
-        charge_back_track = flow_file['mc_truth/calib_final_hit_backtrack/data'][event_indices['charge']]
+        charge_back_track = flow_file[f'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data'][event_indices['charge']]
 
         trajectories_traj_ids = trajectories['traj_id']
         trajectories_vertex_ids = trajectories['vertex_id']

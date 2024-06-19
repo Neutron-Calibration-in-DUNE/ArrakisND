@@ -18,7 +18,8 @@ class ParticlePlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         A particle standard record object is essentially a fully reconstructed
@@ -47,7 +48,7 @@ class ParticlePlugin(Plugin):
         outside of the detector, so only argon is a reasonable quantity to use, hence
         tgtA is redundant.
         """
-        super(ParticlePlugin, self).__init__(config)
+        super(ParticlePlugin, self).__init__(config, meta)
 
         self.input_products = [
             'daughters',
@@ -70,7 +71,7 @@ class ParticlePlugin(Plugin):
         """
         interactions = flow_file['mc_truth/interactions/data'][event_indices['interactions']]
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
-        charge = flow_file['charge/calib_final_hits/data'][event_indices['charge']]
+        charge = flow_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
         track_id_hit_map = event_products['track_id_hit_map']
         track_id_hit_t0_map = event_products['track_id_hit_t0_map']
 

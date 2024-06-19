@@ -40,7 +40,8 @@ class EmptyPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         To keep things as simple as possible, we restrict plugins to
@@ -68,7 +69,7 @@ class EmptyPlugin(Plugin):
             the original arrakis_file in the end!  See the particle examples in the plugin
             folder.
         """
-        super(EmptyPlugin, self).__init__(config)
+        super(EmptyPlugin, self).__init__(config, meta)
 
         self.input_products = None
         self.output_products = None

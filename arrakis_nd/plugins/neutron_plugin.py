@@ -22,11 +22,12 @@ class NeutronPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         """
-        super(NeutronPlugin, self).__init__(config)
+        super(NeutronPlugin, self).__init__(config, meta)
 
         self.input_products = [
             'daughters',
@@ -54,8 +55,8 @@ class NeutronPlugin(Plugin):
         """
         """
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
-        charge = flow_file['charge/calib_final_hits/data'][event_indices['charge']]
-        arrakis_charge = arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']]
+        charge = flow_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
+        arrakis_charge = arrakis_file[f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
         track_id_hit_map = event_products['track_id_hit_map']
         track_id_hit_segment_map = event_products['track_id_hit_segment_map']
         track_id_hit_t0_map = event_products['track_id_hit_t0_map']
@@ -214,7 +215,7 @@ class NeutronPlugin(Plugin):
                 event_products['blip'].append(blip_data)
 
         """Write changes to arrakis_file"""
-        arrakis_file['charge_segment/calib_final_hits/data'][event_indices['charge']] = arrakis_charge
+        arrakis_file[f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']] = arrakis_charge
 
         """Grab the neutrons which result in capture"""
         particle_mask = (
@@ -258,4 +259,3 @@ class NeutronPlugin(Plugin):
                 for kk, gamma_daughter in enumerate(gamma_daughter_traj_ids):
                     gamma_daughter_hits = track_id_hit_map[(gamma_daughter, vertex_id)]
                     gamma_hits += gamma_daughter_hits
-

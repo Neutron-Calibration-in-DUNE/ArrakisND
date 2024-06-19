@@ -15,11 +15,12 @@ class ParentPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         """
-        super(ParentPlugin, self).__init__(config)
+        super(ParentPlugin, self).__init__(config, meta)
 
         self.input_products = None
         self.output_products = 'parent_pdg_id'

@@ -45,6 +45,11 @@ class ArrakisDisplay:
         self.available_events = []
         self.unique_events = []
         self.event = None
+        self.available_hits = []
+        self.hit = None
+        self.available_track_ids = []
+        self.track_id = None
+        self.hit_type = 'prompt'
 
         self.nersc_flow_folder = '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/'
         self.standard_flow_folders = [
@@ -76,14 +81,26 @@ class ArrakisDisplay:
         self.light = None
         self.topology = None
         self.physics = None
+        self.particle = None
+        self.unique_topology = None
 
         self.left_tpc = TPCDisplay(id_suffix='left')
         self.right_tpc = TPCDisplay(id_suffix='right')
         self.left_larpix_light_display = LArPixLightDisplay()
         self.right_larpix_light_display = LArPixLightDisplay()
 
+        self.empty_point_text = html.Div([
+            html.P('x: ', style={'margin': '0', 'padding': '0'}),
+            html.P('y: ', style={'margin': '0', 'padding': '0'}),
+            html.P('z: ', style={'margin': '0', 'padding': '0'}),
+            html.P('Q: ', style={'margin': '0', 'padding': '0'}),
+            html.P('E: ', style={'margin': '0', 'padding': '0'}),
+            html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
+        ])
+
         self.construct_app()
-        self.construct_widgets()
+        self.construct_layout()
+        self.construct_callbacks()
         self.run_app()
 
     def adjust_iframe_height(self, height=1000):
@@ -122,16 +139,28 @@ class ArrakisDisplay:
 
         """Get the custom style file"""
         with open('arrakis_nd/utils/display/assets/styles.yaml', 'r') as file:
-            styles = yaml.safe_load(file)
+            self.styles = yaml.safe_load(file)
 
+    def construct_layout(self):
+        """
+        Construct the layout.
+        """
         """Define the navbar with a dropdown"""
+        self.construct_navbar()
+        self.construct_sidebar()
+        self.construct_main_display()
+
+    def construct_navbar(self):
         self.navbar = html.Div(
             children=[
                 html.A(
                     href="https://github.com/Neutron-Calibration-in-DUNE/ArrakisND",
                     target="_blank",  # Opens the link in a new tab
                     children=[
-                        html.Img(src='/assets/github-mark.png', style={'height': '35px', 'marginRight': '15px'}),
+                        html.Img(
+                            src='/assets/github-mark.png',
+                            style={'height': '35px', 'marginRight': '15px'}
+                        ),
                     ],
                     style={'display': 'flex', 'alignItems': 'center', 'textDecoration': 'none'},
                 ),
@@ -139,33 +168,33 @@ class ArrakisDisplay:
                 dbc.DropdownMenu(
                     [
                         dbc.DropdownMenuItem(
-                            "A button", id="dropdown-button", n_clicks=0
+                            "2x2 sim (github)",
+                            href="https://github.com/DUNE/2x2_sim",
+                            external_link=True
                         ),
                         dbc.DropdownMenuItem(
-                            "Internal link", href="/docs/components/dropdown_menu"
-                        ),
-                        dbc.DropdownMenuItem(
-                            "External Link", href="https://github.com"
-                        ),
-                        dbc.DropdownMenuItem(
-                            "External relative",
-                            href="/docs/components/dropdown_menu",
-                            external_link=True,
+                            "MiniRun5 File Locations",
+                            href="https://github.com/DUNE/2x2_sim/wiki/MiniRun5-file-locations",
+                            external_link=True
                         ),
                     ],
                     label="Menu",
                 ),
             ],
-            style=styles['NAVBAR_STYLE']
+            style=self.styles['NAVBAR_STYLE']
         )
 
+    def construct_sidebar(self):
         """Define the sidebar"""
         self.sidebar = html.Div(
             [
                 # DUNE logo and Arrakis Display text
                 html.Div(
                     children=[
-                        html.Img(src='/assets/2x2.png', style={'height': '100px', 'marginRight': '15px'}),
+                        html.Img(
+                            src='/assets/2x2.png',
+                            style={'height': '100px', 'marginRight': '15px'}
+                        ),
                         html.H3("2x2 Display"),
                     ],
                     style={'display': 'flex', 'alignItems': 'center'}
@@ -182,7 +211,7 @@ class ArrakisDisplay:
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
 
                 # Text box for writing FLOW and Arrakis folders
-                dbc.Label("FLOW folder"),
+                dbc.Label("🗃️ FLOW folder"),
                 dbc.Input(
                     placeholder="Enter the FLOW folder",
                     type="text",
@@ -190,7 +219,7 @@ class ArrakisDisplay:
                     size='sm',
                     value=''
                 ),
-                dbc.Label("ARRAKIS folder"),
+                dbc.Label("🗃️ ARRAKIS folder"),
                 dbc.Input(
                     placeholder="Enter the ARRAKIS folder",
                     type="text",
@@ -233,52 +262,47 @@ class ArrakisDisplay:
                 ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
                 html.H2(),
                 html.Div(id='event_output'),
-
-                # Highlighting options
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
-                # html.P("FLOW charge types to plot"),
-                # dcc.Checklist(
-                #     ['Segments', 'Calib Prompt Hits', 'Calib Final Hits'],
-                #     ['Calib Final Hits'], inline=True
-                # ),
-                # # Scale Slider
-                # html.Hr(style={'border': '1px solid #ffffff', 'height': '0px'}),
-                # html.Div([
-                #     html.Div([
-                #         html.P("Active TPCs"),
-                #         dcc.Checklist(
-                #             ['0', '1', '2', '3', '4', '5', '6', '7'],
-                #             ['0', '1', '2', '3', '4', '5', '6', '7']
-                #         )], style={'width': '45vw'}),
-                #     html.Div([
-                #         html.P("Detectors"),
-                #         dcc.Checklist(
-                #             ['0', '1', '2', '3', '4', '5', '6', '7'],
-                #             ['0', '1', '2', '3', '4', '5', '6', '7']
-                #         )], style={'width': '45vw'}),
-                # ], style={'display': 'flex'}),
+                html.H2(),
+                html.Label("Hit type"),
+                dcc.Dropdown(
+                    id='hit_type_dropdown',
+                    options=[
+                        {'label': 'prompt', 'value': 'prompt'},
+                        {'label': 'final', 'value': 'final'},
+                    ],
+                    value='prompt',
+                    style={'color': "#000000"}
+                ),
             ],
-            style=styles['SIDEBAR_STYLE'],
+            style=self.styles['SIDEBAR_STYLE'],
         )
 
+    def construct_main_display(self):
         # Define content for the tabs
-        self.main_display = html.Div(id="page-content", style=styles["CONTENT_STYLE"], children=[
-            html.Div(id="left-window", style=styles["LEFT_COLUMN"], children=[
-                html.Div(id="dynamic-left-content")
+        self.main_display = html.Div(id="page_content", style=self.styles["CONTENT_STYLE"], children=[
+            html.Div(id="left_window", style=self.styles["LEFT_COLUMN"], children=[
+                html.Div(id="dynamic_left_content")
             ]),
-            html.Div(id="right-window", style=styles["RIGHT_COLUMN"], children=[
-                html.Div(id="dynamic-right-content")
+            html.Div(id="right_window", style=self.styles["RIGHT_COLUMN"], children=[
+                html.Div(id="dynamic_right_content")
             ]),
-            html.Div(id="bottom-section", style=styles["BOTTOM_SECTION"], children=[
-                html.Div(id="left-bottom-section", style=styles["LEFT_BOTTOM_SECTION"], children=[
+            html.Div(id="bottom_section", style=self.styles["BOTTOM_SECTION"], children=[
+                html.Div(id="left_bottom_section", style=self.styles["LEFT_BOTTOM_SECTION"], children=[
                     html.Div([
                         html.Div(style={'display': 'flex', 'width': '100%', 'gap': '10px'}, children=[
-                            html.Div(children=[html.H2(), html.Label('Window I Display type')], style={'width': '50%'}),
-                            html.Div(children=[html.H2(), html.Label('Plot type (labels)')], style={'width': '50%'}),
+                            html.Div(children=[
+                                html.H2(),
+                                html.Label('Window I Display type')
+                            ], style={'width': '50%'}),
+                            html.Div(children=[
+                                html.H2(),
+                                html.Label('Plot type (labels)')
+                            ], style={'width': '50%'}),
                         ]),
                         html.Div([
                             dcc.Dropdown(
-                                id='left-window-dropdown',
+                                id='left_window_dropdown',
                                 options=[
                                     {'label': 'TPC', 'value': 'tpc'},
                                     {'label': 'LArPix/Light', 'value': 'light'},
@@ -287,37 +311,95 @@ class ArrakisDisplay:
                                 style={'color': "#000000", 'width': '50%'}
                             ),
                             dcc.Dropdown(
-                                id='left-window-plottype-dropdown',
+                                id='left_window_plottype_dropdown',
                                 options=[
                                     {'label': 'Q (charge)', 'value': 'q'},
                                     {'label': 'Topology', 'value': 'topology'},
                                     {'label': 'Physics', 'value': 'physics'},
+                                    {'label': 'Particle', 'value': 'particle'},
+                                    {'label': 'Tracklette', 'value': 'tracklette'},
+                                    {'label': 'Track', 'value': 'track'},
+                                    {'label': 'Fragment', 'value': 'fragment'},
+                                    {'label': 'Shower', 'value': 'shower'},
+                                    {'label': 'Blip', 'value': 'blip'},
                                 ],
                                 value='q',
                                 style={'color': "#000000", 'width': '50%'}
                             ),
-                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px', 'width': '100%'}),
+                        ], style={
+                            'display': 'flex',
+                            'flexDirection': 'row',
+                            'gap': '10px', 'width': '100%'
+                        }),
                         html.H2(),
                         html.Label('Segment/Hit Scale'),
                         dcc.Slider(
-                            id='left-window-scale-slider',
+                            id='left_window_scale_slider',
                             min=0.0,
                             max=1.0,
                             step=0.01,
                             value=0.01,  # Default scale
                             marks={i / 10.0: f'{i / 10.0}' for i in range(0, 11)},
                         ),
+                        html.H2(),
+                        html.Label('Hit [hit_id]'),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='left_hit_dropdown',
+                                options=self.available_hits,
+                                searchable=True,
+                                placeholder="Select an hit...",
+                                style={'color': "#000000", 'width': '60%'}
+                            ),
+                            html.Button('Previous', id='left_previous_hit', style={'width': '20%'}),
+                            html.Button('Next', id='left_next_hit', style={'width': '20%'}),
+                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
+                        html.H2(),
+                        html.Label('TrackID [track_id]'),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='left_track_id_dropdown',
+                                options=self.available_track_ids,
+                                searchable=True,
+                                placeholder="Select a track_id...",
+                                style={'color': "#000000", 'width': '60%'}
+                            ),
+                            html.Button('Previous', id='left_previous_track_id', style={'width': '20%'}),
+                            html.Button('Next', id='left_next_track_id', style={'width': '20%'}),
+                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
                     ], style={'width': '50%'}),
+                    html.Div([
+                        html.H2(),
+                        html.Label('Segment/Hit Info'),
+                        html.Div(
+                            [
+                                html.P('x: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('y: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('z: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('Q: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('E: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
+                            ],
+                            id='left_bottom_text',
+                            style={'padding': '10px', 'margin-top': '10px'}
+                        ),
+                    ]),
                 ]),
-                html.Div(id="right-bottom-section", style=styles["RIGHT_BOTTOM_SECTION"], children=[
+                html.Div(id="right_bottom_section", style=self.styles["RIGHT_BOTTOM_SECTION"], children=[
                     html.Div([
                         html.Div(style={'display': 'flex', 'width': '100%', 'gap': '10px'}, children=[
-                            html.Div(children=[html.H2(), html.Label('Window II Display type')], style={'width': '50%'}),
-                            html.Div(children=[html.H2(), html.Label('Plot type (labels)')], style={'width': '50%'}),
+                            html.Div(children=[
+                                html.H2(),
+                                html.Label('Window II Display type')
+                            ], style={'width': '50%'}),
+                            html.Div(children=[
+                                html.H2(),
+                                html.Label('Plot type (labels)')
+                            ], style={'width': '50%'}),
                         ]),
                         html.Div([
                             dcc.Dropdown(
-                                id='right-window-dropdown',
+                                id='right_window_dropdown',
                                 options=[
                                     {'label': 'TPC', 'value': 'tpc'},
                                     {'label': 'LArPix/Light', 'value': 'light'},
@@ -326,27 +408,79 @@ class ArrakisDisplay:
                                 style={'color': "#000000", 'width': '50%'}
                             ),
                             dcc.Dropdown(
-                                id='right-window-plottype-dropdown',
+                                id='right_window_plottype_dropdown',
                                 options=[
                                     {'label': 'Q (charge)', 'value': 'q'},
                                     {'label': 'Topology', 'value': 'topology'},
                                     {'label': 'Physics', 'value': 'physics'},
+                                    {'label': 'Particle', 'value': 'particle'},
+                                    {'label': 'Tracklette', 'value': 'tracklette'},
+                                    {'label': 'Track', 'value': 'track'},
+                                    {'label': 'Fragment', 'value': 'fragment'},
+                                    {'label': 'Shower', 'value': 'shower'},
+                                    {'label': 'Blip', 'value': 'blip'},
                                 ],
                                 value='q',
                                 style={'color': "#000000", 'width': '50%'}
                             ),
-                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px', 'width': '100%'}),
+                        ], style={
+                            'display': 'flex',
+                            'flexDirection': 'row',
+                            'gap': '10px', 'width': '100%'
+                        }),
                         html.H2(),
                         html.Label('Segment/Hit Scale'),
                         dcc.Slider(
-                            id='right-window-scale-slider',
+                            id='right_window_scale_slider',
                             min=0.0,
                             max=1.0,
                             step=0.01,
                             value=0.01,  # Default scale
                             marks={i / 10.0: f'{i / 10.0}' for i in range(0, 11)},
                         ),
+                        html.H2(),
+                        html.Label('Hit [hit_id]'),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='right_hit_dropdown',
+                                options=self.available_hits,
+                                searchable=True,
+                                placeholder="Select an hit...",
+                                style={'color': "#000000", 'width': '60%'}
+                            ),
+                            html.Button('Previous', id='right_previous_hit', style={'width': '20%'}),
+                            html.Button('Next', id='right_next_hit', style={'width': '20%'}),
+                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
+                        html.H2(),
+                        html.Label('TrackID [track_id]'),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='right_track_id_dropdown',
+                                options=self.available_track_ids,
+                                searchable=True,
+                                placeholder="Select a track_id...",
+                                style={'color': "#000000", 'width': '60%'}
+                            ),
+                            html.Button('Previous', id='right_previous_track_id', style={'width': '20%'}),
+                            html.Button('Next', id='right_next_track_id', style={'width': '20%'}),
+                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
                     ], style={'width': '50%'}),
+                    html.Div([
+                        html.H2(),
+                        html.Label('Segment/Hit Info'),
+                        html.Div(
+                            [
+                                html.P('x: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('y: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('z: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('Q: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('E: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
+                            ],
+                            id='right_bottom_text',
+                            style={'padding': '10px', 'margin-top': '10px'}
+                        ),
+                    ]),
                 ]),
             ])
         ])
@@ -357,13 +491,14 @@ class ArrakisDisplay:
             self.navbar,
             self.sidebar,
             self.main_display,
+            dcc.Store(id='no_output', data=0)
         ])
 
-    def construct_widgets(self):
+    def construct_callbacks(self):
         # Callbacks to update the content based on which dropdown is selected
         @self.app.callback(
-            Output("dynamic-left-content", "children"),
-            [Input("left-window-dropdown", "value")]
+            Output("dynamic_left_content", "children"),
+            [Input("left_window_dropdown", "value")]
         )
         def render_left_content(value):
             if value == "light":
@@ -380,8 +515,90 @@ class ArrakisDisplay:
             )
 
         @self.app.callback(
-            Output("dynamic-right-content", "children"),
-            [Input("right-window-dropdown", "value")]
+            [Output('left_bottom_text', 'children'),
+             Output('left_hit_dropdown', 'value'),
+             Output('left_track_id_dropdown', 'value')],
+            Input('tpc_plot_left', 'clickData'),
+            [State('tpc_plot_left', 'figure')]
+        )
+        def display_left_click_data(clickData, tpc_plot):
+            if clickData is None:
+                raise PreventUpdate
+            point_data = clickData['points'][0]
+
+            if 'customdata' not in point_data:
+                raise PreventUpdate
+
+            hit_id = point_data['customdata'][0]
+            self.hit = hit_id
+            # self.left_tpc.highlight_point(hit_id)
+
+            x = point_data['x']
+            y = point_data['y']
+            z = point_data['z']
+            Q = point_data['customdata'][1]
+            E = point_data['customdata'][2]
+            pdg_id = point_data['customdata'][3]
+            track_id = point_data['customdata'][4]
+            self.track_id = track_id
+
+            return (
+                html.Div([
+                    html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'})
+                ]),
+                self.hit,
+                self.track_id
+            )
+
+        @self.app.callback(
+            [Output('right_bottom_text', 'children'),
+             Output('right_hit_dropdown', 'value'),
+             Output('right_track_id_dropdown', 'value')],
+            Input('tpc_plot_right', 'clickData'),
+            [State('tpc_plot_right', 'figure')]
+        )
+        def display_right_click_data(clickData, tpc_plot):
+            if clickData is None:
+                raise PreventUpdate
+            point_data = clickData['points'][0]
+
+            if 'customdata' not in point_data:
+                raise PreventUpdate
+
+            hit_id = point_data['customdata'][0]
+            self.hit = hit_id
+            # self.right_tpc.highlight_point(hit_id)
+
+            x = point_data['x']
+            y = point_data['y']
+            z = point_data['z']
+            Q = point_data['customdata'][1]
+            E = point_data['customdata'][2]
+            pdg_id = point_data['customdata'][3]
+            track_id = point_data['customdata'][4]
+            self.track_id = track_id
+
+            return (
+                html.Div([
+                    html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'})
+                ]),
+                self.hit,
+                self.track_id
+            )
+
+        @self.app.callback(
+            Output("dynamic_right_content", "children"),
+            [Input("right_window_dropdown", "value")]
         )
         def render_right_content(value):
             if value == "light":
@@ -539,10 +756,12 @@ class ArrakisDisplay:
         @self.app.callback(
             [Output('event_output', 'children'),
              Output('tpc_plot_left', 'figure'),
-             Output('tpc_plot_right', 'figure')],
+             Output('tpc_plot_right', 'figure'),
+             Output('left_hit_dropdown', 'options'),
+             Output('left_track_id_dropdown', 'options')],
             [Input('event_dropdown', 'value'),
-             Input('left-window-plottype-dropdown', 'value'),
-             Input('right-window-plottype-dropdown', 'value')],
+             Input('left_window_plottype_dropdown', 'value'),
+             Input('right_window_plottype_dropdown', 'value')],
         )
         def load_event(event, left_plottype, right_plottype):
             print_output = ''
@@ -555,8 +774,8 @@ class ArrakisDisplay:
                         segments_events = flow_file['mc_truth/segments/data']['event_id']
                         stack_events = flow_file['mc_truth/stack/data']['event_id']
                         trajectories_events = flow_file['mc_truth/trajectories/data']['event_id']
-                        charge_segments = flow_file['mc_truth/calib_final_hit_backtrack/data']['segment_ids'].astype(int)
-                        charge_fraction = flow_file['mc_truth/calib_final_hit_backtrack/data']['fraction']
+                        charge_segments = flow_file[f'mc_truth/calib_{self.hit_type}_hit_backtrack/data']['segment_ids'].astype(int)
+                        charge_fraction = flow_file[f'mc_truth/calib_{self.hit_type}_hit_backtrack/data']['fraction']
                         charge_fraction_mask = (charge_fraction == 0)
                         charge_segments[charge_fraction_mask] = -1
                         non_zero_charge_segments = [row[row != 0] for row in charge_fraction]
@@ -581,9 +800,10 @@ class ArrakisDisplay:
                             ),
                             axis=1,
                         )
-                        self.charge = flow_file['charge/calib_final_hits/data'][
+                        self.charge = flow_file[f'charge/calib_{self.hit_type}_hits/data'][
                             hits_to_segments
                         ]
+                        self.available_hits = [ii for ii in range(len(self.charge))]
                         # charge_events = flow_file["charge/events/data"]["id"]
 
                         # self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
@@ -617,24 +837,41 @@ class ArrakisDisplay:
                     # self.charge_light_display.waveforms = self.charge_light_display.construct_waveforms()
                 if self.arrakis_file:
                     with h5py.File(self.arrakis_folder + self.arrakis_file, "r") as arrakis_file:
-                        arrakis_event_ids = arrakis_file["charge/calib_final_hits/data"]["event_id"]
-                        self.topology = arrakis_file["charge/calib_final_hits/data"]["topology"][
+                        arrakis_event_ids = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["event_id"]
+                        self.topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["topology"][
                             (arrakis_event_ids == event)
                         ]
-                        self.physics = arrakis_file["charge/calib_final_hits/data"]["physics"][
+                        self.physics = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["physics"][
                             (arrakis_event_ids == event)
                         ]
+                        self.particle = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["particle"][
+                            (arrakis_event_ids == event)
+                        ]
+                        self.unique_topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["unique_topology"][
+                            (arrakis_event_ids == event)
+                        ]
+                        self.available_track_ids = np.unique(self.unique_topology)
                     self.left_tpc.update_arrakis_event(
                         self.topology,
-                        self.physics
+                        self.physics,
+                        self.particle,
+                        self.unique_topology,
                     )
                     self.right_tpc.update_arrakis_event(
                         self.topology,
-                        self.physics
+                        self.physics,
+                        self.particle,
+                        self.unique_topology
                     )
             self.left_tpc.plot_event()
             self.right_tpc.plot_event()
-            return print_output, self.left_tpc.tpc, self.right_tpc.tpc
+            return (
+                print_output,
+                self.left_tpc.tpc,
+                self.right_tpc.tpc,
+                self.available_hits,
+                self.available_track_ids
+            )
 
         @self.app.callback(
             Output('light-waveform', 'figure'),
@@ -668,20 +905,20 @@ class ArrakisDisplay:
                     print(e)
                     print("that is not a light trap, no waveform to plot")
 
-        # @self.app.callback(
-        #     Output('tpc_plot_left', 'figure'),
-        #     Input('left-window-scale-slider', 'value')
-        # )
-        # def update_left_size_scaler(size):
-        #     self.left_tpc.scale = size
-        #     print(size)
-        #     if self.event is not None:
-        #         self.left_tpc.plot_event()
-        #     return self.left_tpc.tpc
+        @self.app.callback(
+            Output('no_output', 'data'),
+            Input('left_window_scale_slider', 'value'),
+            [State('tpc_left_plot', 'figure')]
+        )
+        def update_left_size_scaler(size, tpc_plot):
+            self.left_tpc.scale = size
+            if self.event is not None:
+                self.left_tpc.plot_event()
+            return size
 
         # @self.app.callback(
         #     Output('tpc_plot_right', 'figure'),
-        #     Input('right-window-scale-slider', 'value')
+        #     Input('right_window_scale_slider', 'value')
         # )
         # def update_right_size_scaler(size):
         #     print(size)

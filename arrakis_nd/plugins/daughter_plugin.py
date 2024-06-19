@@ -57,11 +57,12 @@ class DaughterPlugin(Plugin):
     """
     def __init__(
         self,
-        config: dict = {}
+        config: dict = {},
+        meta: dict = {}
     ):
         """
         """
-        super(DaughterPlugin, self).__init__(config)
+        super(DaughterPlugin, self).__init__(config, meta)
 
         self.input_products = None
         self.output_products = 'daughters'

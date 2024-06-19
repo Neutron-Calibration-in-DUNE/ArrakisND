@@ -27,7 +27,10 @@ class TPCDisplay:
         self.charge = None
         self.topology = None
         self.physics = None
+        self.particle = None
+        self.unique_topology = None
         self.geometry_info = {}
+        self.hit_type = 'prompt'
 
         self.scale = 0.0
         self.plottype = 'q'
@@ -39,7 +42,7 @@ class TPCDisplay:
         self.topology_colors = {
             0: 'blue',
             1: 'green',
-            2: 'red',
+            2: 'orange',
         }
         self.physics_labels = {
             0: 'mip',
@@ -54,7 +57,7 @@ class TPCDisplay:
         }
         self.physics_colors = {
             0: 'orange',
-            1: 'red',
+            1: 'magenta',
             2: 'blue',
             3: 'green',
             4: 'purple',
@@ -94,7 +97,13 @@ class TPCDisplay:
                 zaxis_title="y [cm]"
             ),
             autosize=True,
-            margin=dict(l=0, r=0, b=0),  # Adjust margins to center the plot
+            margin=dict(l=0, r=0, b=0),  # Adjust margins to center the plot,
+            legend=dict(
+                x=0,
+                y=1,
+                xanchor='left',
+                yanchor='top'
+            ),
         )
         self.tpc_center, self.anodes, self.cathodes = self.draw_tpc()
         tpc.add_traces(self.tpc_center)
@@ -241,6 +250,7 @@ class TPCDisplay:
         **kwargs
     ):
         traces = []
+        legendgroup = 'cathode_planes'  # Group name for legend
         for i_z in range(int(len(z_boundaries) / 2)):
             for i_x in range(int(len(x_boundaries) / 2)):
                 z, y = np.meshgrid(
@@ -252,7 +262,16 @@ class TPCDisplay:
                     * 0.5
                     * np.ones(z.shape)
                 )
-                traces.append(go.Surface(x=x, y=z, z=y, **kwargs))
+                showlegend = (i_z == 0 and i_x == 0)  # Show legend for the first trace only
+                traces.append(go.Surface(
+                    x=x,
+                    y=z,
+                    z=y,
+                    legendgroup=legendgroup,
+                    showlegend=showlegend,
+                    name="Cathode Planes",
+                    **kwargs
+                ))
 
         return traces
 
@@ -264,6 +283,7 @@ class TPCDisplay:
         **kwargs
     ):
         traces = []
+        legendgroup = 'anode_planes'  # Group name for legend
         for i_z in range(int(len(z_boundaries) / 2)):
             for i_x in range(int(len(x_boundaries))):
                 z, y = np.meshgrid(
@@ -272,7 +292,16 @@ class TPCDisplay:
                 )
                 x = x_boundaries[i_x] * np.ones(z.shape)
 
-                traces.append(go.Surface(x=x, y=z, z=y, **kwargs))
+                showlegend = (i_z == 0 and i_x == 0)  # Show legend for the first trace only
+                traces.append(go.Surface(
+                    x=x,
+                    y=z,
+                    z=y,
+                    legendgroup=legendgroup,
+                    showlegend=showlegend,
+                    name="Anode Planes",
+                    **kwargs
+                ))
 
         return traces
 
@@ -294,9 +323,13 @@ class TPCDisplay:
         self,
         topology,
         physics,
+        particle,
+        unique_topology
     ):
         self.topology = topology
         self.physics = physics
+        self.particle = particle
+        self.unique_topology = unique_topology
 
     def update_plottype(
         self,
@@ -307,12 +340,12 @@ class TPCDisplay:
     def plot_event(self):
         if self.charge is not None:
             if self.scale == 0.0:
-                marker_size = 10.0  # Fixed size when scale is 0
+                marker_size = 5.0  # Fixed size when scale is 0
             else:
                 marker_size = np.array([q * self.scale for q in self.charge['Q']])  # Scale marker size
 
             names_to_remove = [
-                'calib_final_hits',
+                f'calib_{self.hit_type}_hits',
                 'track', 'shower', 'blip',
                 'mip', 'hip', 'e-ionization', 'delta', 'michel', 'compton', 'conversion', 'nr', 'er'
             ]
@@ -330,6 +363,37 @@ class TPCDisplay:
 
             self.tpc.add_traces(traces)
 
+    def highlight_point(self, hit_id, color='red'):
+        """
+        Highlight the specified point by setting its color and opacity.
+        """
+        # Default color and opacity for all points
+        default_opacity = 0.5
+        highlighted_opacity = 1.0
+
+        # Update traces to highlight the selected point
+        new_data = []
+        for trace in self.tpc.data:
+            customdata = trace['customdata']
+
+            if 'customdata' in trace and customdata is not None:
+                updated_marker = trace['marker']
+                updated_marker['opacity'] = [
+                    highlighted_opacity if customdata[i][0] == hit_id else default_opacity
+                    for i in range(len(customdata))
+                ]
+                updated_marker['color'] = [
+                    color if customdata[i][0] == hit_id else updated_marker['color']
+                    for i in range(len(customdata))
+                ]
+
+                new_trace = trace.update(marker=updated_marker)
+                new_data.append(new_trace)
+            else:
+                new_data.append(trace)
+
+        self.tpc.data = new_data
+
     def plot_q(
         self,
         marker_size
@@ -340,14 +404,30 @@ class TPCDisplay:
             y=self.charge['z'],
             marker={
                 "size": marker_size,
-                "opacity": 0.7,
+                "opacity": 0.5,
                 "colorscale": "cividis",
             },
-            name="calib_final_hits",
+            name=f"calib_{self.hit_type}_hits",
             mode="markers",
             showlegend=True,
-            opacity=0.7,
-            hovertemplate="<b>x:%{x:.3f}</b><br>y:%{y:.3f}<br>z:%{z:.3f}<br>Q:%{marker_size:.3f}",  # Show Q value in hover
+            opacity=0.5,
+            customdata=np.array(list(zip(
+                list(range(1, len(self.charge['x']) + 1)),
+                self.charge['Q'],
+                self.charge['E'],
+                self.particle,
+                self.unique_topology
+            ))),
+            hovertemplate=(
+                '<b>hit_id:</b> %{customdata[0]}<br>'
+                '<b>x:</b> %{x:.3f}<br>'
+                '<b>y:</b> %{y:.3f}<br>'
+                '<b>z:</b> %{z:.3f}<br>'
+                '<b>Q:</b> %{customdata[1]:.3f}<br>'
+                '<b>E:</b> %{customdata[2]:.3f}<br>'
+                '<b>pdg_id:</b> %{customdata[3]}<br>'
+                '<b>track_id:</b> %{customdata[4]}<extra></extra>'
+            )
         )
         return charge_hits_traces
 
@@ -364,13 +444,30 @@ class TPCDisplay:
                 y=self.charge['z'][topology_mask],
                 marker={
                     "size": marker_size,
-                    "opacity": 0.7,
+                    "opacity": 0.5,
                     "color": self.topology_colors[unique_topology]
                 },
                 name=self.topology_labels[unique_topology],
                 mode="markers",
                 showlegend=True,
-                opacity=0.7,
+                opacity=0.5,
+                customdata=np.array(list(zip(
+                    np.array(list(range(1, len(self.charge['x']) + 1)))[topology_mask],
+                    self.charge['Q'][topology_mask],
+                    self.charge['E'][topology_mask],
+                    self.particle[topology_mask],
+                    self.unique_topology[topology_mask]
+                ))),
+                hovertemplate=(
+                    '<b>hit_id:</b> %{customdata[0]}<br>'
+                    '<b>x:</b> %{x:.3f}<br>'
+                    '<b>y:</b> %{y:.3f}<br>'
+                    '<b>z:</b> %{z:.3f}<br>'
+                    '<b>Q:</b> %{customdata[1]:.3f}<br>'
+                    '<b>E:</b> %{customdata[2]:.3f}<br>'
+                    '<b>pdg_id:</b> %{customdata[3]}<br>'
+                    '<b>track_id:</b> %{customdata[4]}<extra></extra>'
+                )
             ))
         return traces
 
@@ -387,13 +484,30 @@ class TPCDisplay:
                 y=self.charge['z'][physics_mask],
                 marker={
                     "size": marker_size,
-                    "opacity": 0.7,
+                    "opacity": 0.5,
                     "color": self.physics_colors[unique_physics]
                 },
                 name=self.physics_labels[unique_physics],
                 mode="markers",
                 showlegend=True,
-                opacity=0.7,
+                opacity=0.5,
+                customdata=np.array(list(zip(
+                    np.array(list(range(1, len(self.charge['x']) + 1)))[physics_mask],
+                    self.charge['Q'][physics_mask],
+                    self.charge['E'][physics_mask],
+                    self.particle[physics_mask],
+                    self.unique_topology[physics_mask]
+                ))),
+                hovertemplate=(
+                    '<b>hit_id:</b> %{customdata[0]}<br>'
+                    '<b>x:</b> %{x:.3f}<br>'
+                    '<b>y:</b> %{y:.3f}<br>'
+                    '<b>z:</b> %{z:.3f}<br>'
+                    '<b>Q:</b> %{customdata[1]:.3f}<br>'
+                    '<b>E:</b> %{customdata[2]:.3f}<br>'
+                    '<b>pdg_id:</b> %{customdata[3]}<br>'
+                    '<b>track_id:</b> %{customdata[4]}<extra></extra>'
+                )
             ))
         return traces
 
@@ -404,7 +518,8 @@ class TPCDisplay:
             dcc.Graph(
                 id=f'tpc_plot_{self.id_suffix}',
                 style={'height': '60vh', 'width': '40vw'},
-                figure=self.tpc
+                figure=self.tpc,
+                config={'displayModeBar': True}
             )],
             style={'width': '40vw'}
         )
