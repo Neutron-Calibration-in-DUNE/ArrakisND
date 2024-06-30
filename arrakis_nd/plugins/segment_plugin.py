@@ -62,7 +62,7 @@ class SegmentPlugin(Plugin):
         charge_x = charge['x']
         charge_y = charge['y']
         charge_z = charge['z']
-        charge_segment_ids = charge_back_track['segment_ids'].astype(int)
+        charge_segment_ids = charge_back_track['segment_ids'].astype(np.int64)
         charge_segment_fraction = charge_back_track['fraction']
         charge_segment_fraction_mask = (charge_segment_fraction == 0)
         charge_segment_ids[charge_segment_fraction_mask] = -1

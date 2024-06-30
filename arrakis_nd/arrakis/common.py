@@ -93,11 +93,11 @@ of the following types:
 """
 
 tracklette_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('tpc_id', 'i4'),
-    ('tracklette_id', 'i4'),
+    ('event_id', 'i8'),
+    ('tpc_id', 'i8'),
+    ('tracklette_id', 'i8'),
     ('vertex_id', 'i8'),
-    ('tracklette_type', 'i4'),
+    ('tracklette_type', 'i8'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
@@ -111,15 +111,15 @@ tracklette_data_type = np.dtype([
     ('len_gcm2', 'f4'),
     ('len_cm', 'f4'),
     ('E', 'f4'),
-    ('truth', 'i4', (1, 20)),
+    ('truth', 'i8', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
 track_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('track_id', 'i4'),
+    ('event_id', 'i8'),
+    ('track_id', 'i8'),
     ('vertex_id', 'i8'),
-    ('track_type', 'i4'),
+    ('track_type', 'i8'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
@@ -133,17 +133,17 @@ track_data_type = np.dtype([
     ('len_gcm2', 'f4'),
     ('len_cm', 'f4'),
     ('E', 'f4'),
-    ('truth', 'i4', (1, 20)),
+    ('truth', 'i8', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
 fragment_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('tpc_id', 'i4'),
-    ('fragment_id', 'i4'),
+    ('event_id', 'i8'),
+    ('tpc_id', 'i8'),
+    ('fragment_id', 'i8'),
     ('vertex_id', 'i8'),
-    ('ancestor_id', 'i4'),
-    ('fragment_type', 'i4'),
+    ('ancestor_id', 'i8'),
+    ('fragment_type', 'i8'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
@@ -157,15 +157,15 @@ fragment_data_type = np.dtype([
     ('len_gcm2', 'f4'),
     ('len_cm', 'f4'),
     ('E', 'f4'),
-    ('truth', 'i4', (1, 20)),
+    ('truth', 'i8', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
 shower_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('shower_id', 'i4'),
+    ('event_id', 'i8'),
+    ('shower_id', 'i8'),
     ('vertex_id', 'i8'),
-    ('shower_type', 'i4'),
+    ('shower_type', 'i8'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
@@ -181,17 +181,17 @@ shower_data_type = np.dtype([
     ('width', 'f4'),
     ('angle', 'f4'),
     ('E', 'f4'),
-    ('truth', 'i4', (1, 20)),
+    ('truth', 'i8', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
 blip_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('tpc_id', 'i4'),
-    ('blip_id', 'i4'),
+    ('event_id', 'i8'),
+    ('tpc_id', 'i8'),
+    ('blip_id', 'i8'),
     ('vertex_id', 'i8'),
-    ('ancestor_id', 'i4'),
-    ('blip_type', 'i4'),
+    ('ancestor_id', 'i8'),
+    ('blip_type', 'i8'),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
@@ -205,76 +205,76 @@ blip_data_type = np.dtype([
     ('len_gcm2', 'f4'),
     ('len_cm', 'f4'),
     ('E', 'f4'),
-    ('truth', 'i4', (1, 20)),
+    ('truth', 'i8', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
 particle_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('particle_id', 'i4'),
+    ('event_id', 'i8'),
+    ('particle_id', 'i8'),
     ('vertex_id', 'i8'),
-    ('primary', 'i4'),
-    ('pdg', 'i4'),
-    ('tgtA', 'i4'),
+    ('primary', 'i8'),
+    ('pdg', 'i8'),
+    ('tgtA', 'i8'),
     ('score', 'f4'),
     ('Evis', 'f4'),
     ('E', 'f4'),
-    ('E_method', 'i4'),
+    ('E_method', 'i8'),
     ('p', 'f4', (1, 3)),
     ('dir_hit', 'f4', (1, 3)),
     ('start', 'f4', (1, 3)),
     ('end', 'f4', (1, 3)),
     ('start_hit', 'f4', (1, 3)),
     ('end_hit', 'f4', (1, 3)),
-    ('contained', 'i4'),
-    ('truth', 'i4', (1, 20)),
+    ('contained', 'i8'),
+    ('truth', 'i8', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
 neutrino_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('neutrino_id', 'i4'),
+    ('event_id', 'i8'),
+    ('neutrino_id', 'i8'),
     ('vtx', 'f4', (1, 3)),
     ('dir_lngtrk', 'f4', (1, 3)),
     ('dir_heshw', 'f4', (1, 3)),
     ('nuhyp', 'f4', (1, 20)),
     ('Enu', 'f4'),
-    ('E_method', 'i4'),
-    ('part', 'i4', (1, 20)),
-    ('truth', 'i4', (1, 20)),
+    ('E_method', 'i8'),
+    ('part', 'i8', (1, 20)),
+    ('truth', 'i8', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
 interaction_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('interaction_id', 'i4'),
+    ('event_id', 'i8'),
+    ('interaction_id', 'i8'),
     ('vtx', 'f4', (1, 3)),
     ('dir_lngtrk', 'f4', (1, 3)),
     ('dir_heshw', 'f4', (1, 3)),
     ('nuhyp', 'f4', (1, 20)),
     ('Enu', 'f4'),
-    ('E_method', 'i4'),
-    ('part', 'i4', (1, 20)),
-    ('truth', 'i4', (1, 20)),
+    ('E_method', 'i8'),
+    ('part', 'i8', (1, 20)),
+    ('truth', 'i8', (1, 20)),
     ('truthOverlap', 'f4', (1, 20)),
 ])
 
 neutrino_event_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('neutrino_type', 'i4'),
-    ('fiducialized', 'i4')
+    ('event_id', 'i8'),
+    ('neutrino_type', 'i8'),
+    ('fiducialized', 'i8')
 ])
 
 interaction_event_data_type = np.dtype([
-    ('event_id', 'i4'),
-    ('interaction_type', 'i4'),
-    ('fiducialized', 'i4')
+    ('event_id', 'i8'),
+    ('interaction_type', 'i8'),
+    ('fiducialized', 'i8')
 ])
 
 nar_inelastic_data_type = np.dtype([
-    ('event_id', 'i4'),
+    ('event_id', 'i8'),
     ('vertex_id', 'i8'),
-    ('proton_id', 'i4'),
+    ('proton_id', 'i8'),
     ('proton_xyz_start', 'f4', (1, 3)),
     ('nu_vertex', 'f4', (1, 3)),
     ('proton_total_energy', 'f4'),
@@ -288,21 +288,21 @@ nar_inelastic_data_type = np.dtype([
     ('parent_pxyz_end', 'f4', (1, 3)),
     ('nu_proton_dt', 'f4'),
     ('nu_proton_distance', 'f4'),
-    ('parent_pdg', 'i4'),
-    ('grandparent_pdg', 'i4'),
-    ('primary_pdg', 'i4'),
+    ('parent_pdg', 'i8'),
+    ('grandparent_pdg', 'i8'),
+    ('primary_pdg', 'i8'),
     ('primary_length', 'f4'),
-    ('neutrino_vertex_fiducialized', 'i4'),
-    ('proton_xyz_start_fiducialized', 'i4'),
-    ('proton_xyz_end_fiducialized', 'i4'),
+    ('neutrino_vertex_fiducialized', 'i8'),
+    ('proton_xyz_start_fiducialized', 'i8'),
+    ('proton_xyz_end_fiducialized', 'i8'),
     ('truth_segment_overlap', 'f4'),
-    ('best_completeness_cluster', 'i4'),
+    ('best_completeness_cluster', 'i8'),
     ('best_completeness', 'f4'),
     ('best_purity', 'f4')
 ])
 
 undefined_data_type = np.dtype([
-    ('event_id', 'i4'),
+    ('event_id', 'i8'),
     ('vertex_id', 'i8'),
     ('traj_id', 'i8'),
     ('parent_id', 'i8'),
@@ -310,19 +310,19 @@ undefined_data_type = np.dtype([
     ('parent_pdg_id', 'i8'),
     ('ancestor_id', 'i8'),
     ('ancestor_pdg_id', 'i8'),
-    ('ancestor_level', 'i4'),
-    ('start_process', 'i4'),
-    ('start_subprocess', 'i4'),
-    ('end_process', 'i4'),
-    ('end_subprocess', 'i4'),
-    ('parent_start_process', 'i4'),
-    ('parent_start_subprocess', 'i4'),
-    ('parent_end_process', 'i4'),
-    ('parent_end_subprocess', 'i4')
+    ('ancestor_level', 'i8'),
+    ('start_process', 'i8'),
+    ('start_subprocess', 'i8'),
+    ('end_process', 'i8'),
+    ('end_subprocess', 'i8'),
+    ('parent_start_process', 'i8'),
+    ('parent_start_subprocess', 'i8'),
+    ('parent_end_process', 'i8'),
+    ('parent_end_subprocess', 'i8')
 ])
 
 output_error_data_type = np.dtype([
-    ('event_id', 'i4'),
+    ('event_id', 'i8'),
     ('plugin_name', 'S50'),
     ('plugin_error', 'S500'),
     ('plugin_line_number', 'S50'),

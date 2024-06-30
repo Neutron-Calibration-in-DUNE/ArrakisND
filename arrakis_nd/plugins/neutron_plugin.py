@@ -236,6 +236,8 @@ class NeutronPlugin(Plugin):
         )):
             """Grab gamma daughters"""
             daughter_ids = daughters[particle_mask][ii]
+            if len(daughter_ids) == 0:
+                continue
             neutron_daughter_traj_ids = trajectories_traj_ids[daughter_ids]
             neutron_daughter_pdg_ids = trajectories_pdg_ids[daughter_ids]
             neutron_daughter_start_subprocess = trajectories_start_subprocess[daughter_ids]

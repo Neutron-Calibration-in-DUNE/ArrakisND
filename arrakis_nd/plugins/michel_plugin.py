@@ -103,7 +103,8 @@ class MichelPlugin(Plugin):
             ) &
             (
                 (abs(trajectories_start_process) == ProcessType.Decay.value) |
-                (abs(trajectories_start_subprocess) == SubProcessType.HadronCaptureAtRest.value)
+                (abs(trajectories_start_subprocess) == SubProcessType.HadronCaptureAtRest.value) |
+                (abs(trajectories_start_subprocess) == SubProcessType.PairProdByCharge.value)
             )
         )
 

@@ -140,6 +140,8 @@ class FragmentPlugin(Plugin):
                 (5a) come from the photo electric effect, or
                 (5b) come from ionization,
             (6) come from a pi0 decay
+            (7) come from a K0 decay
+            (8) is a primary electron from a neutrino interaction
 
         The reason we must consider the different subprocesses, event though we are already
         looking for gamma parents, is that edep-sim does some bookkeeping that may remove
@@ -166,6 +168,18 @@ class FragmentPlugin(Plugin):
                 ) |
                 (
                     (abs(parent_pdg_ids) == 111)
+                ) |
+                (
+                    (abs(parent_pdg_ids) == 130)
+                ) |
+                (
+                    (abs(parent_pdg_ids) == 310)
+                ) |
+                (
+                    (abs(parent_pdg_ids) == 311)
+                ) |
+                (
+                    (parent_pdg_ids == -1)
                 )
             )
         )
@@ -262,10 +276,17 @@ class FragmentPlugin(Plugin):
                 (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.GammaConversion.value) |
                 (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PairProdByCharge.value) |
                 (
-                    (abs(parent_pdg_ids[particle_mask][ii]) == 111) &
+                    (
+                        (abs(parent_pdg_ids[particle_mask][ii]) == 111) |
+                        (abs(parent_pdg_ids[particle_mask][ii]) == 130) |
+                        (abs(parent_pdg_ids[particle_mask][ii]) == 310) |
+                        (abs(parent_pdg_ids[particle_mask][ii]) == 311)
+                    ) &
                     (abs(trajectories_start_subprocess[particle_mask][ii] == SubProcessType.Decay.value))
                 )
             ):
+                """This fragment will either be a gamma conversion or a pair production by charge"""
+                """Conversions can come from neutral meson/hadron decays like pi0 or the many flavors of K0"""
                 if (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.GammaConversion.value):
                     fragment_type = Fragment.GammaConversion.value
                 elif (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PairProdByCharge.value):

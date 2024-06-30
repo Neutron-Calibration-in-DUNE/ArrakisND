@@ -154,6 +154,7 @@ class Arrakis:
         exc_types = self.comm.allgather(self.exc_type)
         line_numbers = self.comm.allgather(self.line_number)
         file_names = self.comm.allgather(self.file_name)
+        traceback_details = self.comm.allgather(self.traceback_details)
         if any(errors):
             if self.rank == 0:
                 errors_count = sum(1 for error in errors if error is not None)
@@ -165,6 +166,7 @@ class Arrakis:
                     self.logger.critical(f"exc_type:    {exc_types[index]}")
                     self.logger.critical(f"line_number:     {line_numbers[index]}")
                     self.logger.critical(f"file_name:       {file_names[index]}")
+                    self.logger.critical(f"traceback:   {traceback_details[index]}")
                 self.comm.Abort(1)
         else:
             self.comm.Barrier()

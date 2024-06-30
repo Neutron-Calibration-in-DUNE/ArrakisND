@@ -4,7 +4,8 @@ from dash import (
     Dash,
     dcc,
     html,
-    callback_context
+    callback_context,
+    no_update,
 )
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
@@ -31,26 +32,39 @@ class ArrakisDisplay:
 
         server = SetServer()
         config = server.get_config()
+
+        """Server parameters"""
         self.service_prefix = config['service_prefix']
         self.server_url = config['server_url']
         self.port = config['port']
         self.jupyter_mode = config['jupyter_mode']
 
+        """Flow parameters"""
         self.flow_folder = ''
-        self.arrakis_folder = ''
         self.flow_files = []
         self.flow_file = ''
-        self.arrakis_file = ''
+        """Arrakis parameters"""
+        self.arrakis_folder = ''
         self.arrakis_files = []
+        self.arrakis_file = ''
+        """Blip parameters"""
+        self.blip_folder = ''
+        self.blip_files = []
+        self.blip_file = ''
+
+        """Event information"""
         self.available_events = []
         self.unique_events = []
         self.event = None
+
+        """Hits and TrackIDs"""
         self.available_hits = []
         self.hit = None
         self.available_track_ids = []
         self.track_id = None
         self.hit_type = 'prompt'
 
+        """Standard NERSC Flow folders"""
         self.nersc_flow_folder = '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/'
         self.standard_flow_folders = [
             {'label': 'MiniRun4', 'value':
@@ -73,22 +87,32 @@ class ArrakisDisplay:
             'tile_id': [],
         }
 
+        """Data objects from flow/arrakis/blip"""
         self.interactions = None
         self.segments = None
         self.stack = None
         self.trajectories = None
         self.charge = None
         self.light = None
+        """Arrakis"""
         self.topology = None
         self.physics = None
         self.particle = None
         self.unique_topology = None
+        """Blip"""
+        self.topology_predictions = None
+        self.physics_predictions = None
+        self.particle_predictions = None
+        self.unique_topology_predictions = None
 
+        """TPC Displays"""
         self.left_tpc = TPCDisplay(id_suffix='left')
         self.right_tpc = TPCDisplay(id_suffix='right')
+        """Light and LArPix Displays"""
         self.left_larpix_light_display = LArPixLightDisplay()
         self.right_larpix_light_display = LArPixLightDisplay()
 
+        """Datapoint information"""
         self.empty_point_text = html.Div([
             html.P('x: ', style={'margin': '0', 'padding': '0'}),
             html.P('y: ', style={'margin': '0', 'padding': '0'}),
@@ -151,6 +175,10 @@ class ArrakisDisplay:
         self.construct_main_display()
 
     def construct_navbar(self):
+        """
+        The navbar contains a clickable link to the ArrakisND repository,
+        as well as links to various 2x2 sites.
+        """
         self.navbar = html.Div(
             children=[
                 html.A(
@@ -164,7 +192,6 @@ class ArrakisDisplay:
                     ],
                     style={'display': 'flex', 'alignItems': 'center', 'textDecoration': 'none'},
                 ),
-                # Right side: Menu items
                 dbc.DropdownMenu(
                     [
                         dbc.DropdownMenuItem(
@@ -185,7 +212,12 @@ class ArrakisDisplay:
         )
 
     def construct_sidebar(self):
-        """Define the sidebar"""
+        """
+        The sidebar contains a set of text boxes for inputing
+        directory and file information for FLOW/ARRAKIS/BLIP.
+        Once a flow or arrakis or blip file is selected, the
+        available events from that file are populated.
+        """
         self.sidebar = html.Div(
             [
                 # DUNE logo and Arrakis Display text
@@ -209,7 +241,6 @@ class ArrakisDisplay:
                     style={'color': "#000000"},
                 ),
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
-
                 # Text box for writing FLOW and Arrakis folders
                 dbc.Label("🗃️ FLOW folder"),
                 dbc.Input(
@@ -227,28 +258,42 @@ class ArrakisDisplay:
                     size='sm',
                     value=''
                 ),
+                dbc.Label("🗃️ BLIP folder"),
+                dbc.Input(
+                    placeholder="Enter the BLIP folder",
+                    type="text",
+                    id='blip_folder_input',
+                    size='sm',
+                    value=''
+                ),
                 html.H2(),
-
+                html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
                 # Dropdown which lists available flow and arrakis files
-                html.Label('FLOW files'),
+                html.Label('FLOW files:'),
                 dcc.Dropdown(
                     id='flow_dropdown',
                     searchable=True,
                     placeholder='Select a FLOW file...',
                     style={'color': "#000000"}
                 ),
-                html.Label('ARRAKIS files'),
+                html.Label('ARRAKIS files:'),
                 dcc.Dropdown(
                     id='arrakis_dropdown',
                     searchable=True,
                     placeholder='Select an ARRAKIS file...',
                     style={'color': "#000000"}
                 ),
+                html.Label('BLIP files:'),
+                dcc.Dropdown(
+                    id='blip_dropdown',
+                    searchable=True,
+                    placeholder='Select an BLIP file...',
+                    style={'color': "#000000"}
+                ),
                 html.H2(),
-
                 # Event selector and previous/next buttons
                 html.H2(),
-                html.Label('Event (spill)'),
+                html.Label('Event (spill):'),
                 html.Div([
                     dcc.Dropdown(
                         id='event_dropdown',
@@ -261,7 +306,9 @@ class ArrakisDisplay:
                     html.Button('Next', id='next_event', style={'width': '20%'}),
                 ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
                 html.H2(),
-                html.Div(id='event_output'),
+                html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
+                html.Label('Display status:'),
+                html.Div(id='display_status'),
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
                 html.H2(),
                 html.Label("Hit type"),
@@ -274,12 +321,55 @@ class ArrakisDisplay:
                     value='prompt',
                     style={'color': "#000000"}
                 ),
+                html.H2(),
+                html.Label('Hit [hit_id]'),
+                html.Div([
+                    dcc.Dropdown(
+                        id='hit_dropdown',
+                        options=self.available_hits,
+                        searchable=True,
+                        placeholder="Select an hit...",
+                        style={'color': "#000000", 'width': '60%'}
+                    ),
+                    html.Button('Previous', id='previous_hit', style={'width': '20%'}),
+                    html.Button('Next', id='next_hit', style={'width': '20%'}),
+                ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
+                html.H2(),
+                html.Label('TrackID [track_id]'),
+                html.Div([
+                    dcc.Dropdown(
+                        id='track_id_dropdown',
+                        options=self.available_track_ids,
+                        searchable=True,
+                        placeholder="Select a track_id...",
+                        style={'color': "#000000", 'width': '60%'}
+                    ),
+                    html.Button('Previous', id='previous_track_id', style={'width': '20%'}),
+                    html.Button('Next', id='next_track_id', style={'width': '20%'}),
+                ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
+                html.H2(),
+                html.Label('Segment/Hit Info'),
+                html.Div(
+                    [
+                        html.P('x: ', style={'margin': '0', 'padding': '0'}),
+                        html.P('y: ', style={'margin': '0', 'padding': '0'}),
+                        html.P('z: ', style={'margin': '0', 'padding': '0'}),
+                        html.P('Q: ', style={'margin': '0', 'padding': '0'}),
+                        html.P('E: ', style={'margin': '0', 'padding': '0'}),
+                        html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
+                    ],
+                    id='bottom_text',
+                    style={'padding': '10px', 'margin-top': '10px'}
+                ),
             ],
             style=self.styles['SIDEBAR_STYLE'],
         )
 
     def construct_main_display(self):
-        # Define content for the tabs
+        """
+        The main display contains two windows which can be selected as
+        different plot types.
+        """
         self.main_display = html.Div(id="page_content", style=self.styles["CONTENT_STYLE"], children=[
             html.Div(id="left_window", style=self.styles["LEFT_COLUMN"], children=[
                 html.Div(id="dynamic_left_content")
@@ -341,49 +431,7 @@ class ArrakisDisplay:
                             value=0.01,  # Default scale
                             marks={i / 10.0: f'{i / 10.0}' for i in range(0, 11)},
                         ),
-                        html.H2(),
-                        html.Label('Hit [hit_id]'),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='left_hit_dropdown',
-                                options=self.available_hits,
-                                searchable=True,
-                                placeholder="Select an hit...",
-                                style={'color': "#000000", 'width': '60%'}
-                            ),
-                            html.Button('Previous', id='left_previous_hit', style={'width': '20%'}),
-                            html.Button('Next', id='left_next_hit', style={'width': '20%'}),
-                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
-                        html.H2(),
-                        html.Label('TrackID [track_id]'),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='left_track_id_dropdown',
-                                options=self.available_track_ids,
-                                searchable=True,
-                                placeholder="Select a track_id...",
-                                style={'color': "#000000", 'width': '60%'}
-                            ),
-                            html.Button('Previous', id='left_previous_track_id', style={'width': '20%'}),
-                            html.Button('Next', id='left_next_track_id', style={'width': '20%'}),
-                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
                     ], style={'width': '50%'}),
-                    html.Div([
-                        html.H2(),
-                        html.Label('Segment/Hit Info'),
-                        html.Div(
-                            [
-                                html.P('x: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('y: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('z: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('Q: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('E: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
-                            ],
-                            id='left_bottom_text',
-                            style={'padding': '10px', 'margin-top': '10px'}
-                        ),
-                    ]),
                 ]),
                 html.Div(id="right_bottom_section", style=self.styles["RIGHT_BOTTOM_SECTION"], children=[
                     html.Div([
@@ -438,49 +486,7 @@ class ArrakisDisplay:
                             value=0.01,  # Default scale
                             marks={i / 10.0: f'{i / 10.0}' for i in range(0, 11)},
                         ),
-                        html.H2(),
-                        html.Label('Hit [hit_id]'),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='right_hit_dropdown',
-                                options=self.available_hits,
-                                searchable=True,
-                                placeholder="Select an hit...",
-                                style={'color': "#000000", 'width': '60%'}
-                            ),
-                            html.Button('Previous', id='right_previous_hit', style={'width': '20%'}),
-                            html.Button('Next', id='right_next_hit', style={'width': '20%'}),
-                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
-                        html.H2(),
-                        html.Label('TrackID [track_id]'),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='right_track_id_dropdown',
-                                options=self.available_track_ids,
-                                searchable=True,
-                                placeholder="Select a track_id...",
-                                style={'color': "#000000", 'width': '60%'}
-                            ),
-                            html.Button('Previous', id='right_previous_track_id', style={'width': '20%'}),
-                            html.Button('Next', id='right_next_track_id', style={'width': '20%'}),
-                        ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
                     ], style={'width': '50%'}),
-                    html.Div([
-                        html.H2(),
-                        html.Label('Segment/Hit Info'),
-                        html.Div(
-                            [
-                                html.P('x: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('y: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('z: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('Q: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('E: ', style={'margin': '0', 'padding': '0'}),
-                                html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
-                            ],
-                            id='right_bottom_text',
-                            style={'padding': '10px', 'margin-top': '10px'}
-                        ),
-                    ]),
                 ]),
             ])
         ])
@@ -495,125 +501,11 @@ class ArrakisDisplay:
         ])
 
     def construct_callbacks(self):
-        # Callbacks to update the content based on which dropdown is selected
-        @self.app.callback(
-            Output("dynamic_left_content", "children"),
-            [Input("left_window_dropdown", "value")]
-        )
-        def render_left_content(value):
-            if value == "light":
-                return self.left_larpix_light_display.layout
-            elif value == "tpc":
-                return self.left_tpc.layout
-            return html.Div(
-                [
-                    html.H1("404: Not found", className="text-danger"),
-                    html.Hr(),
-                    html.P(f"The value {value} was not recognised..."),
-                ],
-                className="p-3 bg-light rounded-3",
-            )
-
-        @self.app.callback(
-            [Output('left_bottom_text', 'children'),
-             Output('left_hit_dropdown', 'value'),
-             Output('left_track_id_dropdown', 'value')],
-            Input('tpc_plot_left', 'clickData'),
-            [State('tpc_plot_left', 'figure')]
-        )
-        def display_left_click_data(clickData, tpc_plot):
-            if clickData is None:
-                raise PreventUpdate
-            point_data = clickData['points'][0]
-
-            if 'customdata' not in point_data:
-                raise PreventUpdate
-
-            hit_id = point_data['customdata'][0]
-            self.hit = hit_id
-            # self.left_tpc.highlight_point(hit_id)
-
-            x = point_data['x']
-            y = point_data['y']
-            z = point_data['z']
-            Q = point_data['customdata'][1]
-            E = point_data['customdata'][2]
-            pdg_id = point_data['customdata'][3]
-            track_id = point_data['customdata'][4]
-            self.track_id = track_id
-
-            return (
-                html.Div([
-                    html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'})
-                ]),
-                self.hit,
-                self.track_id
-            )
-
-        @self.app.callback(
-            [Output('right_bottom_text', 'children'),
-             Output('right_hit_dropdown', 'value'),
-             Output('right_track_id_dropdown', 'value')],
-            Input('tpc_plot_right', 'clickData'),
-            [State('tpc_plot_right', 'figure')]
-        )
-        def display_right_click_data(clickData, tpc_plot):
-            if clickData is None:
-                raise PreventUpdate
-            point_data = clickData['points'][0]
-
-            if 'customdata' not in point_data:
-                raise PreventUpdate
-
-            hit_id = point_data['customdata'][0]
-            self.hit = hit_id
-            # self.right_tpc.highlight_point(hit_id)
-
-            x = point_data['x']
-            y = point_data['y']
-            z = point_data['z']
-            Q = point_data['customdata'][1]
-            E = point_data['customdata'][2]
-            pdg_id = point_data['customdata'][3]
-            track_id = point_data['customdata'][4]
-            self.track_id = track_id
-
-            return (
-                html.Div([
-                    html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
-                    html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'})
-                ]),
-                self.hit,
-                self.track_id
-            )
-
-        @self.app.callback(
-            Output("dynamic_right_content", "children"),
-            [Input("right_window_dropdown", "value")]
-        )
-        def render_right_content(value):
-            if value == "light":
-                return self.right_larpix_light_display.layout
-            elif value == "tpc":
-                return self.right_tpc.layout
-            return html.Div(
-                [
-                    html.H1("404: Not found", className="text-danger"),
-                    html.Hr(),
-                    html.P(f"The value {value} was not recognised..."),
-                ],
-                className="p-3 bg-light rounded-3",
-            )
-
+        """
+        Standard FLOW folder dropdown.  This gives a few options that
+        can be selected to automatically fill the flow folder text input
+        with different MiniRun locations.
+        """
         @self.app.callback(
             Output('flow_folder_input', 'value'),
             Input('standard_flow_dropdown', 'value')
@@ -623,7 +515,14 @@ class ArrakisDisplay:
         ):
             return flow_folder
 
-        # Callback to update dropdown options
+        """
+        FLOW, ARRAKIS and BLIP folder and file inputs. These callbacks
+        take changes from the flow/arrakis/blip folder inputs and
+        automatically search recursively for the respective hdf5 files
+        within those folders.  The file callback loads the files and
+        determines what events are present.  Those events are then populated
+        in the event selector.
+        """
         @self.app.callback(
             Output('flow_dropdown', 'options'),
             Input('flow_folder_input', 'value'),
@@ -649,8 +548,12 @@ class ArrakisDisplay:
                     {'label': file, 'value': file}
                     for file in self.flow_files
                 ]
-                return flow_options
-            return []
+                return (
+                    flow_options
+                )
+            return (
+                []
+            )
 
         # Callback to update dropdown options
         @self.app.callback(
@@ -680,6 +583,35 @@ class ArrakisDisplay:
                     for file in self.arrakis_files
                 ]
                 return arrakis_options
+            return []
+
+        @self.app.callback(
+            Output('blip_dropdown', 'options'),
+            Input('blip_folder_input', 'value'),
+        )
+        def update_blip_folder_files(
+            blip_folder
+        ):
+            """Check that blip folder has a '/' at the end"""
+            if blip_folder:
+                if blip_folder[-1] != '/':
+                    blip_folder += '/'
+
+            self.blip_folder = blip_folder
+
+            blip_options = []
+            if blip_folder and os.path.isdir(blip_folder):
+                self.blip_files = sorted([
+                    os.path.basename(input_file) for input_file in glob.glob(
+                        f"{blip_folder}*.hdf5", recursive=True
+                    )
+                    if 'BLIP' in input_file
+                ])
+                blip_options = [
+                    {'label': file, 'value': file}
+                    for file in self.blip_files
+                ]
+                return blip_options
             return []
 
         @self.app.callback(
@@ -752,119 +684,285 @@ class ArrakisDisplay:
                 raise PreventUpdate
             self.event = self.available_events[new_index]['value']
             return self.available_events[new_index]['value']
+        """
+        Left and right window callbacks.  These are associated to the
+        dropdowns that select the type of plot to show in the window.
+        """
+        @self.app.callback(
+            Output("dynamic_left_content", "children"),
+            [Input("left_window_dropdown", "value")]
+        )
+        def render_left_content(value):
+            if value == "light":
+                return self.left_larpix_light_display.layout
+            elif value == "tpc":
+                return self.left_tpc.layout
+            return html.Div(
+                [
+                    html.H1("404: Not found", className="text-danger"),
+                    html.Hr(),
+                    html.P(f"The value {value} was not recognised..."),
+                ],
+                className="p-3 bg-light rounded-3",
+            )
 
         @self.app.callback(
-            [Output('event_output', 'children'),
+            Output("dynamic_right_content", "children"),
+            [Input("right_window_dropdown", "value")]
+        )
+        def render_right_content(value):
+            if value == "light":
+                return self.right_larpix_light_display.layout
+            elif value == "tpc":
+                return self.right_tpc.layout
+            return html.Div(
+                [
+                    html.H1("404: Not found", className="text-danger"),
+                    html.Hr(),
+                    html.P(f"The value {value} was not recognised..."),
+                ],
+                className="p-3 bg-light rounded-3",
+            )
+
+        """
+        Left and right bottom text and hit/track_id dropdowns. These
+        are associated to the bottom text information and the hit id
+        and track id of selected points within a plot.
+        """
+        # @self.app.callback(
+        #     [Output('bottom_text', 'children'),
+        #      Output('hit_dropdown', 'value'),
+        #      Output('track_id_dropdown', 'value')],
+        #     Input('tpc_plot_left', 'clickData'),
+        #     [State('tpc_plot_left', 'figure')]
+        # )
+        # def display_left_click_data(clickData, tpc_plot):
+        #     if clickData is None:
+        #         raise PreventUpdate
+        #     point_data = clickData['points'][0]
+
+        #     if 'customdata' not in point_data:
+        #         raise PreventUpdate
+
+        #     hit_id = point_data['customdata'][0]
+        #     self.hit = hit_id
+        #     # self.left_tpc.highlight_point(hit_id)
+
+        #     x = point_data['x']
+        #     y = point_data['y']
+        #     z = point_data['z']
+        #     Q = point_data['customdata'][1]
+        #     E = point_data['customdata'][2]
+        #     pdg_id = point_data['customdata'][3]
+        #     track_id = point_data['customdata'][4]
+        #     self.track_id = track_id
+
+        #     return (
+        #         html.Div([
+        #             html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'})
+        #         ]),
+        #         self.hit,
+        #         self.track_id
+        #     )
+
+        # @self.app.callback(
+        #     [Output('bottom_text', 'children'),
+        #      Output('hit_dropdown', 'value'),
+        #      Output('track_id_dropdown', 'value')],
+        #     Input('tpc_plot_right', 'clickData'),
+        #     [State('tpc_plot_right', 'figure')]
+        # )
+        # def display_right_click_data(clickData, tpc_plot):
+        #     if clickData is None:
+        #         raise PreventUpdate
+        #     point_data = clickData['points'][0]
+
+        #     if 'customdata' not in point_data:
+        #         raise PreventUpdate
+
+        #     hit_id = point_data['customdata'][0]
+        #     self.hit = hit_id
+        #     # self.right_tpc.highlight_point(hit_id)
+
+        #     x = point_data['x']
+        #     y = point_data['y']
+        #     z = point_data['z']
+        #     Q = point_data['customdata'][1]
+        #     E = point_data['customdata'][2]
+        #     pdg_id = point_data['customdata'][3]
+        #     track_id = point_data['customdata'][4]
+        #     self.track_id = track_id
+
+        #     return (
+        #         html.Div([
+        #             html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
+        #             html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'})
+        #         ]),
+        #         self.hit,
+        #         self.track_id
+        #     )
+
+        """
+        This callback updates the data for each plot type when a new event is loaded.
+        The data is extracted from the flow/arrakis/blip files and sent to the different
+        TPC Displays.
+        """
+        @self.app.callback(
+            [Output('display_status', 'children'),
              Output('tpc_plot_left', 'figure'),
              Output('tpc_plot_right', 'figure'),
-             Output('left_hit_dropdown', 'options'),
-             Output('left_track_id_dropdown', 'options')],
+             Output('hit_dropdown', 'options'),
+             Output('track_id_dropdown', 'options')],
             [Input('event_dropdown', 'value'),
              Input('left_window_plottype_dropdown', 'value'),
              Input('right_window_plottype_dropdown', 'value')],
         )
         def load_event(event, left_plottype, right_plottype):
             print_output = ''
-            self.left_tpc.update_plottype(left_plottype)
-            self.right_tpc.update_plottype(right_plottype)
+            try:
+                self.left_tpc.update_plottype(left_plottype)
+                self.right_tpc.update_plottype(right_plottype)
+            except Exception as exception:
+                print_output = f'ERROR: {exception}'
             if event is not None:
-                if self.flow_file:
-                    with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
-                        interactions_events = flow_file['mc_truth/interactions/data']['event_id']
-                        segments_events = flow_file['mc_truth/segments/data']['event_id']
-                        stack_events = flow_file['mc_truth/stack/data']['event_id']
-                        trajectories_events = flow_file['mc_truth/trajectories/data']['event_id']
-                        charge_segments = flow_file[f'mc_truth/calib_{self.hit_type}_hit_backtrack/data']['segment_ids'].astype(int)
-                        charge_fraction = flow_file[f'mc_truth/calib_{self.hit_type}_hit_backtrack/data']['fraction']
-                        charge_fraction_mask = (charge_fraction == 0)
-                        charge_segments[charge_fraction_mask] = -1
-                        non_zero_charge_segments = [row[row != 0] for row in charge_fraction]
-                        max_length = len(max(non_zero_charge_segments, key=len))
-                        segments_ids = flow_file['mc_truth/segments/data']['segment_id']
-                        self.interactions = flow_file['mc_truth/interactions/data'][
-                            np.where(interactions_events == event)[0]
-                        ]
-                        self.segments = flow_file['mc_truth/segments/data'][
-                            np.where(segments_events == event)[0]
-                        ]
-                        self.stack = flow_file['mc_truth/stack/data'][
-                            np.where(stack_events == event)[0]
-                        ]
-                        self.trajectories = flow_file['mc_truth/trajectories/data'][
-                            np.where(trajectories_events == event)[0]
-                        ]
-                        """For charge data we must backtrack through segments"""
-                        hits_to_segments = np.any(
-                            np.isin(
-                                charge_segments[:, :max_length], segments_ids[(segments_events == event)]
-                            ),
-                            axis=1,
+                print_output = f"Event: {event} Loaded!"
+                try:
+                    if self.flow_file:
+                        with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
+                            interactions_events = flow_file['mc_truth/interactions/data']['event_id']
+                            segments_events = flow_file['mc_truth/segments/data']['event_id']
+                            stack_events = flow_file['mc_truth/stack/data']['event_id']
+                            trajectories_events = flow_file['mc_truth/trajectories/data']['event_id']
+                            charge_segments = flow_file[
+                                f'mc_truth/calib_{self.hit_type}_hit_backtrack/data'
+                            ]['segment_ids'].astype(np.int64)
+                            charge_fraction = flow_file[f'mc_truth/calib_{self.hit_type}_hit_backtrack/data']['fraction']
+                            charge_fraction_mask = (charge_fraction == 0)
+                            charge_segments[charge_fraction_mask] = -1
+                            non_zero_charge_segments = [row[row != 0] for row in charge_fraction]
+                            max_length = len(max(non_zero_charge_segments, key=len))
+                            segments_ids = flow_file['mc_truth/segments/data']['segment_id']
+                            self.interactions = flow_file['mc_truth/interactions/data'][
+                                np.where(interactions_events == event)[0]
+                            ]
+                            self.segments = flow_file['mc_truth/segments/data'][
+                                np.where(segments_events == event)[0]
+                            ]
+                            self.stack = flow_file['mc_truth/stack/data'][
+                                np.where(stack_events == event)[0]
+                            ]
+                            self.trajectories = flow_file['mc_truth/trajectories/data'][
+                                np.where(trajectories_events == event)[0]
+                            ]
+                            """For charge data we must backtrack through segments"""
+                            hits_to_segments = np.any(
+                                np.isin(
+                                    charge_segments[:, :max_length], segments_ids[(segments_events == event)]
+                                ),
+                                axis=1,
+                            )
+                            self.charge = flow_file[f'charge/calib_{self.hit_type}_hits/data'][
+                                hits_to_segments
+                            ]
+                            self.available_hits = [ii for ii in range(len(self.charge))]
+                            # charge_events = flow_file["charge/events/data"]["id"]
+
+                            # self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
+
+                            # """Likewise for light data, we must backtrack through segments"""
+                            # match_light = flow_file['/light/events/data'][:][
+                            #     flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0], 1]
+                            # ]["id"]
+                            # we have to try them all, events may not be time ordered
+                            # self.light = flow_file["light/events/data"][:]
+
+                            # waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
+                            # print(match_light)
+                            # we have now the waveforms for all detectors matched in time to the event
+                        self.left_tpc.update_flow_event(
+                            self.interactions,
+                            self.segments,
+                            self.stack,
+                            self.trajectories,
+                            self.charge,
                         )
-                        self.charge = flow_file[f'charge/calib_{self.hit_type}_hits/data'][
-                            hits_to_segments
-                        ]
-                        self.available_hits = [ii for ii in range(len(self.charge))]
-                        # charge_events = flow_file["charge/events/data"]["id"]
-
-                        # self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
-
-                        # """Likewise for light data, we must backtrack through segments"""
-                        # match_light = flow_file['/light/events/data'][:][
-                        #     flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0], 1]
-                        # ]["id"]
-                        # we have to try them all, events may not be time ordered
-                        # self.light = flow_file["light/events/data"][:]
-
-                        # waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
-                        # print(match_light)
-                        # we have now the waveforms for all detectors matched in time to the event
-                    print_output = f"Event: {event} Loaded!"
-                    self.left_tpc.update_flow_event(
-                        self.interactions,
-                        self.segments,
-                        self.stack,
-                        self.trajectories,
-                        self.charge,
-                    )
-                    self.right_tpc.update_flow_event(
-                        self.interactions,
-                        self.segments,
-                        self.stack,
-                        self.trajectories,
-                        self.charge,
-                    )
-                    # self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
-                    # self.charge_light_display.waveforms = self.charge_light_display.construct_waveforms()
-                if self.arrakis_file:
-                    with h5py.File(self.arrakis_folder + self.arrakis_file, "r") as arrakis_file:
-                        arrakis_event_ids = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["event_id"]
-                        self.topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["topology"][
-                            (arrakis_event_ids == event)
-                        ]
-                        self.physics = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["physics"][
-                            (arrakis_event_ids == event)
-                        ]
-                        self.particle = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["particle"][
-                            (arrakis_event_ids == event)
-                        ]
-                        self.unique_topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["unique_topology"][
-                            (arrakis_event_ids == event)
-                        ]
-                        self.available_track_ids = np.unique(self.unique_topology)
-                    self.left_tpc.update_arrakis_event(
-                        self.topology,
-                        self.physics,
-                        self.particle,
-                        self.unique_topology,
-                    )
-                    self.right_tpc.update_arrakis_event(
-                        self.topology,
-                        self.physics,
-                        self.particle,
-                        self.unique_topology
-                    )
-            self.left_tpc.plot_event()
-            self.right_tpc.plot_event()
+                        self.right_tpc.update_flow_event(
+                            self.interactions,
+                            self.segments,
+                            self.stack,
+                            self.trajectories,
+                            self.charge,
+                        )
+                        # self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
+                        # self.charge_light_display.waveforms = self.charge_light_display.construct_waveforms()
+                except Exception as exception:
+                    print_output = f'ERROR: {exception}'
+                try:
+                    if self.arrakis_file:
+                        with h5py.File(self.arrakis_folder + self.arrakis_file, "r") as arrakis_file:
+                            arrakis_event_ids = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["event_id"]
+                            self.topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["topology"][
+                                (arrakis_event_ids == event)
+                            ]
+                            self.physics = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["physics"][
+                                (arrakis_event_ids == event)
+                            ]
+                            self.particle = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["particle"][
+                                (arrakis_event_ids == event)
+                            ]
+                            self.unique_topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["unique_topology"][
+                                (arrakis_event_ids == event)
+                            ]
+                            self.available_track_ids = np.unique(self.unique_topology)
+                        self.left_tpc.update_arrakis_event(
+                            self.topology,
+                            self.physics,
+                            self.particle,
+                            self.unique_topology,
+                        )
+                        self.right_tpc.update_arrakis_event(
+                            self.topology,
+                            self.physics,
+                            self.particle,
+                            self.unique_topology
+                        )
+                except Exception as exception:
+                    print_output = f'ERROR: {exception}'
+                try:
+                    if self.blip_file:
+                        with h5py.File(self.blip_folder + self.blip_file, "r") as blip_file:
+                            blip_event_ids = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["event_id"]
+                            self.topology = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["topology"][
+                                (blip_event_ids == event)
+                            ]
+                            self.physics = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["physics"][
+                                (blip_event_ids == event)
+                            ]
+                            self.particle = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["particle"][
+                                (blip_event_ids == event)
+                            ]
+                            self.unique_topology = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["unique_topology"][
+                                (blip_event_ids == event)
+                            ]
+                except Exception as exception:
+                    print_output = f'ERROR: {exception}'
+            try:
+                self.left_tpc.plot_event()
+            except Exception as exception:
+                print_output = f'ERROR: {exception}'
+            try:
+                self.right_tpc.plot_event()
+            except Exception as exception:
+                print_output = f'ERROR: {exception}'
             return (
                 print_output,
                 self.left_tpc.tpc,

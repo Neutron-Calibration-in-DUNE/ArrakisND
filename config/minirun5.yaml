@@ -3,9 +3,10 @@ arrakis_nd:
   verbose:   true
   flow_folder:  '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow.beta2a/FLOW/0000000'
   flow_files:   'hdf5'
-  skip_files: []
+  skip_files: ['Backup_MiniRun5_1E19_RHC.flow.0000000.FLOW.hdf5']
   arrakis_folder: '/local_scratch/MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow/FLOW'
   plugin_locations: []
+  hit_type: 'prompt'
 
 plugins:
   DaughterPlugin:
@@ -15,7 +16,7 @@ plugins:
   SegmentPlugin:
   TrackPlugin:
   DeltaPlugin:
-    delta_size_threshold: 20
+    delta_size_threshold: 30
   MichelPlugin:
   FragmentPlugin:
     compton_blip_threshold: 10
