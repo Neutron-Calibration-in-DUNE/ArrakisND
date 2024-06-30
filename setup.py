@@ -4,37 +4,42 @@ from setuptools import setup
 with open("README.md", "r") as file:
     long_description = file.read()
 
+# Function to read the list of requirements from requirements.txt
+def read_requirements():
+    with open('requirements.txt') as req:
+        return req.read().splitlines()
+
+major_version = 2
+minor_version = 0
+maintenance = 2
+
 setup(
     # name
     name="arrakis_nd",
     # current version
-    #   MAJOR VERSION:  00
-    #   MINOR VERSION:  01
-    #   Maintenance:    00
-    version="00.01.00",
+    version=f"{major_version}.{minor_version}.{maintenance}",
     # descriptions
     description="Arrakis module for near detector data.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     keywords="",
     # my info
-    author="Nicholas Carrara",
+    author="Nicholas Carrara, Marjolein van Nuland, Luis Lepin",
     author_email="ncarrara.physics@gmail.com",
     # where to find the source
     url="https://github.com/Neutron-Calibration-in-DUNE/ArrakisND",
     # requirements
-    install_reqs=[],
+    install_requires=read_requirements(),
     # packages
     packages=find_packages(
-        # where='pointnet',
         exclude=["test"],
     ),
     include_package_data=True,
     # classifiers
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "Intended Audience :: Experimental Physics",
-        "License :: GNU",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: GNU General Public License (GPL)",
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
@@ -44,7 +49,9 @@ setup(
     entry_points={
         "console_scripts": [
             "arrakis_nd = arrakis_nd.programs.run_arrakis:run",
-            "create_arrakis_runs = arrakis_nd.programs.create_arrakis_runs:run"
+            "arrakis_display = arrakis_nd.programs.run_arrakis_display:run",
+            "create_arrakis_runs = arrakis_nd.programs.create_arrakis_runs:run",
+            'create_plugin = arrakis_nd.programs.plugin_creator:run',
         ],
     },
 )

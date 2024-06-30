@@ -1,0 +1,85 @@
+SIDEBAR_STYLE:
+  border: '2px solid #000000'
+  position: fixed
+  top: 0  # Ensure this matches the actual height of your navbar
+  left: 0
+  bottom: 0
+  width: "24rem"
+  padding: "2rem 1rem"
+  background-color: "#258fe6"
+  font-size: "14px"
+  color: "#ffffff"
+  zIndex: "99999"  # Ensure sidebar is below modal dialogs or overlays
+
+NAVBAR_STYLE:
+  border: '2px solid #000000'
+  position: fixed
+  top: 0
+  left: "24rem"
+  right: 0
+  height: "56px"
+  background-color: "#258fe6"
+  padding: '10px 20px'        # Padding around the navbar
+  font-size: "20px"
+  color: "#ffffff"
+  display: 'flex'             # Use Flexbox for the layout
+  justify-content: 'space-between' # Space between items
+  align-items: 'center' # Center items vertically
+  zIndex: "2"  # Ensure navbar is above the sidebar
+
+CONTENT_STYLE:
+  margin-top: "56px"
+  margin-bottom: "350px"  # Ensure enough space for bottom section
+  margin-left: "24rem"
+  margin-right: "2rem"
+  padding: "2rem"
+  display: 'flex'
+  font-size: "14px"
+  height: "calc(100vh - 156px)"  # Adjust height to fit the bottom section and navbar
+  justify-content: 'center'  # Center content horizontally
+
+LEFT_COLUMN:
+  width: "50%"
+  padding: "5px"
+  box-sizing: 'border-box'
+
+RIGHT_COLUMN:
+  width: "50%"  # Updated to fit within 50% width
+  padding: "5px"
+  box-sizing: 'border-box'
+
+BOTTOM_SECTION:
+  position: fixed
+  bottom: 0
+  left: "24rem"
+  right: 0
+  height: "350px"  # Adjust this value to change the height of the bottom section
+  background-color: "#258fe6"
+  padding: "10px"
+  border: '2px solid #000000'
+  display: 'flex'
+  justify-content: 'space-between'
+  align-items: 'flex-start'  # Align items to the top
+  font-size: "14px"
+  color: "#ffffff"
+  zIndex: "1"  # Ensure bottom section is above the content but below the navbar
+
+LEFT_BOTTOM_SECTION:
+  width: "50%"
+  display: 'flex'
+  flex-direction: 'row'
+  justify-content: 'flex-start'  # Align items to the start (left)
+  align-items: 'flex-start'  # Align items to the top
+  font-size: "14px"
+  color: "#ffffff"
+  padding: "10px"
+
+RIGHT_BOTTOM_SECTION:
+  width: "50%"
+  display: 'flex'
+  flex-direction: 'row'
+  justify-content: 'flex-start'  # Align items to the start (left)
+  align-items: 'flex-start'  # Align items to the top
+  font-size: "14px"
+  color: "#ffffff"
+  padding: "10px"

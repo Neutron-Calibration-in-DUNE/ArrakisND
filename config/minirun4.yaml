@@ -1,16 +1,13 @@
 # Test config for ArrakisND
 arrakis_nd:
-  process_type:       "npz"  # npz or flow
-  simulation_folder:  "/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW/"
-  simulation_files:   "all"
-  skip_files:   []
-  skip_event:   0
-  skip_events:  []
-  output_folder:  "/local_data/"
-  verbose:  true
-  gpu:      true
-  gpu_device: 0
-  debug:  true
-  # wrangler parameters
-  shower_threshold: 20
-  ionization_influence_distance:  4
+  verbose:   true
+  flow_folder:  '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW'
+  flow_files:   'all'
+  skip_files: []
+  arrakis_folder: '/local_scratch/MiniRun4_1E19_RHC/MiniRun4_1E19_RHC.flow/FLOW'
+  plugin_locations: []
+
+plugins:
+  DaughterPlugin:
+  TrackIDHitMapPlugin:
+  TrackPlugin:

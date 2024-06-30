@@ -1,0 +1,32 @@
+# Test config for ArrakisND
+arrakis_nd:
+  verbose:   true
+  flow_folder:  '/local_data/'
+  flow_files:   'hdf5'
+  skip_files: []
+  plugin_locations: []
+  hit_type: 'prompt'
+
+plugins:
+  DaughterPlugin:
+  TrackIDHitMapPlugin:
+  ParentPlugin:
+  AncestorPlugin:
+  SegmentPlugin:
+  TrackPlugin:
+  DeltaPlugin:
+    delta_size_threshold: 20
+  MichelPlugin:
+  FragmentPlugin:
+    compton_blip_threshold: 10
+    conversion_blip_threshold: 10
+  PhotonPlugin:
+  IonPlugin:
+  NeutronPlugin:
+  ParticlePlugin:
+  NeutrinoPlugin:
+  ShowerPlugin:
+  ConstraintPlugin:
+    segment_influence_cut: 0.4
+    constraint_mode: "min_distance"
+    replace_undefined: 2

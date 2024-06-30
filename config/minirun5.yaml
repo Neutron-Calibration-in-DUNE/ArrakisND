@@ -1,0 +1,33 @@
+# Test config for ArrakisND
+arrakis_nd:
+  verbose:   true
+  flow_folder:  '/global/cfs/cdirs/dune/www/data/2x2/simulation/productions/MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow.beta2a/FLOW/0000000'
+  flow_files:   'hdf5'
+  skip_files: ['Backup_MiniRun5_1E19_RHC.flow.0000000.FLOW.hdf5']
+  arrakis_folder: '/local_scratch/MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow/FLOW'
+  plugin_locations: []
+  hit_type: 'prompt'
+
+plugins:
+  DaughterPlugin:
+  TrackIDHitMapPlugin:
+  ParentPlugin:
+  AncestorPlugin:
+  SegmentPlugin:
+  TrackPlugin:
+  DeltaPlugin:
+    delta_size_threshold: 30
+  MichelPlugin:
+  FragmentPlugin:
+    compton_blip_threshold: 10
+    conversion_blip_threshold: 10
+  PhotonPlugin:
+  IonPlugin:
+  NeutronPlugin:
+  NeutrinoPlugin:
+  ShowerPlugin:
+  ParticlePlugin:
+  ConstraintPlugin:
+    segment_influence_cut: 0.4
+    constraint_mode: "min_distance"
+    replace_undefined: 2
