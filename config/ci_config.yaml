@@ -1,8 +1,8 @@
 # Test config for ArrakisND
 arrakis_nd:
   verbose:   true
-  flow_folder:  '/local_data/'
-  flow_files:   'hdf5'
+  flow_folder:  '/local_data/segmentation_test/beta2b'
+  flow_files:   'all'
   skip_files: []
   plugin_locations: []
   hit_type: 'prompt'

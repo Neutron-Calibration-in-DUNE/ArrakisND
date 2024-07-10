@@ -122,6 +122,7 @@ class FragmentPlugin(Plugin):
         trajectories_pxyz_start = trajectories['pxyz_start']
         trajectories_pxyz_end = trajectories['pxyz_end']
         trajectories_start_subprocess = trajectories['start_subprocess']
+        trajectories_parent_ids = trajectories['parent_id']
         trajectories_E = trajectories['E_start']
         charge_x = charge['x']
         charge_y = charge['y']
@@ -204,6 +205,17 @@ class FragmentPlugin(Plugin):
 
             """Get the associated t0 values"""
             particle_hit_t0s = track_id_hit_t0_map[(particle_id, vertex_id)]
+            
+            """Get parent info"""
+            parent_id = trajectories_parent_ids[particle_mask][ii]
+            parent_index = np.where(
+                (trajectories_traj_ids == parent_id) &
+                (trajectories_vertex_ids == vertex_id)
+            )
+            if parent_id != -1:
+                parent_start_subprocess = trajectories_start_subprocess[parent_index]
+            else:
+                parent_start_subprocess = -1
 
             """Get ancestor traj_id"""
             ancestor_id = ancestor_traj_id_map[(particle_id, vertex_id)]
@@ -275,6 +287,8 @@ class FragmentPlugin(Plugin):
             elif (
                 (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.GammaConversion.value) |
                 (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PairProdByCharge.value) |
+                (abs(parent_start_subprocess) == SubProcessType.GammaConversion.value) |
+                (abs(parent_start_subprocess) == SubProcessType.PairProdByCharge.value) |
                 (
                     (
                         (abs(parent_pdg_ids[particle_mask][ii]) == 111) |

@@ -477,11 +477,11 @@ class Arrakis:
                     """
                     if arrakis_dict["flow_files"] == "all":
                         self.logger.info(
-                            f"searching {flow_folder} recursively for all .h5 FLOW files."
+                            f"searching {flow_folder} recursively for all .hdf5 FLOW files."
                         )
                         flow_files = [
                             os.path.basename(input_file) for input_file in glob.glob(
-                                f"{flow_folder}*.h5", recursive=True
+                                f"{flow_folder}*.hdf5", recursive=True
                             )
                             if 'FLOW' in input_file and input_file not in arrakis_dict["skip_files"]
                         ]
