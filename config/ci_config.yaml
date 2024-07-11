@@ -27,6 +27,6 @@ plugins:
   NeutrinoPlugin:
   ShowerPlugin:
   ConstraintPlugin:
-    segment_influence_cut: 0.4
+    segment_influence_cut: 0.8
     constraint_mode: "min_distance"
     replace_undefined: 2

@@ -145,23 +145,23 @@ class ConstraintPlugin(Plugin):
             """First check to see if any segments remain after the cut"""
             if sum(segment_distance <= self.segment_influence_cut):
                 segment_fraction[(segment_distance > self.segment_influence_cut)] = 0
-
             """Then, give priority to tracks"""
             if Topology.Track.value in segment_topology:
                 segment_fraction[(segment_topology != Topology.Track.value)] = 0
-            """Then, to showers"""
-            if Topology.Shower.value in segment_topology:
-                segment_fraction[(segment_topology != Topology.Shower.value)] = 0
-                """Conversions get priority, then comptons"""
-                if Physics.GammaConversion.value in segment_physics:
-                    segment_fraction[(segment_physics != Physics.GammaConversion.value)] == 0
-                elif (
-                    Physics.GammaConversion.value not in segment_physics and
-                    Physics.GammaCompton.value in segment_physics
-                ):
-                    segment_fraction[(segment_physics != Physics.GammaCompton.value)] == 0
+            else:
+                """Then, to showers"""
+                if Topology.Shower.value in segment_topology:
+                    segment_fraction[(segment_topology != Topology.Shower.value)] = 0
+                    """Conversions get priority, then comptons"""
+                    if Physics.GammaConversion.value in segment_physics:
+                        segment_fraction[(segment_physics != Physics.GammaConversion.value)] == 0
+                    elif (
+                        Physics.GammaConversion.value not in segment_physics and
+                        Physics.GammaCompton.value in segment_physics
+                    ):
+                        segment_fraction[(segment_physics != Physics.GammaCompton.value)] == 0
             segment_distance[(segment_fraction == 0.0)] = 10e10
-
+            
             if self.constraint_mode == "max_fraction":
                 constraint_mask = np.argmax(segment_fraction)
             else:

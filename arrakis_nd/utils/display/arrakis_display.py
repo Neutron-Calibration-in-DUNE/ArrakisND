@@ -17,6 +17,10 @@ import glob
 from arrakis_nd.utils.display.set_server import SetServer
 from arrakis_nd.utils.display.tpc_display import TPCDisplay
 from arrakis_nd.utils.display.larpix_light_display import LArPixLightDisplay
+from arrakis_nd.dataset.common import (
+    process_type_dict,
+    sub_process_type_dict
+)
 
 
 class ArrakisDisplay:
@@ -347,20 +351,20 @@ class ArrakisDisplay:
                     html.Button('Previous', id='previous_track_id', style={'width': '20%'}),
                     html.Button('Next', id='next_track_id', style={'width': '20%'}),
                 ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
-                html.H2(),
-                html.Label('Segment/Hit Info'),
-                html.Div(
-                    [
-                        html.P('x: ', style={'margin': '0', 'padding': '0'}),
-                        html.P('y: ', style={'margin': '0', 'padding': '0'}),
-                        html.P('z: ', style={'margin': '0', 'padding': '0'}),
-                        html.P('Q: ', style={'margin': '0', 'padding': '0'}),
-                        html.P('E: ', style={'margin': '0', 'padding': '0'}),
-                        html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
-                    ],
-                    id='bottom_text',
-                    style={'padding': '10px', 'margin-top': '10px'}
-                ),
+                # html.H2(),
+                # html.Label('Segment/Hit Info'),
+                # html.Div(
+                #     [
+                #         html.P('x: ', style={'margin': '0', 'padding': '0'}),
+                #         html.P('y: ', style={'margin': '0', 'padding': '0'}),
+                #         html.P('z: ', style={'margin': '0', 'padding': '0'}),
+                #         html.P('Q: ', style={'margin': '0', 'padding': '0'}),
+                #         html.P('E: ', style={'margin': '0', 'padding': '0'}),
+                #         html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
+                #     ],
+                #     id='bottom_text',
+                #     style={'padding': '10px', 'margin-top': '10px'}
+                # ),
             ],
             style=self.styles['SIDEBAR_STYLE'],
         )
@@ -430,6 +434,28 @@ class ArrakisDisplay:
                             step=0.01,
                             value=0.01,  # Default scale
                             marks={i / 10.0: f'{i / 10.0}' for i in range(0, 11)},
+                        ),
+                    ], style={'width': '50%'}),
+                    html.Div([
+                        html.H2(),
+                        html.Label('Segment/Hit Info'),
+                        html.Div(
+                            [
+                                html.P('x: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('y: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('z: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('Q: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('E: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('start_process: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('start_subprocess: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('parent_track_id: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('parent_pdg_id: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('parent_start_process: ', style={'margin': '0', 'padding': '0'}),
+                                html.P('parent_start_subprocess: ', style={'margin': '0', 'padding': '0'}),
+                            ],
+                            id='bottom_text',
+                            style={'padding': '10px', 'margin-top': '10px'}
                         ),
                     ], style={'width': '50%'}),
                 ]),
@@ -729,46 +755,62 @@ class ArrakisDisplay:
         are associated to the bottom text information and the hit id
         and track id of selected points within a plot.
         """
-        # @self.app.callback(
-        #     [Output('bottom_text', 'children'),
-        #      Output('hit_dropdown', 'value'),
-        #      Output('track_id_dropdown', 'value')],
-        #     Input('tpc_plot_left', 'clickData'),
-        #     [State('tpc_plot_left', 'figure')]
-        # )
-        # def display_left_click_data(clickData, tpc_plot):
-        #     if clickData is None:
-        #         raise PreventUpdate
-        #     point_data = clickData['points'][0]
+        @self.app.callback(
+            [Output('bottom_text', 'children'),
+             Output('hit_dropdown', 'value'),
+             Output('track_id_dropdown', 'value')],
+            Input('tpc_plot_left', 'clickData'),
+            [State('tpc_plot_left', 'figure')]
+        )
+        def display_left_click_data(clickData, tpc_plot):
+            if clickData is None:
+                raise PreventUpdate
+            point_data = clickData['points'][0]
 
-        #     if 'customdata' not in point_data:
-        #         raise PreventUpdate
+            if 'customdata' not in point_data:
+                raise PreventUpdate
 
-        #     hit_id = point_data['customdata'][0]
-        #     self.hit = hit_id
-        #     # self.left_tpc.highlight_point(hit_id)
+            hit_id = point_data['customdata'][0]
+            self.hit = hit_id
+            # self.left_tpc.highlight_point(hit_id)
 
-        #     x = point_data['x']
-        #     y = point_data['y']
-        #     z = point_data['z']
-        #     Q = point_data['customdata'][1]
-        #     E = point_data['customdata'][2]
-        #     pdg_id = point_data['customdata'][3]
-        #     track_id = point_data['customdata'][4]
-        #     self.track_id = track_id
+            x = point_data['x']
+            y = point_data['y']
+            z = point_data['z']
+            Q = point_data['customdata'][1]
+            E = point_data['customdata'][2]
+            pdg_id = point_data['customdata'][3]
+            track_id = point_data['customdata'][4]
+            self.track_id = track_id
+            vertex_id = self.trajectories['vertex_id'][track_id]
+            parent_id = self.trajectories['parent_id'][track_id]
+            parent_index = np.where(
+                (self.trajectories['traj_id'] == parent_id) & (self.trajectories['vertex_id'] == vertex_id)
+            )[0][0]
+            start_process = process_type_dict[self.trajectories['start_process'][track_id]]
+            start_subprocess = sub_process_type_dict[self.trajectories['start_subprocess'][track_id]]
+            parent_pdg_id = self.trajectories['pdg_id'][parent_index]
+            parent_start_process = process_type_dict[self.trajectories['start_process'][parent_index]]
+            parent_start_subprocess = sub_process_type_dict[self.trajectories['start_subprocess'][parent_index]]
 
-        #     return (
-        #         html.Div([
-        #             html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'})
-        #         ]),
-        #         self.hit,
-        #         self.track_id
-        #     )
+            return (
+                html.Div([
+                    html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'start_process: {start_process}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'start_subprocess: {start_subprocess}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'parent_track_id: {parent_index}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'parent_pdg_id: {parent_pdg_id}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'parent_start_process: {parent_start_process}', style={'margin': '0', 'padding': '0'}),
+                    html.P(f'parent_start_subprocess: {parent_start_subprocess}', style={'margin': '0', 'padding': '0'}),
+                ]),
+                self.hit,
+                self.track_id
+            )
 
         # @self.app.callback(
         #     [Output('bottom_text', 'children'),
@@ -851,18 +893,10 @@ class ArrakisDisplay:
                             non_zero_charge_segments = [row[row != 0] for row in charge_fraction]
                             max_length = len(max(non_zero_charge_segments, key=len))
                             segments_ids = flow_file['mc_truth/segments/data']['segment_id']
-                            self.interactions = flow_file['mc_truth/interactions/data'][
-                                np.where(interactions_events == event)[0]
-                            ]
-                            self.segments = flow_file['mc_truth/segments/data'][
-                                np.where(segments_events == event)[0]
-                            ]
-                            self.stack = flow_file['mc_truth/stack/data'][
-                                np.where(stack_events == event)[0]
-                            ]
-                            self.trajectories = flow_file['mc_truth/trajectories/data'][
-                                np.where(trajectories_events == event)[0]
-                            ]
+                            self.interactions = flow_file['mc_truth/interactions/data'][:]
+                            self.segments = flow_file['mc_truth/segments/data'][:]
+                            self.stack = flow_file['mc_truth/stack/data'][:]
+                            self.trajectories = flow_file['mc_truth/trajectories/data'][:]
                             """For charge data we must backtrack through segments"""
                             hits_to_segments = np.any(
                                 np.isin(
@@ -905,7 +939,7 @@ class ArrakisDisplay:
                         # self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
                         # self.charge_light_display.waveforms = self.charge_light_display.construct_waveforms()
                 except Exception as exception:
-                    print_output = f'ERROR: {exception}'
+                    print_output = f'ERROR getting flow/arrakis: {exception}'
                 try:
                     if self.arrakis_file:
                         with h5py.File(self.arrakis_folder + self.arrakis_file, "r") as arrakis_file:
@@ -936,7 +970,7 @@ class ArrakisDisplay:
                             self.unique_topology
                         )
                 except Exception as exception:
-                    print_output = f'ERROR: {exception}'
+                    print_output = f'ERROR updating tpcs: {exception}'
                 try:
                     if self.blip_file:
                         with h5py.File(self.blip_folder + self.blip_file, "r") as blip_file:

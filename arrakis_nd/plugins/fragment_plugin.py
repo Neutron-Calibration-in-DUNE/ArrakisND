@@ -206,16 +206,32 @@ class FragmentPlugin(Plugin):
             """Get the associated t0 values"""
             particle_hit_t0s = track_id_hit_t0_map[(particle_id, vertex_id)]
             
-            """Get parent info"""
+            """
+            Get parent info and grandparent info.
+            The reason we need grandparent info is because there could be
+            intermediate gammas which obfuscate the conversion/compton
+            parent subprocess information.
+            """
             parent_id = trajectories_parent_ids[particle_mask][ii]
-            parent_index = np.where(
-                (trajectories_traj_ids == parent_id) &
-                (trajectories_vertex_ids == vertex_id)
-            )
             if parent_id != -1:
+                parent_index = np.where(
+                    (trajectories_traj_ids == parent_id) &
+                    (trajectories_vertex_ids == vertex_id)
+                )[0][0]
                 parent_start_subprocess = trajectories_start_subprocess[parent_index]
+                grandparent_id = trajectories_parent_ids[parent_index]
+                if grandparent_id != -1:
+                    grandparent_index = np.where(
+                        (trajectories_traj_ids == grandparent_id) &
+                        (trajectories_vertex_ids == vertex_id)
+                    )[0][0]
+                    grandparent_start_subprocess = trajectories_start_subprocess[grandparent_index]
+                else:
+                    grandparent_id = -1
+                    grandparent_start_subprocess = -1
             else:
                 parent_start_subprocess = -1
+                grandparent_start_subprocess = -1
 
             """Get ancestor traj_id"""
             ancestor_id = ancestor_traj_id_map[(particle_id, vertex_id)]
@@ -270,7 +286,18 @@ class FragmentPlugin(Plugin):
 
             """Assign labels based on particle type"""
             if (
-                (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.ComptonScattering.value)
+                (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.ComptonScattering.value) |
+                (abs(parent_start_subprocess) == SubProcessType.ComptonScattering.value) |
+                (
+                    (
+                        (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PhotoElectricEffect.value) |
+                        (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.Ionization.value)
+                    ) &
+                    (
+                        (abs(grandparent_start_subprocess) == SubProcessType.ComptonScattering.value) |
+                        (abs(grandparent_start_subprocess) == SubProcessType.ComptonScattering.value)
+                    )
+                )
             ):
                 fragment_type = Fragment.GammaCompton.value
                 """Iterate over compton scattering labels"""
@@ -289,6 +316,16 @@ class FragmentPlugin(Plugin):
                 (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PairProdByCharge.value) |
                 (abs(parent_start_subprocess) == SubProcessType.GammaConversion.value) |
                 (abs(parent_start_subprocess) == SubProcessType.PairProdByCharge.value) |
+                (
+                    (
+                        (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.PhotoElectricEffect.value) |
+                        (abs(trajectories_start_subprocess[particle_mask][ii]) == SubProcessType.Ionization.value)
+                    ) &
+                    (
+                        (abs(grandparent_start_subprocess) == SubProcessType.GammaConversion.value) |
+                        (abs(grandparent_start_subprocess) == SubProcessType.GammaConversion.value)
+                    )
+                ) |
                 (
                     (
                         (abs(parent_pdg_ids[particle_mask][ii]) == 111) |
