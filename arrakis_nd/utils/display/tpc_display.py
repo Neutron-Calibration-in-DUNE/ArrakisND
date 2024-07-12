@@ -324,12 +324,24 @@ class TPCDisplay:
         topology,
         physics,
         particle,
-        unique_topology
+        unique_topology,
+        vertex,
+        tracklette_begin,
+        tracklette_end,
+        fragment_begin,
+        fragment_end,
+        shower_begin
     ):
         self.topology = topology
         self.physics = physics
         self.particle = particle
         self.unique_topology = unique_topology
+        self.vertex = vertex
+        self.tracklette_begin = tracklette_begin
+        self.tracklette_end = tracklette_end
+        self.fragment_begin = fragment_begin
+        self.fragment_end = fragment_end
+        self.shower_begin = shower_begin
 
     def update_plottype(
         self,
@@ -347,7 +359,8 @@ class TPCDisplay:
             names_to_remove = [
                 f'calib_{self.hit_type}_hits',
                 'track', 'shower', 'blip',
-                'mip', 'hip', 'e-ionization', 'delta', 'michel', 'compton', 'conversion', 'nr', 'er'
+                'mip', 'hip', 'e-ionization', 'delta', 'michel', 'compton', 'conversion', 'nr', 'er',
+                'vertex', 'tracklette_begin', 'tracklette_end', 'fragment_begin', 'fragment_end', 'shower_begin'
             ]
             # Create a new list of traces that excludes the ones with the specified name
             new_traces = [trace for trace in self.tpc.data if trace.name not in names_to_remove]
@@ -360,6 +373,8 @@ class TPCDisplay:
                 traces = self.plot_topology(marker_size)
             elif self.plottype == 'physics':
                 traces = self.plot_physics(marker_size)
+
+            traces += self.plot_key_points(marker_size)
 
             self.tpc.add_traces(traces)
 
@@ -394,11 +409,138 @@ class TPCDisplay:
 
         self.tpc.data = new_data
 
+    def plot_key_points(
+        self,
+        marker_size
+    ):
+        traces = []
+        traces.append(self.plot_vertices(marker_size))
+        traces.append(self.plot_tracklette_begins(marker_size))
+        traces.append(self.plot_tracklette_ends(marker_size))
+        traces.append(self.plot_fragment_begins(marker_size))
+        traces.append(self.plot_fragment_ends(marker_size))
+        traces.append(self.plot_shower_begins(marker_size))
+        return traces
+    
+    def plot_vertices(
+        self,
+        marker_size
+    ):
+        vertex_mask = (self.vertex == 1)
+        vertices = go.Scatter3d(
+            x=self.charge['x'][vertex_mask],
+            z=self.charge['y'][vertex_mask],
+            y=self.charge['z'][vertex_mask],
+            name='vertex',
+            marker={
+                "size": marker_size,
+                "opacity": 0.5,
+                'symbol': 'x'
+            },
+            mode="markers",
+        )
+        return vertices
+    
+    def plot_tracklette_begins(
+        self,
+        marker_size
+    ):
+        tracklette_begin_mask = (self.tracklette_begin == 1)
+        tracklette_begins = go.Scatter3d(
+            x=self.charge['x'][tracklette_begin_mask],
+            z=self.charge['y'][tracklette_begin_mask],
+            y=self.charge['z'][tracklette_begin_mask],
+            name='tracklette_begin',
+            marker={
+                "size": marker_size,
+                "opacity": 0.5,
+                'symbol': 'x'
+            },
+            mode="markers",
+        )
+        return tracklette_begins
+    
+    def plot_tracklette_ends(
+        self,
+        marker_size
+    ):
+        tracklette_end_mask = (self.tracklette_end == 1)
+        tracklette_ends = go.Scatter3d(
+            x=self.charge['x'][tracklette_end_mask],
+            z=self.charge['y'][tracklette_end_mask],
+            y=self.charge['z'][tracklette_end_mask],
+            name='tracklette_end',
+            marker={
+                "size": marker_size,
+                "opacity": 0.5,
+                'symbol': 'x'
+            },
+            mode="markers",
+        )
+        return tracklette_ends
+    
+    def plot_fragment_begins(
+        self,
+        marker_size
+    ):
+        fragment_begin_mask = (self.fragment_begin == 1)
+        fragment_begins = go.Scatter3d(
+            x=self.charge['x'][fragment_begin_mask],
+            z=self.charge['y'][fragment_begin_mask],
+            y=self.charge['z'][fragment_begin_mask],
+            name='fragment_begin',
+            marker={
+                "size": marker_size,
+                "opacity": 0.5,
+                'symbol': 'x'
+            },
+            mode="markers",
+        )
+        return fragment_begins
+    
+    def plot_fragment_ends(
+        self,
+        marker_size
+    ):
+        fragment_end_mask = (self.fragment_end == 1)
+        fragment_ends = go.Scatter3d(
+            x=self.charge['x'][fragment_end_mask],
+            z=self.charge['y'][fragment_end_mask],
+            y=self.charge['z'][fragment_end_mask],
+            name='fragment_end',
+            marker={
+                "size": marker_size,
+                "opacity": 0.5,
+                'symbol': 'x'
+            },
+            mode="markers",
+        )
+        return fragment_ends
+    
+    def plot_shower_begins(
+        self,
+        marker_size
+    ):
+        shower_begin_mask = (self.shower_begin == 1)
+        shower_begins = go.Scatter3d(
+            x=self.charge['x'][shower_begin_mask],
+            z=self.charge['y'][shower_begin_mask],
+            y=self.charge['z'][shower_begin_mask],
+            name='shower_begin',
+            marker={
+                "size": marker_size,
+                "opacity": 0.5,
+                'symbol': 'x'
+            },
+            mode="markers",
+        )
+        return shower_begins
+
     def plot_q(
         self,
         marker_size
     ):
-        charge_hits_traces = go.Scatter3d(
+        charge_hits_traces = [go.Scatter3d(
             x=self.charge['x'],
             z=self.charge['y'],
             y=self.charge['z'],
@@ -428,7 +570,7 @@ class TPCDisplay:
                 '<b>pdg_id:</b> %{customdata[3]}<br>'
                 '<b>track_id:</b> %{customdata[4]}<extra></extra>'
             )
-        )
+        )]
         return charge_hits_traces
 
     def plot_topology(

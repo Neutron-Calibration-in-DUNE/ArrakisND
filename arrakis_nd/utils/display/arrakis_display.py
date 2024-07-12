@@ -60,6 +60,10 @@ class ArrakisDisplay:
         self.available_events = []
         self.unique_events = []
         self.event = None
+        self.start_indices = []
+        self.end_indices = []
+        self.start_indices_map = {}
+        self.end_indices_map = {}
 
         """Hits and TrackIDs"""
         self.available_hits = []
@@ -103,6 +107,12 @@ class ArrakisDisplay:
         self.physics = None
         self.particle = None
         self.unique_topology = None
+        self.vertex = None
+        self.tracklette_begin = None
+        self.tracklette_end = None
+        self.fragment_begin = None
+        self.fragment_end = None
+        self.shower_begin = None
         """Blip"""
         self.topology_predictions = None
         self.physics_predictions = None
@@ -650,8 +660,26 @@ class ArrakisDisplay:
                 try:
                     self.flow_file = flow_file
                     with h5py.File(self.flow_folder + flow_file, "r") as flow_file:
-                        trajectories = flow_file['mc_truth/trajectories/data']
-                        events = trajectories['event_id']
+                        try:
+                            events = flow_file['charge/events/data']
+                            event_id = events['id']
+                            nhits = events['nhit']
+                            event_ids = []
+                            for jj in range(len(event_id)):
+                                event_ids += [event_id[jj] for kk in range(nhits[jj])]
+                            self.unique_events, start_indices = np.unique(event_ids, return_index=True)
+                            self.start_indices = start_indices.tolist()
+                            self.end_indices = self.start_indices[1:] + [len(event_ids)]
+                            self.start_indices_map = {
+                                event: self.start_indices[jj]
+                                for jj, event in enumerate(self.unique_events)
+                            }
+                            self.end_indices_map = {
+                                event: self.end_indices[jj]
+                                for jj, event in enumerate(self.unique_events)
+                            }
+                        except Exception:
+                            print(f"Issue getting event indices from flow file")
                         for key in self.geometry_info.keys():
                             try:
                                 self.geometry_info[key] = flow_file[f'geometry_info/{key}/data'][:]
@@ -661,7 +689,6 @@ class ArrakisDisplay:
                         self.right_tpc.set_geometry_info(self.geometry_info)
                         self.left_larpix_light_display.set_geometry_info(self.geometry_info)
                         self.right_larpix_light_display.set_geometry_info(self.geometry_info)
-                        self.unique_events = np.unique(events)
                         self.available_events = [
                             {'label': event, 'value': event}
                             for event in self.unique_events
@@ -880,32 +907,12 @@ class ArrakisDisplay:
                 try:
                     if self.flow_file:
                         with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
-                            interactions_events = flow_file['mc_truth/interactions/data']['event_id']
-                            segments_events = flow_file['mc_truth/segments/data']['event_id']
-                            stack_events = flow_file['mc_truth/stack/data']['event_id']
-                            trajectories_events = flow_file['mc_truth/trajectories/data']['event_id']
-                            charge_segments = flow_file[
-                                f'mc_truth/calib_{self.hit_type}_hit_backtrack/data'
-                            ]['segment_ids'].astype(np.int64)
-                            charge_fraction = flow_file[f'mc_truth/calib_{self.hit_type}_hit_backtrack/data']['fraction']
-                            charge_fraction_mask = (charge_fraction == 0)
-                            charge_segments[charge_fraction_mask] = -1
-                            non_zero_charge_segments = [row[row != 0] for row in charge_fraction]
-                            max_length = len(max(non_zero_charge_segments, key=len))
-                            segments_ids = flow_file['mc_truth/segments/data']['segment_id']
                             self.interactions = flow_file['mc_truth/interactions/data'][:]
                             self.segments = flow_file['mc_truth/segments/data'][:]
                             self.stack = flow_file['mc_truth/stack/data'][:]
                             self.trajectories = flow_file['mc_truth/trajectories/data'][:]
-                            """For charge data we must backtrack through segments"""
-                            hits_to_segments = np.any(
-                                np.isin(
-                                    charge_segments[:, :max_length], segments_ids[(segments_events == event)]
-                                ),
-                                axis=1,
-                            )
                             self.charge = flow_file[f'charge/calib_{self.hit_type}_hits/data'][
-                                hits_to_segments
+                                self.start_indices_map[event]:self.end_indices_map[event]
                             ]
                             self.available_hits = [ii for ii in range(len(self.charge))]
                             # charge_events = flow_file["charge/events/data"]["id"]
@@ -945,16 +952,34 @@ class ArrakisDisplay:
                         with h5py.File(self.arrakis_folder + self.arrakis_file, "r") as arrakis_file:
                             arrakis_event_ids = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["event_id"]
                             self.topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["topology"][
-                                (arrakis_event_ids == event)
+                                self.start_indices_map[event]:self.end_indices_map[event]
                             ]
                             self.physics = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["physics"][
-                                (arrakis_event_ids == event)
+                                self.start_indices_map[event]:self.end_indices_map[event]
                             ]
                             self.particle = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["particle"][
-                                (arrakis_event_ids == event)
+                                self.start_indices_map[event]:self.end_indices_map[event]
                             ]
                             self.unique_topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["unique_topology"][
-                                (arrakis_event_ids == event)
+                                self.start_indices_map[event]:self.end_indices_map[event]
+                            ]
+                            self.vertex = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["vertex"][
+                                self.start_indices_map[event]:self.end_indices_map[event]
+                            ]
+                            self.tracklette_begin = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["tracklette_begin"][
+                                self.start_indices_map[event]:self.end_indices_map[event]
+                            ]
+                            self.tracklette_end = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["tracklette_end"][
+                                self.start_indices_map[event]:self.end_indices_map[event]
+                            ]
+                            self.fragment_begin = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["fragment_begin"][
+                                self.start_indices_map[event]:self.end_indices_map[event]
+                            ]
+                            self.fragment_end = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["fragment_end"][
+                                self.start_indices_map[event]:self.end_indices_map[event]
+                            ]
+                            self.shower_begin = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["shower_begin"][
+                                self.start_indices_map[event]:self.end_indices_map[event]
                             ]
                             self.available_track_ids = np.unique(self.unique_topology)
                         self.left_tpc.update_arrakis_event(
@@ -962,12 +987,24 @@ class ArrakisDisplay:
                             self.physics,
                             self.particle,
                             self.unique_topology,
+                            self.vertex,
+                            self.tracklette_begin,
+                            self.tracklette_end,
+                            self.fragment_begin,
+                            self.fragment_end,
+                            self.shower_begin
                         )
                         self.right_tpc.update_arrakis_event(
                             self.topology,
                             self.physics,
                             self.particle,
-                            self.unique_topology
+                            self.unique_topology,
+                            self.vertex,
+                            self.tracklette_begin,
+                            self.tracklette_end,
+                            self.fragment_begin,
+                            self.fragment_end,
+                            self.shower_begin
                         )
                 except Exception as exception:
                     print_output = f'ERROR updating tpcs: {exception}'
