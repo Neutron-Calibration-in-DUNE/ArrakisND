@@ -20,17 +20,42 @@ class TPCDisplay:
         geometry_info: dict = {}
     ):
         self.id_suffix = id_suffix
-        self.interactions = None
-        self.segments = None
-        self.stack = None
-        self.trajectories = None
-        self.charge = None
-        self.topology = None
-        self.physics = None
-        self.particle = None
-        self.unique_topology = None
+        self.flow_truth = None
+        self.flow_event = None
+        self.arrakis_event = None
+        self.blip_event = None
+        
+        self.flow_event = {
+            'charge': None,
+            'light': None
+        }
+        self.arrakis_event = {
+            'topology': None,
+            'physics': None,
+            'particle': None,
+            'unique_topology': None,
+            'vertex': None,
+            'tracklette_begin': None,
+            'tracklette_end': None,
+            'fragment_begin': None,
+            'fragment_end': None,
+            'shower_begin': None,
+        }
+        self.blip_event = {
+            'topology': None,
+            'physics': None,
+            'particle': None,
+            'unique_topology': None,
+            'vertex': None,
+            'tracklette_begin': None,
+            'tracklette_end': None,
+            'fragment_begin': None,
+            'fragment_end': None,
+            'shower_begin': None,
+        }
         self.geometry_info = {}
         self.hit_type = 'prompt'
+        self.plot_keypoints = False
 
         self.scale = 0.0
         self.plottype = 'q'
@@ -305,43 +330,35 @@ class TPCDisplay:
 
         return traces
 
+    def update_flow_truth(
+        self,
+        flow_truth
+    ):
+        self.flow_truth = flow_truth
+
     def update_flow_event(
         self,
-        interactions,
-        segments,
-        stack,
-        trajectories,
-        charge,
+        flow_event,
     ):
-        self.interactions = interactions
-        self.segments = segments
-        self.stack = stack
-        self.trajectories = trajectories
-        self.charge = charge
+        self.flow_event = flow_event
 
     def update_arrakis_event(
         self,
-        topology,
-        physics,
-        particle,
-        unique_topology,
-        vertex,
-        tracklette_begin,
-        tracklette_end,
-        fragment_begin,
-        fragment_end,
-        shower_begin
+        arrakis_event,
     ):
-        self.topology = topology
-        self.physics = physics
-        self.particle = particle
-        self.unique_topology = unique_topology
-        self.vertex = vertex
-        self.tracklette_begin = tracklette_begin
-        self.tracklette_end = tracklette_end
-        self.fragment_begin = fragment_begin
-        self.fragment_end = fragment_end
-        self.shower_begin = shower_begin
+        self.arrakis_event = arrakis_event
+    
+    def update_blip_event(
+        self,
+        blip_event,
+    ):
+        self.blip_event = blip_event
+
+    def update_datatype(
+        self,
+        datatype
+    ):
+        self.datatype = datatype
 
     def update_plottype(
         self,
@@ -350,11 +367,11 @@ class TPCDisplay:
         self.plottype = plottype
 
     def plot_event(self):
-        if self.charge is not None:
+        if self.flow_event['charge'] is not None:
             if self.scale == 0.0:
                 marker_size = 5.0  # Fixed size when scale is 0
             else:
-                marker_size = np.array([q * self.scale for q in self.charge['Q']])  # Scale marker size
+                marker_size = np.array([q * self.scale for q in self.flow_event['charge']['Q']])  # Scale marker size
 
             names_to_remove = [
                 f'calib_{self.hit_type}_hits',
@@ -374,7 +391,8 @@ class TPCDisplay:
             elif self.plottype == 'physics':
                 traces = self.plot_physics(marker_size)
 
-            traces += self.plot_key_points(marker_size)
+            if self.plot_keypoints:
+                traces += self.plot_key_points(marker_size)
 
             self.tpc.add_traces(traces)
 
@@ -414,23 +432,24 @@ class TPCDisplay:
         marker_size
     ):
         traces = []
-        traces.append(self.plot_vertices(marker_size))
-        traces.append(self.plot_tracklette_begins(marker_size))
-        traces.append(self.plot_tracklette_ends(marker_size))
-        traces.append(self.plot_fragment_begins(marker_size))
-        traces.append(self.plot_fragment_ends(marker_size))
-        traces.append(self.plot_shower_begins(marker_size))
+        if self.datatype == 'arrakis':
+            traces.append(self.plot_vertices(marker_size))
+            traces.append(self.plot_tracklette_begins(marker_size))
+            traces.append(self.plot_tracklette_ends(marker_size))
+            traces.append(self.plot_fragment_begins(marker_size))
+            traces.append(self.plot_fragment_ends(marker_size))
+            traces.append(self.plot_shower_begins(marker_size))
         return traces
-    
+
     def plot_vertices(
         self,
         marker_size
     ):
-        vertex_mask = (self.vertex == 1)
+        vertex_mask = (self.arrakis_event['vertex'] == 1)
         vertices = go.Scatter3d(
-            x=self.charge['x'][vertex_mask],
-            z=self.charge['y'][vertex_mask],
-            y=self.charge['z'][vertex_mask],
+            x=self.flow_event['charge']['x'][vertex_mask],
+            z=self.flow_event['charge']['y'][vertex_mask],
+            y=self.flow_event['charge']['z'][vertex_mask],
             name='vertex',
             marker={
                 "size": marker_size,
@@ -440,16 +459,16 @@ class TPCDisplay:
             mode="markers",
         )
         return vertices
-    
+
     def plot_tracklette_begins(
         self,
         marker_size
     ):
-        tracklette_begin_mask = (self.tracklette_begin == 1)
+        tracklette_begin_mask = (self.arrakis_event['tracklette_begin'] == 1)
         tracklette_begins = go.Scatter3d(
-            x=self.charge['x'][tracklette_begin_mask],
-            z=self.charge['y'][tracklette_begin_mask],
-            y=self.charge['z'][tracklette_begin_mask],
+            x=self.flow_event['charge']['x'][tracklette_begin_mask],
+            z=self.flow_event['charge']['y'][tracklette_begin_mask],
+            y=self.flow_event['charge']['z'][tracklette_begin_mask],
             name='tracklette_begin',
             marker={
                 "size": marker_size,
@@ -459,16 +478,16 @@ class TPCDisplay:
             mode="markers",
         )
         return tracklette_begins
-    
+
     def plot_tracklette_ends(
         self,
         marker_size
     ):
-        tracklette_end_mask = (self.tracklette_end == 1)
+        tracklette_end_mask = (self.arrakis_event['tracklette_end'] == 1)
         tracklette_ends = go.Scatter3d(
-            x=self.charge['x'][tracklette_end_mask],
-            z=self.charge['y'][tracklette_end_mask],
-            y=self.charge['z'][tracklette_end_mask],
+            x=self.flow_event['charge']['x'][tracklette_end_mask],
+            z=self.flow_event['charge']['y'][tracklette_end_mask],
+            y=self.flow_event['charge']['z'][tracklette_end_mask],
             name='tracklette_end',
             marker={
                 "size": marker_size,
@@ -478,16 +497,16 @@ class TPCDisplay:
             mode="markers",
         )
         return tracklette_ends
-    
+
     def plot_fragment_begins(
         self,
         marker_size
     ):
-        fragment_begin_mask = (self.fragment_begin == 1)
+        fragment_begin_mask = (self.arrakis_event['fragment_begin'] == 1)
         fragment_begins = go.Scatter3d(
-            x=self.charge['x'][fragment_begin_mask],
-            z=self.charge['y'][fragment_begin_mask],
-            y=self.charge['z'][fragment_begin_mask],
+            x=self.flow_event['charge']['x'][fragment_begin_mask],
+            z=self.flow_event['charge']['y'][fragment_begin_mask],
+            y=self.flow_event['charge']['z'][fragment_begin_mask],
             name='fragment_begin',
             marker={
                 "size": marker_size,
@@ -497,16 +516,16 @@ class TPCDisplay:
             mode="markers",
         )
         return fragment_begins
-    
+
     def plot_fragment_ends(
         self,
         marker_size
     ):
-        fragment_end_mask = (self.fragment_end == 1)
+        fragment_end_mask = (self.arrakis_event['fragment_end'] == 1)
         fragment_ends = go.Scatter3d(
-            x=self.charge['x'][fragment_end_mask],
-            z=self.charge['y'][fragment_end_mask],
-            y=self.charge['z'][fragment_end_mask],
+            x=self.flow_event['charge']['x'][fragment_end_mask],
+            z=self.flow_event['charge']['y'][fragment_end_mask],
+            y=self.flow_event['charge']['z'][fragment_end_mask],
             name='fragment_end',
             marker={
                 "size": marker_size,
@@ -516,16 +535,16 @@ class TPCDisplay:
             mode="markers",
         )
         return fragment_ends
-    
+
     def plot_shower_begins(
         self,
         marker_size
     ):
-        shower_begin_mask = (self.shower_begin == 1)
+        shower_begin_mask = (self.arrakis_event['shower_begin'] == 1)
         shower_begins = go.Scatter3d(
-            x=self.charge['x'][shower_begin_mask],
-            z=self.charge['y'][shower_begin_mask],
-            y=self.charge['z'][shower_begin_mask],
+            x=self.flow_event['charge']['x'][shower_begin_mask],
+            z=self.flow_event['charge']['y'][shower_begin_mask],
+            y=self.flow_event['charge']['z'][shower_begin_mask],
             name='shower_begin',
             marker={
                 "size": marker_size,
@@ -540,10 +559,14 @@ class TPCDisplay:
         self,
         marker_size
     ):
+        if self.arrakis_event['particle'] is None:
+            self.arrakis_event['particle'] = [-1 for ii in range(len(self.flow_event['charge']['x']))]
+        if self.arrakis_event['unique_topology'] is None:
+            self.arrakis_event['unique_topology'] = [-1 for ii in range(len(self.flow_event['charge']['x']))]
         charge_hits_traces = [go.Scatter3d(
-            x=self.charge['x'],
-            z=self.charge['y'],
-            y=self.charge['z'],
+            x=self.flow_event['charge']['x'],
+            z=self.flow_event['charge']['y'],
+            y=self.flow_event['charge']['z'],
             marker={
                 "size": marker_size,
                 "opacity": 0.5,
@@ -554,11 +577,11 @@ class TPCDisplay:
             showlegend=True,
             opacity=0.5,
             customdata=np.array(list(zip(
-                list(range(1, len(self.charge['x']) + 1)),
-                self.charge['Q'],
-                self.charge['E'],
-                self.particle,
-                self.unique_topology
+                list(range(1, len(self.flow_event['charge']['x']) + 1)),
+                self.flow_event['charge']['Q'],
+                self.flow_event['charge']['E'],
+                self.arrakis_event['particle'],
+                self.arrakis_event['unique_topology']
             ))),
             hovertemplate=(
                 '<b>hit_id:</b> %{customdata[0]}<br>'
@@ -577,13 +600,22 @@ class TPCDisplay:
         self,
         marker_size
     ):
+        if self.datatype == 'arrakis':
+            return self.plot_arrakis_topology(marker_size)
+        else:
+            return self.plot_blip_topology(marker_size)
+    
+    def plot_arrakis_topology(
+        self,
+        marker_size,
+    ):
         traces = []
-        for unique_topology in np.unique(self.topology):
-            topology_mask = (self.topology == unique_topology)
+        for unique_topology in np.unique(self.arrakis_event['topology']):
+            topology_mask = (self.arrakis_event['topology'] == unique_topology)
             traces.append(go.Scatter3d(
-                x=self.charge['x'][topology_mask],
-                z=self.charge['y'][topology_mask],
-                y=self.charge['z'][topology_mask],
+                x=self.flow_event['charge']['x'][topology_mask],
+                z=self.flow_event['charge']['y'][topology_mask],
+                y=self.flow_event['charge']['z'][topology_mask],
                 marker={
                     "size": marker_size,
                     "opacity": 0.5,
@@ -594,11 +626,11 @@ class TPCDisplay:
                 showlegend=True,
                 opacity=0.5,
                 customdata=np.array(list(zip(
-                    np.array(list(range(1, len(self.charge['x']) + 1)))[topology_mask],
-                    self.charge['Q'][topology_mask],
-                    self.charge['E'][topology_mask],
-                    self.particle[topology_mask],
-                    self.unique_topology[topology_mask]
+                    np.array(list(range(1, len(self.flow_event['charge']['x']) + 1)))[topology_mask],
+                    self.flow_event['charge']['Q'][topology_mask],
+                    self.flow_event['charge']['E'][topology_mask],
+                    self.arrakis_event['particle'][topology_mask],
+                    self.arrakis_event['unique_topology'][topology_mask]
                 ))),
                 hovertemplate=(
                     '<b>hit_id:</b> %{customdata[0]}<br>'
@@ -613,17 +645,54 @@ class TPCDisplay:
             ))
         return traces
 
+    def plot_blip_topology(
+        self,
+        marker_size,
+    ):
+        traces = []
+        predictions = np.argmax(self.blip_event["topology"], axis=1)
+        for unique_topology in np.unique(predictions):
+            topology_mask = (predictions == unique_topology)
+            traces.append(go.Scatter3d(
+                x=self.flow_event['charge']['x'][topology_mask],
+                z=self.flow_event['charge']['y'][topology_mask],
+                y=self.flow_event['charge']['z'][topology_mask],
+                marker={
+                    "size": marker_size,
+                    "opacity": 0.5,
+                    "color": self.topology_colors[unique_topology]
+                },
+                name=self.topology_labels[unique_topology],
+                mode="markers",
+                showlegend=True,
+                opacity=0.5,
+                customdata=np.array(list(zip(
+                    np.array(list(range(1, len(self.flow_event['charge']['x']) + 1)))[topology_mask],
+                    self.flow_event['charge']['Q'][topology_mask],
+                    self.flow_event['charge']['E'][topology_mask],
+                ))),
+                hovertemplate=(
+                    '<b>hit_id:</b> %{customdata[0]}<br>'
+                    '<b>x:</b> %{x:.3f}<br>'
+                    '<b>y:</b> %{y:.3f}<br>'
+                    '<b>z:</b> %{z:.3f}<br>'
+                    '<b>Q:</b> %{customdata[1]:.3f}<br>'
+                    '<b>E:</b> %{customdata[2]:.3f}<br>'
+                )
+            ))
+        return traces
+
     def plot_physics(
         self,
         marker_size
     ):
         traces = []
-        for unique_physics in np.unique(self.physics):
-            physics_mask = (self.physics == unique_physics)
+        for unique_physics in np.unique(self.arrakis_event['physics']):
+            physics_mask = (self.arrakis_event['physics'] == unique_physics)
             traces.append(go.Scatter3d(
-                x=self.charge['x'][physics_mask],
-                z=self.charge['y'][physics_mask],
-                y=self.charge['z'][physics_mask],
+                x=self.flow_event['charge']['x'][physics_mask],
+                z=self.flow_event['charge']['y'][physics_mask],
+                y=self.flow_event['charge']['z'][physics_mask],
                 marker={
                     "size": marker_size,
                     "opacity": 0.5,
@@ -634,11 +703,11 @@ class TPCDisplay:
                 showlegend=True,
                 opacity=0.5,
                 customdata=np.array(list(zip(
-                    np.array(list(range(1, len(self.charge['x']) + 1)))[physics_mask],
-                    self.charge['Q'][physics_mask],
-                    self.charge['E'][physics_mask],
-                    self.particle[physics_mask],
-                    self.unique_topology[physics_mask]
+                    np.array(list(range(1, len(self.flow_event['charge']['x']) + 1)))[physics_mask],
+                    self.flow_event['charge']['Q'][physics_mask],
+                    self.flow_event['charge']['E'][physics_mask],
+                    self.arrakis_event['particle'][physics_mask],
+                    self.arrakis_event['unique_topology'][physics_mask]
                 ))),
                 hovertemplate=(
                     '<b>hit_id:</b> %{customdata[0]}<br>'

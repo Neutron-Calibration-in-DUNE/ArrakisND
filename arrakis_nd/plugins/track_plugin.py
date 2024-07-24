@@ -131,7 +131,11 @@ class TrackPlugin(Plugin):
             arrakis_charge['event_id'][particle_hits] = event
 
             """Iterate over standard labels"""
-            if abs(trajectories_pdg_ids[particle_mask][ii]) == 2212:
+            if (
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 2212) |
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 211) |
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 321)
+            ):
                 track_type = Track.HIP.value
                 for label, value in self.hip_labels.items():
                     arrakis_charge[label][particle_hit_segments] = value

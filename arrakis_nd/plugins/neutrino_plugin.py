@@ -45,6 +45,13 @@ class NeutrinoPlugin(Plugin):
         """
         """
         interactions = flow_file['mc_truth/interactions/data'][event_indices['interactions']]
+        charge = flow_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
+        arrakis_charge = arrakis_file[f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
+
+        charge_x = charge['x']
+        charge_y = charge['y']
+        charge_z = charge['z']
+
         """Determine neutrino type"""
         argon_neutrino_targets = (interactions['target'] == 18)
         if not sum(argon_neutrino_targets):
@@ -60,6 +67,20 @@ class NeutrinoPlugin(Plugin):
                 neutrino['y_vert'],
                 neutrino['z_vert']
             ])
+
+            particle_charge_xyz = np.array([
+                charge_x,
+                charge_y,
+                charge_z
+            ]).T
+            """Determine vertex"""
+            particle_vertex_distances = np.sqrt(
+                ((particle_charge_xyz - np.array(
+                    [neutrino['x_vert'], neutrino['y_vert'], neutrino['z_vert']]).T) ** 2).sum(axis=1)
+            )
+            if len(particle_vertex_distances) > 0:
+                closest_vertex_index = np.argmin(particle_vertex_distances)
+                arrakis_charge['vertex'][closest_vertex_index] = 1
 
             if neutrino['nu_pdg'] == 12:
                 if neutrino['isCC'] is False:
@@ -107,3 +128,6 @@ class NeutrinoPlugin(Plugin):
 
         """Add the new track to the CAF objects"""
         event_products['neutrino_event'].append(neutrino_data)
+
+        """Write changes to arrakis_file"""
+        arrakis_file[f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']] = arrakis_charge

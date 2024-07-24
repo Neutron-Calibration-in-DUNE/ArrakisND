@@ -188,12 +188,12 @@ class DeltaPlugin(Plugin):
                 particle_segments[closest_end_index]
             )
 
-            """Add delta/michel vertex"""
+            """Add delta vertex"""
             if (
                 (len(particle_hits) >= self.delta_size_threshold) &
                 (closest_start_index != closest_end_index)
             ):
-                arrakis_charge['vertex'][particle_start_index] = 1
+                # arrakis_charge['vertex'][particle_start_index] = 1
                 arrakis_charge['tracklette_end'][particle_end_index] = 1
 
                 """Iterate over delta labels"""

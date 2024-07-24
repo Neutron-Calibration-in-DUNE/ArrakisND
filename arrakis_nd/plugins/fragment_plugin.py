@@ -205,7 +205,7 @@ class FragmentPlugin(Plugin):
 
             """Get the associated t0 values"""
             particle_hit_t0s = track_id_hit_t0_map[(particle_id, vertex_id)]
-            
+
             """
             Get parent info and grandparent info.
             The reason we need grandparent info is because there could be

@@ -16,11 +16,11 @@ plugins:
   SegmentPlugin:
   TrackPlugin:
   DeltaPlugin:
-    delta_size_threshold: 30
+    delta_size_threshold: 50
   MichelPlugin:
   FragmentPlugin:
-    compton_blip_threshold: 10
-    conversion_blip_threshold: 10
+    compton_blip_threshold: 25
+    conversion_blip_threshold: 25
   PhotonPlugin:
   IonPlugin:
   NeutronPlugin:

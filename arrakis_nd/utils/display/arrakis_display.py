@@ -81,6 +81,8 @@ class ArrakisDisplay:
                 f'{self.nersc_flow_folder}MiniRun4.5_1E19_RHC/inputs_beta3/MiniRun4.5_1E19_RHC.flow/FLOW/0000000'},
             {'label': 'MiniRun5', 'value':
                 f'{self.nersc_flow_folder}MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow.beta2a/FLOW/0000000'},
+            {'label': 'Half field data', 'value':
+                ''},
         ]
 
         self.geometry_info = {
@@ -96,28 +98,67 @@ class ArrakisDisplay:
         }
 
         """Data objects from flow/arrakis/blip"""
-        self.interactions = None
-        self.segments = None
-        self.stack = None
-        self.trajectories = None
-        self.charge = None
-        self.light = None
+        """Flow"""
+        self.flow_plot_options = [
+            {'label': 'Q (charge)', 'value': 'q'},
+            {'label': 'P (light)', 'value': 'p'},
+        ]
+        self.flow_truth = {
+            'interactions': None,
+            'segments': None,
+            'stack': None,
+            'trajectories': None
+        }
+        self.flow_event = {
+            'charge': None,
+            'light': None,
+        }
         """Arrakis"""
-        self.topology = None
-        self.physics = None
-        self.particle = None
-        self.unique_topology = None
-        self.vertex = None
-        self.tracklette_begin = None
-        self.tracklette_end = None
-        self.fragment_begin = None
-        self.fragment_end = None
-        self.shower_begin = None
+        self.arrakis_plot_options = [
+            {'label': 'Topology', 'value': 'topology'},
+            {'label': 'Physics', 'value': 'physics'},
+            {'label': 'Particle', 'value': 'particle'},
+            {'label': 'Tracklette', 'value': 'tracklette'},
+            {'label': 'Track', 'value': 'track'},
+            {'label': 'Fragment', 'value': 'fragment'},
+            {'label': 'Shower', 'value': 'shower'},
+            {'label': 'Blip', 'value': 'blip'},
+        ]
+        self.arrakis_event = {
+            'topology': None,
+            'physics': None,
+            'particle': None,
+            'unique_topology': None,
+            'vertex': None,
+            'tracklette_begin': None,
+            'tracklette_end': None,
+            'fragment_begin': None,
+            'fragment_end': None,
+            'shower_begin': None,
+        }
         """Blip"""
-        self.topology_predictions = None
-        self.physics_predictions = None
-        self.particle_predictions = None
-        self.unique_topology_predictions = None
+        self.blip_plot_options = [
+            {'label': 'Topology', 'value': 'topology'},
+            {'label': 'Physics', 'value': 'physics'},
+            {'label': 'Particle', 'value': 'particle'},
+            {'label': 'Tracklette', 'value': 'tracklette'},
+            {'label': 'Track', 'value': 'track'},
+            {'label': 'Fragment', 'value': 'fragment'},
+            {'label': 'Shower', 'value': 'shower'},
+            {'label': 'Blip', 'value': 'blip'},
+        ]
+        self.blip_event = {
+            'topology': None,
+            'physics': None,
+            'particle': None,
+            'unique_topology': None,
+            'vertex': None,
+            'tracklette_begin': None,
+            'tracklette_end': None,
+            'fragment_begin': None,
+            'fragment_end': None,
+            'shower_begin': None,
+        }
 
         """TPC Displays"""
         self.left_tpc = TPCDisplay(id_suffix='left')
@@ -322,7 +363,9 @@ class ArrakisDisplay:
                 html.H2(),
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
                 html.Label('Display status:'),
-                html.Div(id='display_status'),
+                html.Div(id='display_status', style={
+                    'whiteSpace': 'normal',  # Allow text to wrap),
+                }),
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
                 html.H2(),
                 html.Label("Hit type"),
@@ -361,20 +404,6 @@ class ArrakisDisplay:
                     html.Button('Previous', id='previous_track_id', style={'width': '20%'}),
                     html.Button('Next', id='next_track_id', style={'width': '20%'}),
                 ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
-                # html.H2(),
-                # html.Label('Segment/Hit Info'),
-                # html.Div(
-                #     [
-                #         html.P('x: ', style={'margin': '0', 'padding': '0'}),
-                #         html.P('y: ', style={'margin': '0', 'padding': '0'}),
-                #         html.P('z: ', style={'margin': '0', 'padding': '0'}),
-                #         html.P('Q: ', style={'margin': '0', 'padding': '0'}),
-                #         html.P('E: ', style={'margin': '0', 'padding': '0'}),
-                #         html.P('pdg_id: ', style={'margin': '0', 'padding': '0'}),
-                #     ],
-                #     id='bottom_text',
-                #     style={'padding': '10px', 'margin-top': '10px'}
-                # ),
             ],
             style=self.styles['SIDEBAR_STYLE'],
         )
@@ -408,25 +437,16 @@ class ArrakisDisplay:
                             dcc.Dropdown(
                                 id='left_window_dropdown',
                                 options=[
-                                    {'label': 'TPC', 'value': 'tpc'},
-                                    {'label': 'LArPix/Light', 'value': 'light'},
+                                    {'label': 'FLOW', 'value': 'flow'},
+                                    {'label': 'ARRAKIS', 'value': 'arrakis'},
+                                    {'label': 'BLIP', 'value': 'blip'}
                                 ],
-                                value='tpc',
+                                value='flow',
                                 style={'color': "#000000", 'width': '50%'}
                             ),
                             dcc.Dropdown(
                                 id='left_window_plottype_dropdown',
-                                options=[
-                                    {'label': 'Q (charge)', 'value': 'q'},
-                                    {'label': 'Topology', 'value': 'topology'},
-                                    {'label': 'Physics', 'value': 'physics'},
-                                    {'label': 'Particle', 'value': 'particle'},
-                                    {'label': 'Tracklette', 'value': 'tracklette'},
-                                    {'label': 'Track', 'value': 'track'},
-                                    {'label': 'Fragment', 'value': 'fragment'},
-                                    {'label': 'Shower', 'value': 'shower'},
-                                    {'label': 'Blip', 'value': 'blip'},
-                                ],
+                                options=self.flow_plot_options,
                                 value='q',
                                 style={'color': "#000000", 'width': '50%'}
                             ),
@@ -445,6 +465,9 @@ class ArrakisDisplay:
                             value=0.01,  # Default scale
                             marks={i / 10.0: f'{i / 10.0}' for i in range(0, 11)},
                         ),
+                        html.H2(),
+                        html.Label('Show Keypoints'),
+
                     ], style={'width': '50%'}),
                     html.Div([
                         html.H2(),
@@ -485,25 +508,16 @@ class ArrakisDisplay:
                             dcc.Dropdown(
                                 id='right_window_dropdown',
                                 options=[
-                                    {'label': 'TPC', 'value': 'tpc'},
-                                    {'label': 'LArPix/Light', 'value': 'light'},
+                                    {'label': 'FLOW', 'value': 'flow'},
+                                    {'label': 'ARRAKIS', 'value': 'arrakis'},
+                                    {'label': 'BLIP', 'value': 'blip'}
                                 ],
-                                value='tpc',
+                                value='flow',
                                 style={'color': "#000000", 'width': '50%'}
                             ),
                             dcc.Dropdown(
                                 id='right_window_plottype_dropdown',
-                                options=[
-                                    {'label': 'Q (charge)', 'value': 'q'},
-                                    {'label': 'Topology', 'value': 'topology'},
-                                    {'label': 'Physics', 'value': 'physics'},
-                                    {'label': 'Particle', 'value': 'particle'},
-                                    {'label': 'Tracklette', 'value': 'tracklette'},
-                                    {'label': 'Track', 'value': 'track'},
-                                    {'label': 'Fragment', 'value': 'fragment'},
-                                    {'label': 'Shower', 'value': 'shower'},
-                                    {'label': 'Blip', 'value': 'blip'},
-                                ],
+                                options=self.flow_plot_options,
                                 value='q',
                                 style={'color': "#000000", 'width': '50%'}
                             ),
@@ -543,13 +557,19 @@ class ArrakisDisplay:
         with different MiniRun locations.
         """
         @self.app.callback(
-            Output('flow_folder_input', 'value'),
-            Input('standard_flow_dropdown', 'value')
+            [Output('display_status', 'children', allow_duplicate=True),
+             Output('flow_folder_input', 'value')],
+            Input('standard_flow_dropdown', 'value'),
+            prevent_initial_call=True
         )
         def update_flow_folder(
             flow_folder
         ):
-            return flow_folder
+            if flow_folder is not None:
+                print_status = f'Setting flow folder'
+            else:
+                print_status = ''
+            return (print_status, flow_folder)
 
         """
         FLOW, ARRAKIS and BLIP folder and file inputs. These callbacks
@@ -560,8 +580,10 @@ class ArrakisDisplay:
         in the event selector.
         """
         @self.app.callback(
-            Output('flow_dropdown', 'options'),
+            [Output('display_status', 'children', allow_duplicate=True),
+             Output('flow_dropdown', 'options')],
             Input('flow_folder_input', 'value'),
+            prevent_initial_call=True
         )
         def update_flow_folder_files(
             flow_folder
@@ -585,16 +607,20 @@ class ArrakisDisplay:
                     for file in self.flow_files
                 ]
                 return (
+                    f'Found {len(flow_options)} FLOW files',
                     flow_options
                 )
             return (
+                '',
                 []
             )
 
         # Callback to update dropdown options
         @self.app.callback(
-            Output('arrakis_dropdown', 'options'),
+            [Output('display_status', 'children', allow_duplicate=True),
+             Output('arrakis_dropdown', 'options')],
             Input('arrakis_folder_input', 'value'),
+            prevent_initial_call=True,
         )
         def update_arrakis_folder_files(
             arrakis_folder
@@ -618,12 +644,20 @@ class ArrakisDisplay:
                     {'label': file, 'value': file}
                     for file in self.arrakis_files
                 ]
-                return arrakis_options
-            return []
+                return (
+                    f'Found {len(arrakis_options)} ARRAKIS files',
+                    arrakis_options
+                )
+            return (
+                '',
+                []
+            )
 
         @self.app.callback(
-            Output('blip_dropdown', 'options'),
+            [Output('display_status', 'children', allow_duplicate=True),
+             Output('blip_dropdown', 'options')],
             Input('blip_folder_input', 'value'),
+            prevent_initial_call=True,
         )
         def update_blip_folder_files(
             blip_folder
@@ -647,20 +681,45 @@ class ArrakisDisplay:
                     {'label': file, 'value': file}
                     for file in self.blip_files
                 ]
-                return blip_options
-            return []
+                return(
+                    f'Found {len(blip_options)} BLIP files',
+                    blip_options
+                )
+            return (
+                '',
+                []
+            )
 
         @self.app.callback(
-            Output('event_dropdown', 'options'),
-            [Input('flow_dropdown', 'value'), Input('arrakis_dropdown', 'value')],
+            [Output('display_status', 'children', allow_duplicate=True),
+             Output('event_dropdown', 'options')],
+            Input('flow_dropdown', 'value'),
+            prevent_initial_call=True,
         )
-        def update_available_events(flow_file, arrakis_file):
+        def update_available_events(flow_file):
             self.available_events = []
+            display_status = ''
             if flow_file is not None:
                 try:
                     self.flow_file = flow_file
                     with h5py.File(self.flow_folder + flow_file, "r") as flow_file:
                         try:
+                            """Update the TPC objects with the interactions, segments, stacks and trajectories"""
+                            for key in self.flow_truth.keys():
+                                self.flow_truth[key] = flow_file[f'mc_truth/{key}/data'][:]
+                        except Exception:
+                            display_status += 'No truth info in FLOW file.'
+                            for key in self.flow_truth.keys():
+                                self.flow_truth[key] = None
+                        """Send truth info to TPCs"""
+                        self.left_tpc.update_flow_truth(
+                            self.flow_truth
+                        )
+                        self.right_tpc.update_flow_truth(
+                            self.flow_truth
+                        )
+                        try:
+                            """Get event information from FLOW"""                            
                             events = flow_file['charge/events/data']
                             event_id = events['id']
                             nhits = events['nhit']
@@ -678,13 +737,14 @@ class ArrakisDisplay:
                                 event: self.end_indices[jj]
                                 for jj, event in enumerate(self.unique_events)
                             }
+                            display_status += f'Found {len(self.unique_events)} events in FLOW file.'
                         except Exception:
-                            print(f"Issue getting event indices from flow file")
+                            display_status += 'Issue getting event indices from flow file.'
                         for key in self.geometry_info.keys():
                             try:
                                 self.geometry_info[key] = flow_file[f'geometry_info/{key}/data'][:]
                             except Exception:
-                                print(f"Issue with getting {key} from geometry_info")
+                                display_status += f'Issue with getting {key} from geometry_info.'
                         self.left_tpc.set_geometry_info(self.geometry_info)
                         self.right_tpc.set_geometry_info(self.geometry_info)
                         self.left_larpix_light_display.set_geometry_info(self.geometry_info)
@@ -694,16 +754,37 @@ class ArrakisDisplay:
                             for event in self.unique_events
                         ]
                 except Exception:
-                    pass
+                    display_status += 'Issue loading FLOW file.'
+            self.event = None
+            return display_status, self.available_events
+
+        @self.app.callback(
+            Output('display_status', 'children', allow_duplicate=True),
+            Input('arrakis_dropdown', 'value'),
+            prevent_initial_call=True,
+        )
+        def update_arrakis_file(arrakis_file):
+            display_status = ''
             if arrakis_file is not None:
                 try:
                     self.arrakis_file = arrakis_file
-                    with h5py.File(self.arrakis_folder + arrakis_file, "r") as arrakis_file:
-                        pass
                 except Exception:
-                    pass
-            self.event = None
-            return self.available_events
+                    display_status = 'Issue setting arrakis file'
+            return display_status
+        
+        @self.app.callback(
+            Output('display_status', 'children', allow_duplicate=True),
+            Input('blip_dropdown', 'value'),
+            prevent_initial_call=True,
+        )
+        def update_blip_file(blip_file):
+            display_status = ''
+            if blip_file is not None:
+                try:
+                    self.blip_file = blip_file
+                except Exception:
+                    display_status = 'Issue setting blip file'
+            return display_status
 
         @self.app.callback(
             Output('event_dropdown', 'value'),
@@ -737,19 +818,24 @@ class ArrakisDisplay:
                 raise PreventUpdate
             self.event = self.available_events[new_index]['value']
             return self.available_events[new_index]['value']
+
         """
         Left and right window callbacks.  These are associated to the
         dropdowns that select the type of plot to show in the window.
         """
         @self.app.callback(
-            Output("dynamic_left_content", "children"),
+            [Output("dynamic_left_content", "children"),
+             Output("left_window_plottype_dropdown", "options")],
             [Input("left_window_dropdown", "value")]
         )
         def render_left_content(value):
-            if value == "light":
-                return self.left_larpix_light_display.layout
-            elif value == "tpc":
-                return self.left_tpc.layout
+            self.left_tpc.update_datatype(value)
+            if value == "flow":
+                return self.left_tpc.layout, self.flow_plot_options
+            elif value == "arrakis":
+                return self.left_tpc.layout, self.arrakis_plot_options
+            elif value == "blip":
+                return self.left_tpc.layout, self.blip_plot_options
             return html.Div(
                 [
                     html.H1("404: Not found", className="text-danger"),
@@ -760,14 +846,18 @@ class ArrakisDisplay:
             )
 
         @self.app.callback(
-            Output("dynamic_right_content", "children"),
+            [Output("dynamic_right_content", "children"),
+             Output("right_window_plottype_dropdown", "options")],
             [Input("right_window_dropdown", "value")]
         )
         def render_right_content(value):
-            if value == "light":
-                return self.right_larpix_light_display.layout
-            elif value == "tpc":
-                return self.right_tpc.layout
+            self.right_tpc.update_datatype(value)
+            if value == "flow":
+                return self.right_tpc.layout, self.flow_plot_options
+            elif value == "arrakis":
+                return self.right_tpc.layout, self.arrakis_plot_options
+            elif value == "blip":
+                return self.right_tpc.layout, self.blip_plot_options
             return html.Div(
                 [
                     html.H1("404: Not found", className="text-danger"),
@@ -806,19 +896,31 @@ class ArrakisDisplay:
             z = point_data['z']
             Q = point_data['customdata'][1]
             E = point_data['customdata'][2]
-            pdg_id = point_data['customdata'][3]
-            track_id = point_data['customdata'][4]
-            self.track_id = track_id
-            vertex_id = self.trajectories['vertex_id'][track_id]
-            parent_id = self.trajectories['parent_id'][track_id]
-            parent_index = np.where(
-                (self.trajectories['traj_id'] == parent_id) & (self.trajectories['vertex_id'] == vertex_id)
-            )[0][0]
-            start_process = process_type_dict[self.trajectories['start_process'][track_id]]
-            start_subprocess = sub_process_type_dict[self.trajectories['start_subprocess'][track_id]]
-            parent_pdg_id = self.trajectories['pdg_id'][parent_index]
-            parent_start_process = process_type_dict[self.trajectories['start_process'][parent_index]]
-            parent_start_subprocess = sub_process_type_dict[self.trajectories['start_subprocess'][parent_index]]
+            try:
+                pdg_id = point_data['customdata'][3]
+                track_id = point_data['customdata'][4]
+                self.track_id = track_id
+                vertex_id = self.flow_truth['trajectories']['vertex_id'][track_id]
+                parent_id = self.flow_truth['trajectories']['parent_id'][track_id]
+                parent_index = np.where(
+                    (self.flow_truth['trajectories']['traj_id'] == parent_id) & (self.flow_truth['trajectories']['vertex_id'] == vertex_id)
+                )[0][0]
+                start_process = process_type_dict[self.flow_truth['trajectories']['start_process'][track_id]]
+                start_subprocess = sub_process_type_dict[self.flow_truth['trajectories']['start_subprocess'][track_id]]
+                parent_pdg_id = self.flow_truth['trajectories']['pdg_id'][parent_index]
+                parent_start_process = process_type_dict[self.flow_truth['trajectories']['start_process'][parent_index]]
+                parent_start_subprocess = sub_process_type_dict[self.flow_truth['trajectories']['start_subprocess'][parent_index]]
+            except Exception:
+                pdg_id = -1
+                track_id = -1
+                self.track_id = -1
+                vertex_id = -1
+                parent_id = -1
+                start_process = -1
+                start_subprocess = -1
+                parent_pdg_id = -1
+                parent_start_process = -1
+                parent_start_subprocess = -1
 
             return (
                 html.Div([
@@ -839,54 +941,13 @@ class ArrakisDisplay:
                 self.track_id
             )
 
-        # @self.app.callback(
-        #     [Output('bottom_text', 'children'),
-        #      Output('hit_dropdown', 'value'),
-        #      Output('track_id_dropdown', 'value')],
-        #     Input('tpc_plot_right', 'clickData'),
-        #     [State('tpc_plot_right', 'figure')]
-        # )
-        # def display_right_click_data(clickData, tpc_plot):
-        #     if clickData is None:
-        #         raise PreventUpdate
-        #     point_data = clickData['points'][0]
-
-        #     if 'customdata' not in point_data:
-        #         raise PreventUpdate
-
-        #     hit_id = point_data['customdata'][0]
-        #     self.hit = hit_id
-        #     # self.right_tpc.highlight_point(hit_id)
-
-        #     x = point_data['x']
-        #     y = point_data['y']
-        #     z = point_data['z']
-        #     Q = point_data['customdata'][1]
-        #     E = point_data['customdata'][2]
-        #     pdg_id = point_data['customdata'][3]
-        #     track_id = point_data['customdata'][4]
-        #     self.track_id = track_id
-
-        #     return (
-        #         html.Div([
-        #             html.P(f'x: {x:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'y: {y:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'z: {z:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'Q: {Q:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'E: {E:.3f}', style={'margin': '0', 'padding': '0'}),
-        #             html.P(f'pdg_id: {pdg_id}', style={'margin': '0', 'padding': '0'})
-        #         ]),
-        #         self.hit,
-        #         self.track_id
-        #     )
-
         """
         This callback updates the data for each plot type when a new event is loaded.
         The data is extracted from the flow/arrakis/blip files and sent to the different
         TPC Displays.
         """
         @self.app.callback(
-            [Output('display_status', 'children'),
+            [Output('display_status', 'children', allow_duplicate=True),
              Output('tpc_plot_left', 'figure'),
              Output('tpc_plot_right', 'figure'),
              Output('hit_dropdown', 'options'),
@@ -894,148 +955,83 @@ class ArrakisDisplay:
             [Input('event_dropdown', 'value'),
              Input('left_window_plottype_dropdown', 'value'),
              Input('right_window_plottype_dropdown', 'value')],
+            prevent_initial_call=True
         )
         def load_event(event, left_plottype, right_plottype):
-            print_output = ''
+            display_output = ''
             try:
                 self.left_tpc.update_plottype(left_plottype)
                 self.right_tpc.update_plottype(right_plottype)
             except Exception as exception:
-                print_output = f'ERROR: {exception}'
+                display_output += f'Event loading ERROR: {exception}'
             if event is not None:
-                print_output = f"Event: {event} Loaded!"
+                display_output += f"Event: {event} Loaded!"
                 try:
                     if self.flow_file:
                         with h5py.File(self.flow_folder + self.flow_file, "r") as flow_file:
-                            self.interactions = flow_file['mc_truth/interactions/data'][:]
-                            self.segments = flow_file['mc_truth/segments/data'][:]
-                            self.stack = flow_file['mc_truth/stack/data'][:]
-                            self.trajectories = flow_file['mc_truth/trajectories/data'][:]
-                            self.charge = flow_file[f'charge/calib_{self.hit_type}_hits/data'][
+                            self.flow_event['charge'] = flow_file[f'charge/calib_{self.hit_type}_hits/data'][
                                 self.start_indices_map[event]:self.end_indices_map[event]
                             ]
-                            self.available_hits = [ii for ii in range(len(self.charge))]
-                            # charge_events = flow_file["charge/events/data"]["id"]
-
-                            # self.charge_events = flow_file["charge/events/data"][np.where(interactions_events == event)[0]]
-
-                            # """Likewise for light data, we must backtrack through segments"""
-                            # match_light = flow_file['/light/events/data'][:][
-                            #     flow_file['/charge/events/ref/light/events/ref'][np.where(interactions_events == event)[0], 1]
-                            # ]["id"]
-                            # we have to try them all, events may not be time ordered
-                            # self.light = flow_file["light/events/data"][:]
-
-                            # waveforms_all_detectors = flow_file["light/wvfm/data"]["samples"][match_light]
-                            # print(match_light)
-                            # we have now the waveforms for all detectors matched in time to the event
+                            self.available_hits = [ii for ii in range(len(self.flow_event['charge']))]
                         self.left_tpc.update_flow_event(
-                            self.interactions,
-                            self.segments,
-                            self.stack,
-                            self.trajectories,
-                            self.charge,
+                            self.flow_event,
                         )
                         self.right_tpc.update_flow_event(
-                            self.interactions,
-                            self.segments,
-                            self.stack,
-                            self.trajectories,
-                            self.charge,
+                            self.flow_event,
                         )
                         # self.charge_light_display.construct_light_detectors(waveforms_all_detectors)
                         # self.charge_light_display.waveforms = self.charge_light_display.construct_waveforms()
                 except Exception as exception:
-                    print_output = f'ERROR getting flow/arrakis: {exception}'
+                    display_output += f'ERROR getting flow/arrakis: {exception}'
                 try:
                     if self.arrakis_file:
                         with h5py.File(self.arrakis_folder + self.arrakis_file, "r") as arrakis_file:
-                            arrakis_event_ids = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["event_id"]
-                            self.topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["topology"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.physics = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["physics"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.particle = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["particle"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.unique_topology = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["unique_topology"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.vertex = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["vertex"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.tracklette_begin = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["tracklette_begin"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.tracklette_end = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["tracklette_end"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.fragment_begin = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["fragment_begin"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.fragment_end = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["fragment_end"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.shower_begin = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"]["shower_begin"][
-                                self.start_indices_map[event]:self.end_indices_map[event]
-                            ]
-                            self.available_track_ids = np.unique(self.unique_topology)
+                            for key in self.arrakis_event.keys():
+                                try:
+                                    self.arrakis_event[key] = arrakis_file[f"charge/calib_{self.hit_type}_hits/data"][key][
+                                        self.start_indices_map[event]:self.end_indices_map[event]
+                                    ]
+                                except Exception:
+                                    display_output += f'ERROR getting {key} from ARRAKIS event.'
+                                    self.arrakis_event[key] = None
+                            self.available_track_ids = np.unique(self.arrakis_event['unique_topology'])
                         self.left_tpc.update_arrakis_event(
-                            self.topology,
-                            self.physics,
-                            self.particle,
-                            self.unique_topology,
-                            self.vertex,
-                            self.tracklette_begin,
-                            self.tracklette_end,
-                            self.fragment_begin,
-                            self.fragment_end,
-                            self.shower_begin
+                            self.arrakis_event
                         )
                         self.right_tpc.update_arrakis_event(
-                            self.topology,
-                            self.physics,
-                            self.particle,
-                            self.unique_topology,
-                            self.vertex,
-                            self.tracklette_begin,
-                            self.tracklette_end,
-                            self.fragment_begin,
-                            self.fragment_end,
-                            self.shower_begin
+                            self.arrakis_event
                         )
                 except Exception as exception:
-                    print_output = f'ERROR updating tpcs: {exception}'
+                    display_output += f'ERROR updating tpcs: {exception}'
                 try:
                     if self.blip_file:
                         with h5py.File(self.blip_folder + self.blip_file, "r") as blip_file:
-                            blip_event_ids = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["event_id"]
-                            self.topology = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["topology"][
-                                (blip_event_ids == event)
-                            ]
-                            self.physics = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["physics"][
-                                (blip_event_ids == event)
-                            ]
-                            self.particle = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["particle"][
-                                (blip_event_ids == event)
-                            ]
-                            self.unique_topology = blip_file[f"charge/calib_{self.hit_type}_hits/data"]["unique_topology"][
-                                (blip_event_ids == event)
-                            ]
+                            for key in self.blip_event.keys():
+                                try:
+                                    self.blip_event[key] = blip_file[f"charge/calib_{self.hit_type}_hits/data"][key][
+                                        self.start_indices_map[event]:self.end_indices_map[event]
+                                    ]
+                                except Exception:
+                                    display_output += f'ERROR getting {key} from BLIP event'
+                                    self.blip_event[key] = None                        
+                        self.left_tpc.update_blip_event(
+                            self.blip_event
+                        )
+                        self.right_tpc.update_blip_event(
+                            self.blip_event
+                        ) 
                 except Exception as exception:
-                    print_output = f'ERROR: {exception}'
+                    display_output += f'BLIP loading ERROR: {exception}'
             try:
                 self.left_tpc.plot_event()
             except Exception as exception:
-                print_output = f'ERROR: {exception}'
+                display_output += f'Left TPC plotting ERROR: {exception}'
             try:
                 self.right_tpc.plot_event()
             except Exception as exception:
-                print_output = f'ERROR: {exception}'
+                display_output += f'Right TPC plotting ERROR: {exception}'
             return (
-                print_output,
+                display_output,
                 self.left_tpc.tpc,
                 self.right_tpc.tpc,
                 self.available_hits,
