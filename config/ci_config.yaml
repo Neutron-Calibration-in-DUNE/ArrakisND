@@ -1,0 +1,42 @@
+# Test config for ArrakisND
+arrakis_nd:
+  verbose:   true
+  flow_folder:  '/local_data/segmentation_test/beta2b'
+  flow_files:   'all'
+  skip_files: []
+  plugin_locations: []
+  hit_type: 'prompt'
+
+plugins:
+  DaughterPlugin:
+  TrackIDHitMapPlugin:
+  ParentPlugin:
+  AncestorPlugin:
+  SegmentPlugin:
+  TrackPlugin:
+    deuteron_track_threshold: 10
+  DeltaPlugin:
+    delta_size_threshold: 100
+  MichelPlugin:
+  FragmentPlugin:
+    compton_blip_threshold: 50
+    conversion_blip_threshold: 50
+    other_blip_threshold: 50
+  PhotonPlugin:
+  IonPlugin:
+    deuteron_track_threshold: 10
+  NeutronPlugin:
+  NeutrinoPlugin:
+  ShowerPlugin:
+  ParticlePlugin:
+  ConstraintPlugin:
+    segment_influence_cut: 5
+    constraint_mode: "min_distance"
+    replace_undefined: 2
+  HeatMapPlugin:
+    vertex_variance: 1.0
+    tracklette_begin_variance: 1.0
+    tracklette_end_variance: 1.0
+    fragment_begin_variance: 1.0
+    fragment_end_variance: 1.0
+    shower_begin_variance: 1.0

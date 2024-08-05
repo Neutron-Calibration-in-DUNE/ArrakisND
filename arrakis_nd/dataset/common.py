@@ -4,6 +4,9 @@ from enum import Enum
 
 
 class ProcessType(Enum):
+    """
+    Geant4 process identifications.
+    """
     Undefined = -1
     NotDefined = 0
     Transportation = 1
@@ -21,6 +24,9 @@ class ProcessType(Enum):
 
 
 class SubProcessType(Enum):
+    """
+    Geant4 subprocess identifications.
+    """
     Undefined = -1
     Primary = 0
     CoulombScattering = 1
@@ -32,6 +38,7 @@ class SubProcessType(Enum):
     AnnihilationToHadrons = 7
     NuclearStopping = 8
     MultipleScattering = 9
+    Msc = 10
     Rayleigh = 11
     PhotoElectricEffect = 12
     ComptonScattering = 13
@@ -99,283 +106,351 @@ class SubProcessType(Enum):
     Meesungnoensolid2002eSolvation = 11005
 
 
-class ParticleLabel(Enum):
-    Undefined = -1
-    Noise = 0
-    Electron = 11
-    Positron = -11
-    ElectronNeutrino = 12
-    AntiElectronNeutrino = -12
-    Muon = 13
-    AntiMuon = -13
-    MuonNeutrino = 14
-    AntiMuonNeutrino = -14
-    Tauon = 15
-    AntiTauon = -15
-    TauonNeutrino = 16
-    AntiTauonNeutrino = -16
-    Gamma = 22
-    Pion0 = 111
-    PionPlus = 211
-    PionMinus = -211
-    Kaon0 = 311
-    KaonPlus = 321
-    KaonMinus = -321
-    Neutron = 2112
-    AntiNeutron = -2112
-    Proton = 2212
-    AntiProton = -2212
-    Deuteron = 1000010020
-    Triton = 1000010030
-    Alpha = 1000020040
-    Sulfur32 = 1000160320
-    Sulfur33 = 1000160330
-    Sulfur34 = 1000160340
-    Sulfur35 = 1000160350
-    Sulfur36 = 1000160360
-    Chlorine35 = 1000170350
-    Chlorine36 = 1000170360
-    Chlorine37 = 1000170370
-    Chlorine38 = 1000170380
-    Chlorine39 = 1000170390
-    Chlorine40 = 1000170400
-    Argon36 = 1000180360
-    Argon37 = 1000180370
-    Argon38 = 1000180380
-    Argon39 = 1000180390
-    Argon40 = 1000180400
-    Argon41 = 1000180410
-    Ion = 1000000000
-
-
-class TopologyLabel(Enum):
+class Topology(Enum):
     """
-    High-level description of the shape of certain
-    event types.
+    Topological decsriptions of energy
+    deposits.
     """
-
     Undefined = -1
-    Noise = 0
-    Blip = 1
-    Track = 2
-    Shower = 3
+    Track = 0
+    Shower = 1
+    Blip = 2
 
 
-class PhysicsMicroLabel(Enum):
+class Physics(Enum):
     """
     micro-level descriptions of topological types.
     This further breaks down the blip/track/shower
     topology labels into micro-level physics.
     """
-
     Undefined = -1
-    Noise = 0
-    MIPIonization = 1
-    HIPIonization = 2
-    ElectronIonization = 3
-    Bremsstrahlung = 4
-    Annihilation = 5
-    PhotoElectric = 6
-    GammaCompton = 7
-    GammaConversion = 8
-    HadronElastic = 9
-    HadronInelastic = 10
-
-
-class PhysicsMesoLabel(Enum):
-    """
-    meso-level descriptions of topological types.
-    """
-
-    Undefined = -1
-    Noise = 0
-    MIP = 1
-    HIP = 2
+    MIP = 0
+    HIP = 1
+    ElectronIonization = 2
     DeltaElectron = 3
     MichelElectron = 4
-    ElectronShower = 5
-    PositronShower = 6
-    PhotonShower = 7
-    LowEnergyIonization = 8
-    NeutronCaptureGamma474 = 9
-    NeutronCaptureGamma336 = 10
-    NeutronCaptureGamma256 = 11
-    NeutronCaptureGamma118 = 12
-    NeutronCaptureGamma083 = 13
-    NeutronCaptureGamma051 = 14
-    NeutronCaptureGamma016 = 15
-    NeutronCaptureGammaOther = 16
-    Pi0Decay = 17
-    AlphaDecay = 18
-    BetaDecay = 19
-    GammaDecay = 20
-    NuclearRecoil = 21
-    ElectronRecoil = 22
+    GammaCompton = 5
+    GammaConversion = 6
+    NuclearRecoil = 7
+    ElectronRecoil = 8
 
 
-class PhysicsMacroLabel(Enum):
+class Tracklette(Enum):
     """
-    macro-level descriptions of topological types
-    """
+    Macro-level descriptions of tracklette types
 
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    MIP = 0
+    HIP = 1
+    Delta = 2
+    Michel = 3
+
+
+class Track(Enum):
+    """
+    Macro-level descriptions of track types
+
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    MIP = 0
+    HIP = 1
+    Delta = 2
+    Michel = 3
+
+
+class Fragment(Enum):
+    """
+    Macro-level descriptions of fragment types
+
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    GammaCompton = 0
+    GammaConversion = 1
+    PairProductionByCharge = 2
+    Bremsstrahlung = 3
+    PhotoelectricEffect = 4
+    ElectronIonization = 5
+    Annihilation = 6
+
+
+class Shower(Enum):
+    """
+    Macro-level descriptions of shower types
+    Args:
+        Enum (_type_): _description_
+    """
+    Undefined = -1
+    Electromagnetic = 0
+    Pion0Decay = 1
+    PiPlusDecay = 2
+    PiMinusDecay = 3
+    Kaon0Decay = 4
+    KaonShortDecay = 5
+    KaonLongDecay = 6
+    KaonPlusDecay = 7
+    KaonMinusDecay = 8
+    D0Decay = 9
+    DPlusDecay = 10
+    DMinusDecay = 11
+    LambdaDecay = 12
+    Sigma0Decay = 13
+    SigmaPlusDecay = 14
+    SigmaMinusDecay = 15
+
+
+class Blip(Enum):
+    """
+    Macro-level descriptions of blip types.
+    """
+    Undefined = -1
+    GammaCompton = 0
+    GammaConversion = 1
+    PairProductionByCharge = 2
+    Bremsstrahlung = 3
+    PhotoelectricEffect = 4
+    ElectronIonization = 5
+    Annihilation = 6
+    NeutronCaptureGamma474 = 7
+    NeutronCaptureGamma336 = 8
+    NeutronCaptureGamma256 = 9
+    NeutronCaptureGamma118 = 10
+    NeutronCaptureGamma083 = 11
+    NeutronCaptureGamma051 = 12
+    NeutronCaptureGamma016 = 13
+    NeutronCaptureGammaOther = 14
+    AlphaDecay = 15
+    BetaDecay = 16
+    GammaDecay = 17
+    NuclearRecoil = 18
+    ElectronRecoil = 19
+
+
+class Interaction(Enum):
+    """
+    Macro-level descriptions of final state interaction types
+    Args:
+        Enum (_type_): _description_
+    """
     Undefined = -1
     Noise = 0
 
-    # Neutrino interactions
-    CCNue = 1
-    CCNuMu = 2
-    NC = 3
 
-    Cosmics = 4
-
-    # Radiological interactions
-    Ar39 = 5
-    Ar42 = 6
-    K42 = 7
-    Kr85 = 8
-    Rn222 = 9
-    Po218a = 10
-    Po218b = 11
-    At218a = 12
-    At218b = 13
-    Rn218 = 14
-    Pb214 = 15
-    Bi214a = 16
-    Bi214b = 17
-    Po214 = 18
-    Tl210 = 19
-    Pb210a = 20
-    Pb210b = 21
-    Bi210a = 22
-    Bi210b = 23
-    Po210 = 24
+class Neutrino(Enum):
+    """
+    Macro-level descriptions of neutrino types.
+    """
+    Undefined = -1
+    NCElectronNeutrino = 0
+    CCElectronNeutrino = 1
+    NCAntiElectronNeutrino = 2
+    CCAntiElectronNeutrino = 3
+    NCMuonNeutrino = 4
+    CCMuonNeutrino = 5
+    NCAntiMuonNeutrino = 6
+    CCAntiMuonNeutrino = 7
+    NCTauonNeutrino = 8
+    CCTauonNeutrino = 9
+    NCAntiTauonNeutrino = 10
+    CCAntiTauonNeutrino = 11
 
 
-classification_labels = {
-    "particle": {
-        -1: "undefined",
-        0: "noise",
-        11: "electron",
-        -11: "positron",
-        12: "electron_neutrino",
-        -12: "anti-electron_neutrino",
-        13: "muon",
-        -13: "anti-muon",
-        14: "muon_neutrino",
-        -14: "anti-muon_neutrino",
-        15: "tauon",
-        -15: "anti-tauon",
-        16: "tauon_neutrino",
-        -16: "anti-tauon_neutrino",
-        22: "gamma",
-        111: "pion0",
-        211: "pion_plus",
-        -211: "pion_minus",
-        311: "kaon0",
-        321: "kaon_plus",
-        -321: "kaon_minus",
-        2112: "neutron",
-        -2112: "anti-neutron",
-        2212: "proton",
-        -2212: "anti-proton",
-        1000010020: "deuteron",
-        1000010030: "triton",
-        1000020040: "alpha",
-        1000160330: "sulfur_33",
-        1000160340: "sulfur_34",
-        1000160350: "sulfur_35",
-        1000160360: "sulfur_36",
-        1000170350: "chlorine_35",
-        1000170360: "chlorine_36",
-        1000170370: "chlorine_37",
-        1000170380: "chlorine_38",
-        1000170390: "chlorine_39",
-        1000170400: "chlorine_40",
-        1000180360: "argon_36",
-        1000180370: "argon_37",
-        1000180380: "argon_38",
-        1000180390: "argon_39",
-        1000180400: "argon_40",
-        1000180410: "argon_41",
-        1000000000: "ion",
-    },
-    "topology": {
-        -1: "undefined",
-        0: "noise",
-        1: "blip",
-        2: "track",
-        3: "shower",
-    },
-    "physics_micro": {
-        -1: "undefined",
-        0: "noise",
-        1: "mip_ionization",
-        2: "hip_ionization",
-        3: "electron_ionization",
-        4: "bremsstrahlung",
-        5: "annihilation",
-        6: "photo_electric",
-        7: "gamma_compton",
-        8: "gamma_conversion",
-        9: "hadron_elastic",
-        10: "hadron_inelastic",
-    },
-    "physics_meso": {
-        -1: "undefined",
-        0: "noise",
-        1: "mip",
-        2: "hip",
-        3: "delta_electron",
-        4: "michel_electron",
-        5: "electron_shower",
-        6: "positron_shower",
-        7: "photon_shower",
-        8: "low_energy_ionization",
-        9: "neutron_capture_gamma_474",
-        10: "neutron_capture_gamma_336",
-        11: "neutron_capture_gamma_256",
-        12: "neutron_capture_gamma_118",
-        13: "neutron_capture_gamma_083",
-        14: "neutron_capture_gamma_051",
-        15: "neutron_capture_gamma_016",
-        16: "neutron_capture_gamma_other",
-        17: "pi0_decay",
-        18: "alpha_decay",
-        19: "beta_decay",
-        20: "gamma_decay",
-        21: "nuclear_recoil",
-        22: "electron_recoil"
-    },
-    "physics_macro": {
-        -1: "undefined",
-        0: "noise",
-        1: "cc_nu_e",
-        2: "cc_nu_mu",
-        3: "nc",
-        4: "cosmics",
-        5: "ar39",
-        6: "ar42",
-        7: "k42",
-        8: "kr85",
-        9: "rn222",
-        10: "po218a",
-        11: "po218b",
-        12: "at218a",
-        13: "at218b",
-        14: "rn218",
-        15: "pb214",
-        16: "bi214a",
-        17: "bi214b",
-        18: "po214",
-        19: "tl210",
-        20: "pb210a",
-        21: "pb210b",
-        22: "bi210a",
-        23: "bi210b",
-        24: "po210",
-    },
-    "hit": {
-        0: "induction",
-        1: "hit",
-    },
+process_type_dict = {
+    -1: 'undefined',
+    0: 'not_defined',
+    1: 'transportation',
+    2: 'electromagnetic',
+    3: 'optical',
+    4: 'hadronic',
+    5: 'photo_lepton_hadron',
+    6: 'decay',
+    7: 'general',
+    8: 'parameterization',
+    9: 'user_defined',
+    10: 'parallel',
+    11: 'phonon',
+    12: 'ucn'
+}
+
+sub_process_type_dict = {
+    -1: 'undefined',
+    0: 'primary',
+    1: 'coulomb_scattering',
+    2: 'ionization',
+    3: 'bremsstrahlung',
+    4: 'pair_prod_by_charge',
+    5: 'annihilation',
+    6: 'annihilation_to_mu_mu',
+    7: 'annihilation_to_hadrons',
+    8: 'nuclear_stopping',
+    9: 'multiple_scattering',
+    10: 'msc',
+    11: 'rayleigh',
+    12: 'photo_electric_effect',
+    13: 'compton_scattering',
+    14: 'gamma_conversion',
+    15: 'gamma_conversion_to_mu_mu',
+    21: 'cerenkov',
+    22: 'scintillation',
+    23: 'synchrotron_radiation',
+    24: 'transition_radiation',
+    31: 'optical_absorption',
+    32: 'optical_boundary',
+    33: 'optical_rayleigh',
+    34: 'optical_wls',
+    35: 'optical_mie_h_g',
+    41: 'ucn_loss',
+    42: 'ucn_absorption',
+    43: 'ucn_boundary',
+    44: 'ucn_multi_scattering',
+    51: 'low_energy_elastic',
+    52: 'low_energy_excitation',
+    53: 'low_energy_ionization',
+    54: 'low_energy_vibrational_excitation',
+    55: 'low_energy_attachment',
+    56: 'low_energy_charge_decrease',
+    57: 'low_energy_charge_increase',
+    58: 'low_energy_electron_solvation',
+    59: 'low_energy_molecular_decay',
+    60: 'low_energy_transportation',
+    61: 'low_energy_brownian_transportation',
+    62: 'low_energy_double_ionization',
+    63: 'low_energy_double_cap',
+    64: 'low_energy_ioni_transfer',
+    65: 'low_energy_static_mol',
+    66: 'low_energy_scavenger',
+    91: 'transportation',
+    92: 'coupled_transportation',
+    111: 'hadron_elastic',
+    116: 'neutron_general',
+    121: 'hadron_inelastic',
+    131: 'hadron_capture',
+    132: 'mu_atomic_capture',
+    141: 'hadron_fission',
+    151: 'hadron_capture_at_rest',
+    152: 'lepton_capture_at_rest',
+    161: 'charge_exchange',
+    165: 'nu_oscillation',
+    166: 'nu_electron',
+    167: 'nu_nucleus',
+    201: 'decay',
+    210: 'decay_radioactive',
+    211: 'decay_unknown',
+    221: 'decay_mu_atom',
+    231: 'decay_external',
+    301: 'fast_sim_manager_process',
+    310: 'em_dissociation',
+    401: 'step_limiter',
+    402: 'user_special_cuts',
+    403: 'neutron_killer',
+    491: 'parallel_world',
+    11000: 'dna_unknown_model',
+    11001: 'ritchie1994e_solvation',
+    11002: 'terrisol1990e_solvation',
+    11003: 'meesungnoen2002e_solvation',
+    11004: 'kreipl2009e_solvation',
+    11005: 'meesungnoen_solid2002e_solvation'
+}
+
+reverse_process_type_dict = {
+    'undefined': -1,
+    'not_defined': 0,
+    'transportation': 1,
+    'electromagnetic': 2,
+    'optical': 3,
+    'hadronic': 4,
+    'photo_lepton_hadron': 5,
+    'decay': 6,
+    'general': 7,
+    'parameterization': 8,
+    'user_defined': 9,
+    'parallel': 10,
+    'phonon': 11,
+    'ucn': 12
+}
+
+reverse_sub_process_type_dict = {
+    'undefined': -1,
+    'primary': 0,
+    'coulomb_scattering': 1,
+    'ionization': 2,
+    'bremsstrahlung': 3,
+    'pair_prod_by_charge': 4,
+    'annihilation': 5,
+    'annihilation_to_mu_mu': 6,
+    'annihilation_to_hadrons': 7,
+    'nuclear_stopping': 8,
+    'multiple_scattering': 9,
+    'msc': 10,
+    'rayleigh': 11,
+    'photo_electric_effect': 12,
+    'compton_scattering': 13,
+    'gamma_conversion': 14,
+    'gamma_conversion_to_mu_mu': 15,
+    'cerenkov': 21,
+    'scintillation': 22,
+    'synchrotron_radiation': 23,
+    'transition_radiation': 24,
+    'optical_absorption': 31,
+    'optical_boundary': 32,
+    'optical_rayleigh': 33,
+    'optical_wls': 34,
+    'optical_mie_h_g': 35,
+    'ucn_loss': 41,
+    'ucn_absorption': 42,
+    'ucn_boundary': 43,
+    'ucn_multi_scattering': 44,
+    'low_energy_elastic': 51,
+    'low_energy_excitation': 52,
+    'low_energy_ionization': 53,
+    'low_energy_vibrational_excitation': 54,
+    'low_energy_attachment': 55,
+    'low_energy_charge_decrease': 56,
+    'low_energy_charge_increase': 57,
+    'low_energy_electron_solvation': 58,
+    'low_energy_molecular_decay': 59,
+    'low_energy_transportation': 60,
+    'low_energy_brownian_transportation': 61,
+    'low_energy_double_ionization': 62,
+    'low_energy_double_cap': 63,
+    'low_energy_ioni_transfer': 64,
+    'low_energy_static_mol': 65,
+    'low_energy_scavenger': 66,
+    'transportation': 91,
+    'coupled_transportation': 92,
+    'hadron_elastic': 111,
+    'neutron_general': 116,
+    'hadron_inelastic': 121,
+    'hadron_capture': 131,
+    'mu_atomic_capture': 132,
+    'hadron_fission': 141,
+    'hadron_capture_at_rest': 151,
+    'lepton_capture_at_rest': 152,
+    'charge_exchange': 161,
+    'nu_oscillation': 165,
+    'nu_electron': 166,
+    'nu_nucleus': 167,
+    'decay': 201,
+    'decay_radioactive': 210,
+    'decay_unknown': 211,
+    'decay_mu_atom': 221,
+    'decay_external': 231,
+    'fast_sim_manager_process': 301,
+    'em_dissociation': 310,
+    'step_limiter': 401,
+    'user_special_cuts': 402,
+    'neutron_killer': 403,
+    'parallel_world': 491,
+    'dna_unknown_model': 11000,
+    'ritchie1994e_solvation': 11001,
+    'terrisol1990e_solvation': 11002,
+    'meesungnoen2002e_solvation': 11003,
+    'kreipl2009e_solvation': 11004,
+    'meesungnoen_solid2002e_solvation': 11005
 }
