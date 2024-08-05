@@ -693,7 +693,11 @@ class Arrakis:
                 ('fragment_end', 'i4'),
                 ('shower_begin', 'i4'),
                 ('vertex_heat_map', 'f4'),
-                ('end_point_heat_map', 'f4'),
+                ('tracklette_begin_heat_map', 'f4'),
+                ('tracklette_end_heat_map', 'f4'),
+                ('fragment_begin_heat_map', 'f4'),
+                ('fragment_end_heat_map', 'f4'),
+                ('shower_begin_heat_map', 'f4'),
             ])
 
             new_charge_data = np.full(num_charge, -1, dtype=new_charge_data_type)
@@ -704,7 +708,11 @@ class Arrakis:
             new_charge_data['fragment_end'][:] = 0
             new_charge_data['shower_begin'][:] = 0
             new_charge_data['vertex_heat_map'][:] = 0
-            new_charge_data['end_point_heat_map'][:] = 0
+            new_charge_data['tracklette_begin_heat_map'][:] = 0
+            new_charge_data['tracklette_end_heat_map'][:] = 0
+            new_charge_data['fragment_begin_heat_map'][:] = 0
+            new_charge_data['fragment_end_heat_map'][:] = 0
+            new_charge_data['shower_begin_heat_map'][:] = 0
 
             if charge_name in arrakis_file:
                 del arrakis_file[charge_name]

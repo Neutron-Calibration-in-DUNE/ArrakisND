@@ -604,7 +604,7 @@ class TPCDisplay:
             return self.plot_arrakis_topology(marker_size)
         else:
             return self.plot_blip_topology(marker_size)
-    
+
     def plot_arrakis_topology(
         self,
         marker_size,

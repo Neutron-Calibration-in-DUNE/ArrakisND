@@ -76,7 +76,6 @@ class ConstraintPlugin(Plugin):
     ):
         """
         """
-        charge = flow_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
         arrakis_charge = arrakis_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
         arrakis_segment_charge = arrakis_file[
             f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'
@@ -97,10 +96,6 @@ class ConstraintPlugin(Plugin):
         trajectories_ancestor_traj_ids = event_products['ancestor_traj_id_map']
         trajectories_ancestor_pdg_ids = event_products['ancestor_pdg_id_map']
         trajectories_ancestor_levels = event_products['ancestor_level_map']
-
-        charge_x = charge['x']
-        charge_y = charge['y']
-        charge_z = charge['z']
 
         segments_traj_ids = segments['traj_id']
         segments_vertex_ids = segments['vertex_id']
@@ -140,6 +135,7 @@ class ConstraintPlugin(Plugin):
             segment_fragment_begin = segments_fragment_begin[ii]
             segment_fragment_end = segments_fragment_end[ii]
             segment_shower_begin = segments_shower_begin[ii]
+
             """Make a cut on segment_influence distance"""
             """
             We want to limit the influence of segments to labeling by how far away they are
@@ -199,7 +195,8 @@ class ConstraintPlugin(Plugin):
                 traj_index = np.where(
                     (trajectories_traj_ids == traj_id) &
                     (trajectories_vertex_ids == vertex_id)
-                )
+                )[0][0]
+                arrakis_charge['unique_topology'][ii] = traj_index
                 parent_id = trajectories_parent_ids[traj_index]
                 pdg_id = trajectories_pdg_ids[traj_index]
                 parent_pdg_id = trajectories_parent_pdg_ids[traj_index]
@@ -213,7 +210,7 @@ class ConstraintPlugin(Plugin):
                 parent_index = np.where(
                     (trajectories_traj_ids == parent_id) &
                     (trajectories_vertex_ids == vertex_id)
-                )
+                )[0][0]
                 if parent_id != -1:
                     parent_start_process = trajectories_start_process[parent_index]
                     parent_start_subprocess = trajectories_start_subprocess[parent_index]
@@ -248,34 +245,6 @@ class ConstraintPlugin(Plugin):
 
                 """Add the undefined data to the event products"""
                 event_products['undefined'].append(undefined_data)
-
-        """Generate heat map for vertices and end_points"""
-        charge_points = np.array([
-            charge_x,
-            charge_y,
-            charge_z
-        ]).T
-        vertex_indices = np.where(
-            (arrakis_charge['vertex'] == 1)
-        )[0]
-        end_point_indices = np.where(
-            (arrakis_charge['tracklette_begin'] == 1) |
-            (arrakis_charge['tracklette_end'] == 1) |
-            (arrakis_charge['fragment_begin'] == 1) |
-            (arrakis_charge['fragment_end'] == 1)
-        )[0]
-        for jj, index in enumerate(vertex_indices):
-            distances = np.sum((charge_points - charge_points[index]) ** 2, axis=1)
-            arrakis_charge['vertex_heat_map'] += np.exp(-distances / (4))
-        if len(vertex_indices) > 0:
-            if np.max(arrakis_charge['vertex_heat_map']) > 0:
-                arrakis_charge['vertex_heat_map'] = arrakis_charge['vertex_heat_map'] / np.max(arrakis_charge['vertex_heat_map'])
-        for jj, index in enumerate(end_point_indices):
-            distances = np.sum((charge_points - charge_points[index]) ** 2, axis=1)
-            arrakis_charge['end_point_heat_map'] += np.exp(-distances / (4))
-        if len(end_point_indices) > 0:
-            if np.max(arrakis_charge['end_point_heat_map']) > 0:
-                arrakis_charge['end_point_heat_map'] = arrakis_charge['end_point_heat_map'] / np.max(arrakis_charge['end_point_heat_map'])
 
         """Write changes to arrakis_file"""
         arrakis_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']] = arrakis_charge

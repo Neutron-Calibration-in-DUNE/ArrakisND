@@ -54,6 +54,10 @@ class TrackPlugin(Plugin):
             'track_id_hit_t0_map'
         ]
         self.output_products = ['tracklette', 'track']
+        
+        if "deuteron_track_threshold" not in self.config:
+            self.config["deuteron_track_threshold"] = 10
+        self.deuteron_track_threshold = self.config["deuteron_track_threshold"]
 
         self.mip_labels = {
             'topology': Topology.Track.value,
@@ -102,7 +106,10 @@ class TrackPlugin(Plugin):
             (abs(trajectories_pdg_ids) == 15) |
             (abs(trajectories_pdg_ids) == 211) |
             (abs(trajectories_pdg_ids) == 321) |
-            (abs(trajectories_pdg_ids) == 2212)
+            (abs(trajectories_pdg_ids) == 2212) |
+            (abs(trajectories_pdg_ids) == 3112) |
+            (abs(trajectories_pdg_ids) == 3222) |
+            (abs(trajectories_pdg_ids) == 1000010020)
         )
 
         """Iterate over the individual (particle_id, vertex_id, traj_index)"""
@@ -116,6 +123,13 @@ class TrackPlugin(Plugin):
 
             """Check if mip has no hits, go to the next particle"""
             if not any(particle_hits):
+                continue
+
+            """Check if deuteron with a certain number of hits"""
+            if (
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 1000010020) &
+                (len(particle_hits) < self.deuteron_track_threshold)
+            ):
                 continue
 
             particle_segments = track_id_hit_segment_map[(particle_id, vertex_id)]
@@ -134,7 +148,10 @@ class TrackPlugin(Plugin):
             if (
                 (abs(trajectories_pdg_ids[particle_mask][ii]) == 2212) |
                 (abs(trajectories_pdg_ids[particle_mask][ii]) == 211) |
-                (abs(trajectories_pdg_ids[particle_mask][ii]) == 321)
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 321) |
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 3112) |
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 3222) |
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 1000010020)
             ):
                 track_type = Track.HIP.value
                 for label, value in self.hip_labels.items():

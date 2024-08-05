@@ -289,7 +289,7 @@ class ArrakisDisplay:
 
                 # Standard FLOW folder selection dropdown
                 html.Hr(style={'border': '3px solid #ffffff', 'height': '0px'}),
-                html.P("🔍 FLOW/ARRAKIS Folders & Files "),
+                html.P("🔍 FLOW Folders & Files "),
                 dcc.Dropdown(
                     id='standard_flow_dropdown',
                     options=self.standard_flow_folders,
@@ -566,7 +566,7 @@ class ArrakisDisplay:
             flow_folder
         ):
             if flow_folder is not None:
-                print_status = f'Setting flow folder'
+                print_status = 'Setting flow folder'
             else:
                 print_status = ''
             return (print_status, flow_folder)

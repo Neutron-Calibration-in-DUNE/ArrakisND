@@ -107,7 +107,9 @@ class DeltaPlugin(Plugin):
                 (abs(parent_pdg_ids) == 15) |
                 (abs(parent_pdg_ids) == 211) |
                 (abs(parent_pdg_ids) == 321) |
-                (abs(parent_pdg_ids) == 2212)
+                (abs(parent_pdg_ids) == 2212) |
+                (abs(parent_pdg_ids) == 3112) |
+                (abs(parent_pdg_ids) == 3222)
             ) &
             (
                 (abs(trajectories_start_process) == ProcessType.Electromagnetic.value) &
@@ -187,7 +189,6 @@ class DeltaPlugin(Plugin):
                 particle_hits[closest_end_index],
                 particle_segments[closest_end_index]
             )
-
             """Add delta vertex"""
             if (
                 (len(particle_hits) >= self.delta_size_threshold) &
@@ -200,7 +201,13 @@ class DeltaPlugin(Plugin):
                 for label, value in self.delta_labels.items():
                     arrakis_charge[label][particle_hit_segments] = value
             else:
-                if abs(parent_pdg_ids[particle_mask][ii]) == 2212:
+                if (
+                    (abs(parent_pdg_ids[particle_mask][ii]) == 2212) |
+                    (abs(parent_pdg_ids[particle_mask][ii]) == 211) |
+                    (abs(parent_pdg_ids[particle_mask][ii]) == 321) |
+                    (abs(parent_pdg_ids[particle_mask][ii]) == 3112) |
+                    (abs(parent_pdg_ids[particle_mask][ii]) == 3222)
+                ):
                     """Iterate over hip labels"""
                     for label, value in self.hip_labels.items():
                         arrakis_charge[label][particle_hit_segments] = value

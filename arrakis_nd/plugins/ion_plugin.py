@@ -38,6 +38,10 @@ class IonPlugin(Plugin):
         ]
         self.output_products = ['blip']
 
+        if "deuteron_track_threshold" not in self.config:
+            self.config["deuteron_track_threshold"] = 10
+        self.deuteron_track_threshold = self.config["deuteron_track_threshold"]
+
         self.ion_labels = {
             'topology': Topology.Blip.value,
             'physics': Physics.ElectronRecoil.value
@@ -90,8 +94,15 @@ class IonPlugin(Plugin):
             """Get indices in charge_segments arrays"""
             particle_hits = track_id_hit_map[(particle_id, vertex_id)]
 
-            """Check if mip has no hits, go to the next particle"""
+            """Check if ion has no hits, go to the next particle"""
             if not any(particle_hits):
+                continue
+
+            """Check if deuteron with a certain number of hits"""
+            if (
+                (abs(trajectories_pdg_ids[particle_mask][ii]) == 1000010020) &
+                (len(particle_hits) >= self.deuteron_track_threshold)
+            ):
                 continue
 
             particle_segments = track_id_hit_segment_map[(particle_id, vertex_id)]

@@ -175,7 +175,7 @@ class MichelPlugin(Plugin):
 
             if closest_start_index != closest_end_index:
                 """Add delta/michel vertex"""
-                arrakis_charge['vertex'][particle_start_index] = 1
+                # arrakis_charge['vertex'][particle_start_index] = 1
                 arrakis_charge['tracklette_end'][particle_end_index] = 1
 
             """Iterate over standard labels"""
