@@ -2,6 +2,7 @@
 """
 import h5py
 import numpy as np
+from sklearn.cluster import DBSCAN
 
 from arrakis_nd.utils.utils import profiler
 from arrakis_nd.plugins.plugin import Plugin
@@ -80,6 +81,7 @@ class ConstraintPlugin(Plugin):
         arrakis_segment_charge = arrakis_file[
             f'charge_segment/calib_{self.meta["hit_type"]}_hits/data'
         ][event_indices['charge']]
+        charge = flow_file[f'charge/calib_{self.meta["hit_type"]}_hits/data'][event_indices['charge']]
         charge_back_track = flow_file[f'mc_truth/calib_{self.meta["hit_type"]}_hit_backtrack/data'][event_indices['charge']]
         trajectories = flow_file['mc_truth/trajectories/data'][event_indices['trajectories']]
         segments = flow_file['mc_truth/segments/data'][event_indices['segments']]
@@ -96,6 +98,10 @@ class ConstraintPlugin(Plugin):
         trajectories_ancestor_traj_ids = event_products['ancestor_traj_id_map']
         trajectories_ancestor_pdg_ids = event_products['ancestor_pdg_id_map']
         trajectories_ancestor_levels = event_products['ancestor_level_map']
+
+        charge_x = charge['x']
+        charge_y = charge['y']
+        charge_z = charge['z']
 
         segments_traj_ids = segments['traj_id']
         segments_vertex_ids = segments['vertex_id']
@@ -119,6 +125,14 @@ class ConstraintPlugin(Plugin):
         charge_segment_fraction = charge_back_track['fraction']
         charge_segment_fraction_mask = (charge_segment_fraction == 0)
         charge_segment_ids[charge_segment_fraction_mask] = -1
+
+        charge_positions = np.vstack((
+            charge_x, charge_y, charge_z
+        )).T
+
+        """Do DBSCAN to find blip thresholds"""
+        charge_clustering = DBSCAN(eps=2, min_samples=10).fit(charge_positions)
+        charge_clustering_labels = charge_clustering.labels_
 
         """Iterate over the individual (hits)"""
         for ii, particle in enumerate(segments_particle):
@@ -170,6 +184,8 @@ class ConstraintPlugin(Plugin):
 
             arrakis_charge['event_id'][ii] = segment_event
             arrakis_charge['topology'][ii] = segment_topology[constraint_mask]
+            if charge_clustering_labels[ii] == -1:
+                arrakis_charge['topology'][ii] = 2
             arrakis_charge['particle'][ii] = segment_particle[constraint_mask]
             arrakis_charge['physics'][ii] = segment_physics[constraint_mask]
             arrakis_charge['unique_topology'][ii] = segment_unique_topology[constraint_mask]
